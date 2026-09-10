@@ -14,7 +14,11 @@ conda run --no-capture-output -n curve python exp1/run_exp1.py
 
 CLW 的 U 初始为 identity，epoch 内固定；只在 clip_and_noise_gradients 后、optimizer.step 前读取 p.grad。EMA beta=0.99，首轮末固定 reference scale；rho=0.1，以谱范数整体缩放 R 后作 matrix exponential，并按左 G/右 A 顺序更新。EMA 和矩阵指数运算使用 float64，U 转回模型 dtype；没有 U 标量归一化或 DP noise variance subtraction。每轮更新后清零 EMA。
 
-Oracle 固定 MNIST train 前 1024 个样本，分 16 样本小批计算 clean per-sample gradients。在每 epoch 训练结束后、CLW 更新前，以当前模型和该轮实际使用的 U 测量不中心化二阶矩；不 clipping、不加 noise。矩阵累积/eigensolver 用 float64；trace normalization 中样本数量相消。W_kron 不构造 Kronecker product。W 的平方根只截去浮点舍入引起的负值。条件数不加 damping；最小特征值 <= dimension * float64_eps * 最大特征值时记录 +inf（数值秩亏），图中注明，CSV 保留。尤其 ReLU 的死特征可能使 fc1/fc2 条件数为无穷。
+主 whitening metric 基于真实 MNIST diagnostic subset 上的 private-oracle KFAC A/G factors，固定取 MNIST train 前 2048 个样本，diagnostic batch size=16。每 epoch 训练结束后、CLW controller.update() 前，使用当前模型通过现有 KFACRecorder + compute_covariances 计算各层 A/G。使用 sum cross-entropy 得到不受 batch size 缩放的 backprops；激活/backprops 转 float64 后计算协方差，按 batch 样本数加权平均。oracle 显式传入 eps=0，不加入 covariance ridge 或 damping；Synthetic 的既有 eps/damping 和 synthetic batch 数量保持不变。
+
+以该 epoch 实际训练使用的左右矩阵计算 `A' = U_A.T @ A @ U_A`、`G' = U_G @ G @ U_G.T`，然后 `Abar=A'/(trace(A')/n)`、`Gbar=G'/(trace(G')/m)`。主字段为 `W_kron=sqrt(||Abar||_F² * ||Gbar||_F²/(m*n)-1)`、`W_A=||Abar-I||_F/sqrt(n)`、`W_G=||Gbar-I||_F/sqrt(m)`，以及 `log_kappa_kron=log(kappa(Abar))+log(kappa(Gbar))`。trace normalization 使这些指标只评价层内 shape，不评价 scalar scale。删除旧 gradient-marginal 指标；CSV、summary 和现有图使用以上主字段。
+
+Oracle 仅用于科研评价，不进入训练或 controller；DP-SGD 使用 identity，Synthetic 使用该轮实际的 synthetic 预条件器，CLW 使用更新前该轮固定的 U。W_kron 不构造 Kronecker product；平方根内部仅对浮点舍入产生的极小负值 clamp(min=0)。条件数保留数值秩判断：最小特征值 <= dimension * float64_eps * 最大特征值时记录 +inf。2048 避免 fc1 的 1569 维 A 因样本数不足而必然秩亏；真实网络死特征等造成的秩亏仍如实保留。
 
 Oracle、train loss、clipping 统计均为科研诊断，未做隐私发布保护；它们不进入训练/controller，epsilon_spent 仅对应训练机制。train/test loss 按样本加权；clip_fraction 是变换后全局 norm > C 的样本比例，mean_clip_factor 直接使用现有 clipping 公式（含 1e-6）。
 
@@ -29,4 +33,4 @@ Oracle、train loss、clipping 统计均为科研诊断，未做隐私发布保�
 
 唯一 tiny smoke 开关为 `--smoke`：单 seed，8 个训练/测试/诊断样本，batch=4，2 epochs，三种方法走同一训练、controller、oracle 和输出路径，结果位于 `results/smoke/`，不代表完整实验结论。
 
-本次验证：curve 环境语法/import 通过；上述 tiny smoke 完成，共 24 行指标和三张图。确认 CLW 第一轮与 DP-SGD 的效用、clipping 和 whitening 数值一致；核心矩阵检查通过（feedback traceless、更新行列式约为 1、epoch EMA 清零）。未运行完整实验。本机下载端点失败后，手动复制已有 MNIST 原始缓存到 `exp1/data/MNIST/raw/`，没有增加下载兼容逻辑。
+本次 oracle-KFAC 修改验证：curve 环境语法/import 通过；原有 tiny smoke 完成，共 24 行指标及三张图。CLW 第一轮与同 seed DP-SGD 的训练/测试 loss、accuracy、clipping、epsilon 和新 oracle 指标一致。未运行完整 6-run 实验。`results/smoke/` 已更新为新指标；已有 `results/` 完整实验 CSV/图没有重算，不能将旧结果解读为新 oracle-KFAC 指标，需运行完整命令重新生成。

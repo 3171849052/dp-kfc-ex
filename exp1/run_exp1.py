@@ -25,7 +25,7 @@ from dp_kfac.privacy import (clip_and_noise_gradients, _compute_per_sample_norms
                              _compute_clip_factors)
 from dp_kfac.optimizer import generate_pink_noise
 from dp_kfac.types import KFACConfig
-from clw_kron import CLWKron, LAYERS, gradient_matrix, identity_factors
+from clw_kron import CLWKron, LAYERS, identity_factors
 
 METHODS = ("DP-SGD", "Synthetic DP-KFC (Pink Noise)", "CLW-Kron")
 
@@ -49,22 +49,36 @@ def oracle(model, loader, a, g, device):
     model.train()
     cg = {k: torch.zeros_like(v, dtype=torch.float64) for k, v in g.items()}
     ca = {k: torch.zeros_like(v, dtype=torch.float64) for k, v in a.items()}
+    recorder = KFACRecorder(model)
+    recorder.enable()
     for x, y in loader:
         model.zero_grad(set_to_none=True)
+        # Sum reduction gives unscaled per-example loss backprops.
         F.cross_entropy(model(x.to(device)), y.to(device), reduction="sum").backward()
-        precondition_per_sample_gradients(model, a, g)
         with torch.no_grad():
+            cov = compute_covariances(
+                model,
+                {k: v.double() for k, v in recorder.activations.items()},
+                {k: v.double() for k, v in recorder.backprops.items()},
+                eps=0.0,  # Oracle factors must not acquire an artificial rank floor.
+            )
             for name in LAYERS:
-                h = gradient_matrix(getattr(model._module, name), True).double()
-                m, n = h.shape[1:]
-                cg[name].add_(torch.einsum("bik,bjk->ij", h, h) / n)
-                ca[name].add_(torch.einsum("bki,bkj->ij", h, h) / m)
+                cg[name].add_(cov.G[name], alpha=len(x))
+                ca[name].add_(cov.A[name], alpha=len(x))
+        recorder.clear()
+    recorder.remove()
     model.zero_grad(set_to_none=True)
     rows = []
     for name in LAYERS:
-        # Sample count cancels under trace normalization.
-        gbar = cg[name] / (cg[name].trace() / cg[name].shape[0])
-        abar = ca[name] / (ca[name].trace() / ca[name].shape[0])
+        # Each layer has the same spatial size across batches; sample weighting
+        # therefore also weights Conv2d patch averages correctly.
+        oracle_a = ca[name] / len(loader.dataset)
+        oracle_g = cg[name] / len(loader.dataset)
+        ua, ug = a[name].double(), g[name].double()
+        transformed_a = ua.T @ oracle_a @ ua
+        transformed_g = ug @ oracle_g @ ug.T
+        gbar = transformed_g / (transformed_g.trace() / transformed_g.shape[0])
+        abar = transformed_a / (transformed_a.trace() / transformed_a.shape[0])
         m, n = gbar.shape[0], abar.shape[0]
         logs = []
         for c in (gbar, abar):
@@ -190,7 +204,7 @@ def main():
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
     train = datasets.MNIST(ROOT / "exp1/data", train=True, download=True, transform=transform)
     test = datasets.MNIST(ROOT / "exp1/data", train=False, download=True, transform=transform)
-    diagnostic = Subset(train, range(1024))
+    diagnostic = Subset(train, range(2048))
     epochs, batch_size, seeds = 5, 256, (42, 7)
     output = ROOT / "exp1/results"
     if args.smoke:
