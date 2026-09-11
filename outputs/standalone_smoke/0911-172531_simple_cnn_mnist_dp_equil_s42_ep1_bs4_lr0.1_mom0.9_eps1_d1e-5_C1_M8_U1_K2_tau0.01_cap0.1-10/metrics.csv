@@ -1,0 +1,2 @@
+epoch,global_step,train_loss,test_loss,test_accuracy,epsilon_spent,noise_multiplier,sample_rate,clip_fraction,mean_clip_factor,precond_build_seconds,epoch_train_seconds,epoch_total_seconds,peak_allocated_mb_epoch,preconditioner_storage_mb,gain_p10,gain_median,gain_p90,gain_max
+1,2,3.010822296142578,39.287254333496094,0.0,0.994256644037829,3.4765625,0.5,1.0,0.0909648253582418,0.02520977519452572,0.019072542898356915,0.059821984730660915,,0.7893447875976562,0.20550359785556793,0.5863555669784546,5.8928704261779785,5.8928704261779785
