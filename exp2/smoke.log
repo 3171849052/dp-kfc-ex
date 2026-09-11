@@ -1,0 +1,15 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+device=cuda:0, noise_multiplier=2.87109375, output=/media/data/data/lt/DP-KFC/exp2/results/smoke
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+CLW-Noisy-Slow seed=42 epoch=1 updates=1 accuracy=0.2500
+CLW-Noisy-Slow seed=42 epoch=2 updates=2 accuracy=0.2500
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+CLW-Noisy-Fast seed=42 epoch=1 updates=4 accuracy=0.2500
+CLW-Noisy-Fast seed=42 epoch=2 updates=8 accuracy=0.2500
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+CLW-Clean-Slow seed=42 epoch=1 updates=1 accuracy=0.2500
+CLW-Clean-Slow seed=42 epoch=2 updates=2 accuracy=0.2500
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+CLW-Clean-Fast seed=42 epoch=1 updates=4 accuracy=0.2500
+CLW-Clean-Fast seed=42 epoch=2 updates=8 accuracy=0.2500
