@@ -17,13 +17,11 @@ from torchvision import datasets, transforms
 from opacus import GradSampleModule
 from opacus.accountants import RDPAccountant
 from opacus.accountants.utils import get_noise_multiplier
-from dp_kfac.recorder import KFACRecorder
-from dp_kfac.covariance import compute_covariances, compute_inverse_sqrt
 from dp_kfac.precondition import precondition_per_sample_gradients
 from dp_kfac.privacy import (clip_and_noise_gradients,
                              _compute_per_sample_norms_squared, _compute_clip_factors)
-from dp_kfac.optimizer import generate_pink_noise
-from dp_kfac.types import CovariancePair
+from dp_kfac.optimizer import DPKFACOptimizer
+from dp_kfac.types import DPConfig, KFACConfig
 
 METHODS = ("DP-SGD", "Synthetic DP-KFC", "Oracle KFAC", "Full Fisher Whitening (Oracle)")
 PRECOND_STEPS = 10
@@ -44,37 +42,6 @@ class WhiteningCNN(nn.Module):
         return self.fc(F.adaptive_avg_pool2d(x, (2, 2)).flatten(1))
 
 
-def pink_batches(batch_size, device):
-    for _ in range(PRECOND_STEPS):
-        yield (generate_pink_noise(batch_size, (1, 28, 28), device),
-               torch.randint(0, 10, (batch_size,), device=device))
-
-
-def kfac_factors(model, batches, device):
-    recorder = KFACRecorder(model)
-    recorder.enable()
-    totals = CovariancePair(A={}, G={})
-    count = 0
-    for x, y in batches:
-        model.zero_grad(set_to_none=True)
-        F.cross_entropy(model(x.to(device)), y.to(device), reduction="sum").backward()
-        cov = compute_covariances(model, recorder.activations, recorder.backprops, eps=0.0)
-        for total, current in ((totals.A, cov.A), (totals.G, cov.G)):
-            for name, value in current.items():
-                if name not in total:
-                    total[name] = torch.zeros_like(value)
-                total[name].add_(value, alpha=len(x))
-        count += len(x)
-        recorder.clear()
-    recorder.remove()
-    model.zero_grad(set_to_none=True)
-    assert set(totals.A) == set(totals.G) == {"conv1", "conv2", "fc"}
-    for total in (totals.A, totals.G):
-        for value in total.values():
-            value.div_(count)
-    return compute_inverse_sqrt(totals, damping=DAMPING)
-
-
 def flat_grad_samples(params):
     return torch.cat([p.grad_sample.flatten(1) for p in params], dim=1)
 
@@ -84,7 +51,8 @@ def full_fisher(model, loader, device):
     samples = []
     for x, y in loader:
         model.zero_grad(set_to_none=True)
-        F.cross_entropy(model(x.to(device)), y.to(device), reduction="sum").backward()
+        # Match original DP-KFC calibration scaling with GSM loss_reduction="sum".
+        F.cross_entropy(model(x.to(device)), y.to(device), reduction="mean").backward()
         samples.append(flat_grad_samples(params).double())
     gradients = torch.cat(samples)
     assert gradients.shape == (len(loader.dataset), 994)
@@ -123,7 +91,14 @@ def run(method, seed, train, test, calibration, epochs, batch_size, sigma, devic
     torch.manual_seed(seed)
     model = GradSampleModule(WhiteningCNN().to(device), loss_reduction="sum")
     assert sum(p.numel() for p in model.parameters()) == 994
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+    base_optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+    dp_optimizer = None
+    if method in METHODS[1:3]:
+        dp_optimizer = DPKFACOptimizer(
+            model=model, base_optimizer=base_optimizer,
+            dp_config=DPConfig(noise_multiplier=sigma, max_grad_norm=1.0, delta=1e-5),
+            kfac_config=KFACConfig(damping=DAMPING),
+        )
     loader = DataLoader(train, batch_size=batch_size, shuffle=True, drop_last=True,
                         generator=torch.Generator().manual_seed(seed))
     # Even non-shuffled DataLoader iterators draw a base seed: isolate these draws.
@@ -138,9 +113,15 @@ def run(method, seed, train, test, calibration, epochs, batch_size, sigma, devic
         if method == METHODS[1]:
             with torch.random.fork_rng(devices=[device.index] if device.type == "cuda" else []):
                 torch.manual_seed(seed + 10000 + epoch)
-                a, g = kfac_factors(model, pink_batches(batch_size, device), device)
+                dp_optimizer.compute_preconditioner_from_noise(
+                    batch_size=batch_size, input_shape=(1, 28, 28),
+                    num_steps=PRECOND_STEPS, num_classes=10,
+                )
         elif method == METHODS[2]:
-            a, g = kfac_factors(model, calibration_loader, device)
+            dp_optimizer.compute_preconditioner(
+                data_source=iter(calibration_loader), num_steps=PRECOND_STEPS,
+                num_classes=10, use_public_labels=True,
+            )
         elif method == METHODS[3]:
             p = full_fisher(model, calibration_loader, device)
         loss_sum, clipped, factor_sum, count = 0., 0., 0., 0
@@ -149,7 +130,11 @@ def run(method, seed, train, test, calibration, epochs, batch_size, sigma, devic
             loss = F.cross_entropy(model(x.to(device)), y.to(device), reduction="sum")
             loss.backward()
             if method in METHODS[1:3]:
-                precondition_per_sample_gradients(model, a, g)
+                # Expand the original step only to observe clipping statistics
+                # between preconditioning and clipping; apply each operation once.
+                precondition_per_sample_gradients(
+                    model, dp_optimizer._inv_A, dp_optimizer._inv_G,
+                )
             elif method == METHODS[3]:
                 whiten(model, p)
             norms_sq = _compute_per_sample_norms_squared(list(model.parameters()), batch_size, device)
@@ -158,7 +143,7 @@ def run(method, seed, train, test, calibration, epochs, batch_size, sigma, devic
             factor_sum += factors.sum().item()
             # Precondition -> global per-example clip -> isotropic noise -> SGD.
             clip_and_noise_gradients(model, sigma, 1.0, batch_size)
-            optimizer.step()
+            base_optimizer.step()
             accountant.step(noise_multiplier=sigma, sample_rate=batch_size / len(train))
             loss_sum += loss.item()
             count += batch_size
@@ -171,6 +156,8 @@ def run(method, seed, train, test, calibration, epochs, batch_size, sigma, devic
         rows.append(row)
         print(f"{method} seed={seed} epoch={epoch} accuracy={accuracy:.4f} "
               f"epsilon_spent={row['epsilon_spent']:.4f} privacy_valid={row['privacy_valid']}", flush=True)
+    if dp_optimizer is not None:
+        dp_optimizer.remove_hooks()
     return rows
 
 

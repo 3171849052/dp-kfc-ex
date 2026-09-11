@@ -1,0 +1,5 @@
+method,privacy_valid,mean_accuracy,std_accuracy
+DP-SGD,True,0.8925000000000001,0.0046669047558312885
+Synthetic DP-KFC,True,0.92415,0.005868986283848326
+Oracle KFAC,False,0.9257,0.006081118318204306
+Full Fisher Whitening (Oracle),False,0.91185,0.0058689862838484435
