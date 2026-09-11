@@ -1,0 +1,2 @@
+method,seed,corr_log_diag,corr_log_equil,median_coupling_ratio,p90_coupling_ratio,p99_coupling_ratio
+DP-SGD,42,0.4348825740745172,0.30461320253752344,313.78140326004166,2155.908120420604,31539.66547891305

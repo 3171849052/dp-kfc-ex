@@ -1,0 +1,6 @@
+method,seed,epoch,precond_seconds,scale_min,scale_p10,scale_median,scale_p90,scale_max,scale_cap_fraction
+DP-SGD,42,1,1.2613832950592041e-05,,,,,,
+DP-SGD,42,2,1.2854114174842834e-05,,,,,,
+DP-SGD,42,3,1.2787990272045135e-05,,,,,,
+DP-SGD,42,4,1.0359100997447968e-05,,,,,,
+DP-SGD,42,5,1.0485760867595673e-05,,,,,,

@@ -1,0 +1,2 @@
+method,mean_accuracy,std_accuracy,mean_clipping,mean_clip_factor,mean_precond_seconds,mean_epoch_train_seconds
+DP-SGD,0.9234,,0.16746666666666668,0.849704928334554,1.0485760867595673e-05,13.594911868683994

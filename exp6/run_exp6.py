@@ -36,6 +36,7 @@ EPOCHS = 5
 BATCH_SIZE = 256
 PRECOND_STEPS = 10
 PROBES = 8
+DIAGNOSTIC_PROBES = 64
 DIAGNOSTIC_SAMPLES = 2048
 SCALE_FIELDS = ("scale_min", "scale_p10", "scale_median", "scale_p90",
                 "scale_max", "scale_cap_fraction")
@@ -47,8 +48,8 @@ def pink_batches(batch_size, device):
                torch.randint(0, 10, (batch_size,), device=device))
 
 
-def rademacher(params):
-    return {p: torch.randint(0, 2, (p.numel(), PROBES), device=p.device)
+def rademacher(params, num_probes):
+    return {p: torch.randint(0, 2, (p.numel(), num_probes), device=p.device)
             .to(p.dtype).mul_(2).sub_(1) for p in params}
 
 
@@ -57,6 +58,8 @@ def fisher_statistics(model, batches, device, probes=None):
     params = [p for p in model.parameters() if p.requires_grad]
     diagonal = {p: torch.zeros(p.numel(), device=device) for p in params}
     products = {p: torch.zeros_like(probes[p]) for p in params} if probes is not None else {}
+    if probes is not None:
+        num_probes = next(iter(probes.values())).shape[1]
     count = 0
     model.train()
     for x, y in batches:
@@ -65,7 +68,7 @@ def fisher_statistics(model, batches, device, probes=None):
         F.cross_entropy(model(x.to(device)), y.to(device), reduction="sum").backward()
         with torch.no_grad():
             if probes is not None:
-                projection = torch.zeros(len(x), PROBES, device=device)
+                projection = torch.zeros(len(x), num_probes, device=device)
                 for p in params:
                     projection.add_(p.grad_sample.flatten(1) @ probes[p])
             for p in params:
@@ -97,9 +100,10 @@ def kfac_factors(model, batch_size, device):
     recorder.enable()
     for index, (x, y) in enumerate(pink_batches(batch_size, device)):
         model.zero_grad(set_to_none=True)
-        # Preserve the existing synthetic KFAC mean-loss calibration convention.
-        F.cross_entropy(model(x), y).backward()
-        cov = compute_covariances(model, recorder.activations, recorder.backprops)
+        F.cross_entropy(model(x), y, reduction="sum").backward()
+        cov = compute_covariances(
+            model, recorder.activations, recorder.backprops, eps=0.0,
+        )
         if index == 0:
             total = cov
         else:
@@ -159,7 +163,7 @@ def diagnostic(model, loader, seed, batch_size, device):
     # No optimizer/accountant calls. These statistics never feed training.
     with torch.random.fork_rng(devices=[device.index] if device.type == "cuda" else []):
         torch.manual_seed(seed + 20000)
-        probes = rademacher([p for p in model.parameters() if p.requires_grad])
+        probes = rademacher([p for p in model.parameters() if p.requires_grad], DIAGNOSTIC_PROBES)
         private_d, private_e = fisher_statistics(model, loader, device, probes)
         synthetic_d, synthetic_e = fisher_statistics(
             model, pink_batches(batch_size, device), device, probes)
@@ -201,7 +205,7 @@ def run(method, seed, train, test, epochs, batch_size, sigma, device):
                     # Isolate probe draws so all methods use identical pink samples.
                     with torch.random.fork_rng(devices=[device.index] if device.type == "cuda" else []):
                         torch.manual_seed(seed + 30000 + epoch)
-                        probes = rademacher(params) if method == METHODS[2] else None
+                        probes = rademacher(params, PROBES) if method == METHODS[2] else None
                     d, e = fisher_statistics(model, pink_batches(batch_size, device), device, probes)
                     scales = stabilized_scales(e if method == METHODS[2] else d)
                     stats = scale_statistics(scales)
@@ -252,12 +256,15 @@ def save_results(rows, diagnostics, output):
         output / "preconditioner_metrics.csv", index=False)
     pd.DataFrame(diagnostics).to_csv(output / "diagnostics.csv", index=False)
     final = frame.groupby(["method", "seed"], sort=False).tail(1)
-    final.groupby("method", sort=False).agg(
+    summary = final.groupby("method", sort=False).agg(
         mean_accuracy=("test_accuracy", "mean"), std_accuracy=("test_accuracy", "std"),
         mean_clipping=("clip_fraction", "mean"), mean_clip_factor=("mean_clip_factor", "mean"),
+    )
+    timing = frame.groupby("method", sort=False).agg(
         mean_precond_seconds=("precond_seconds", "mean"),
         mean_epoch_train_seconds=("epoch_train_seconds", "mean"),
-    ).to_csv(output / "summary.csv")
+    )
+    summary.join(timing).to_csv(output / "summary.csv")
     for metric, filename in (("test_accuracy", "accuracy.png"), ("clip_fraction", "clipping.png")):
         fig, ax = plt.subplots(figsize=(9, 5))
         for i, method in enumerate(METHODS):
@@ -272,18 +279,20 @@ def save_results(rows, diagnostics, output):
         fig.tight_layout()
         fig.savefig(output / filename, dpi=160)
         plt.close(fig)
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    for ax, method in zip(axes, METHODS[1:]):
-        part = frame[frame.method == method].groupby("epoch")[list(SCALE_FIELDS)].mean()
-        ax.fill_between(part.index, part.scale_min, part.scale_max, alpha=.12, label="min–max")
-        ax.fill_between(part.index, part.scale_p10, part.scale_p90, alpha=.3, label="p10–p90")
-        ax.plot(part.index, part.scale_median, marker="o", label="median")
-        ax.set(title=method, xlabel="Epoch", ylabel="Scale (seed mean)", yscale="log")
-        ax.grid(alpha=.2)
-        ax.legend()
-    fig.tight_layout()
-    fig.savefig(output / "scale_distribution.png", dpi=160)
-    plt.close(fig)
+    available_methods = set(frame["method"].unique())
+    if set(METHODS[1:]).issubset(available_methods):
+        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+        for ax, method in zip(axes, METHODS[1:]):
+            part = frame[frame.method == method].groupby("epoch")[list(SCALE_FIELDS)].mean()
+            ax.fill_between(part.index, part.scale_min, part.scale_max, alpha=.12, label="min–max")
+            ax.fill_between(part.index, part.scale_p10, part.scale_p90, alpha=.3, label="p10–p90")
+            ax.plot(part.index, part.scale_median, marker="o", label="median")
+            ax.set(title=method, xlabel="Epoch", ylabel="Scale (seed mean)", yscale="log")
+            ax.grid(alpha=.2)
+            ax.legend()
+        fig.tight_layout()
+        fig.savefig(output / "scale_distribution.png", dpi=160)
+        plt.close(fig)
 
 
 def main():
