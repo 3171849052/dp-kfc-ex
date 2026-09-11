@@ -1,0 +1,35 @@
+algorithm: dp_kfc
+seed: 42
+model:
+  name: simple_cnn
+data:
+  dataset: mnist
+  root: data
+  batch_size: 256
+  eval_batch_size: 256
+  num_workers: 0
+training:
+  epochs: 5
+  optimizer: sgd
+  learning_rate: 0.1
+  momentum: 0.9
+  weight_decay: 0.0
+privacy:
+  epsilon: 1.0
+  delta: 1.0e-05
+  max_grad_norm: 1.0
+  accountant: rdp
+synthetic:
+  samples: 2560
+  batch_size: 256
+  distribution: pink_noise
+  refresh_every_epochs: 1
+kfac:
+  damping: 0.001
+runtime:
+  device: cuda
+  gpu: 0
+  threads: 4
+  deterministic: true
+output:
+  root: outputs

@@ -116,3 +116,45 @@ docs/                 the project page (served at the link above)
 Supported by the Innovative Health Initiative Joint Undertaking and its members (grant 101172825) and the CAFEIN® R&D fund, the CERN Quantum Technology Initiative (QTI), the ERC Synergy Grant *Zee-Zoom-Zap* (grant 101224844), and the María de Maeztu Units of Excellence Programme (CEX2021-001195-M, MICIU/AEI/10.13039/501100011033).
 # dp-kfc-ex
 # dp-kfc-ex
+
+## Standalone training (Exp6)
+
+在 `curve` conda 环境中通过 tmux 后台启动一个独立 YAML 配置：
+
+```bash
+./run.sh configs/standalone/mnist_dp_sgd.yaml
+./run.sh --config configs/standalone/mnist_dp_kfc.yaml
+./run.sh configs/standalone/mnist_dp_equil.yaml
+```
+
+首版支持 SimpleCNN + MNIST，默认 5 epochs、batch size 256、GPU 0。
+算法复用 Exp6 的 shuffled minibatch protocol、Synthetic DP-KFC 和 Full-Fisher
+Equil；预条件发生在全局逐样本裁剪之前，然后加入各向同性 Gaussian noise，
+执行 SGD 和 RDP accountant step。保留 Exp6 的 RDP 校准口径（包含最后一个
+不足整批的 step），不使用 Poisson sampler。
+
+每次启动在 `outputs/` 创建秒级命名目录，保存原始 `config.yaml`、
+`resolved_config.yaml`、每 epoch 一行且 fsync 的 `metrics.csv`、完成后的
+`summary.json` 和 `train.log`。prepare 阶段设备和 noise multiplier 尚未解析，
+对应 metadata 为 null，训练初始化后更新实际值。summary 包含从第一轮构建
+预条件器前到最后一次评估完成的总耗时、各轮平均耗时、整个 run 的最大显存
+和最大预条件器存储量；CPU 显存指标为空。
+
+也可分两步调用 Python 入口：
+
+```bash
+conda run -n curve python scripts/train.py --config configs/standalone/mnist_dp_sgd.yaml --prepare-run
+conda run -n curve python -u scripts/train.py --config configs/standalone/mnist_dp_sgd.yaml --run-dir <上一步输出目录>
+```
+
+每个 prepared directory 只用于一次训练。相对数据和输出路径基于当前工作目录；
+`run.sh` 使用仓库根目录。启动脚本要求 tmux 存在，打印 attach、tail 和 kill 命令。
+
+验证：
+
+```bash
+PYTHONPATH=src conda run -n curve python -m pytest -q tests
+```
+
+测试使用临时 CPU 小配置，不改动正式 YAML；覆盖三个算法、输出命名与碰撞、
+逐轮日志、隐私操作顺序、RNG 隔离和与 Exp6 构建结果的逐张量精确回归。
