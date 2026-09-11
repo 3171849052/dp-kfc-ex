@@ -11,7 +11,7 @@ data:
 training:
   epochs: 5
   optimizer: sgd
-  learning_rate: 0.5
+  learning_rate: 0.6
   momentum: 0.0
   weight_decay: 0.0
 privacy:
@@ -26,9 +26,9 @@ synthetic:
   refresh_every_epochs: 1
 equil:
   probes: 8
-  tau: 1.0e-8 
-  scale_min: 1.0e-8  
-  scale_max: 1.0e+8 
+  tau: 0.01
+  scale_min: 0.1
+  scale_max: 10.0
 runtime:
   device: cuda
   gpu: 0
