@@ -11,8 +11,15 @@ def test_configs(algorithm):
     assert c['algorithm'] == algorithm
     assert c['training']['epochs'] == 5
     assert c['data']['batch_size'] == 256
+    assert c['data']['root'] == 'exp1/data'
     assert c['synthetic']['samples'] == 2560
     assert c['runtime']['device'] == 'cuda'
+
+
+def test_default_data_root(tmp_path):
+    path = tmp_path / 'config.yaml'
+    path.write_text(yaml.safe_dump({'algorithm': 'dp_sgd'}))
+    assert load_config(path)['data']['root'] == 'exp1/data'
 
 @pytest.mark.parametrize('change', [{'algorithm': 'adam'}, {'training': {'epochs': 0}},
     {'privacy': {'delta': 2}}, {'data': {'dataset': 'cifar10'}}, {'extra': 1},

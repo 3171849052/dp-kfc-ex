@@ -12,8 +12,9 @@ from test_standalone_config import ROOT
     ('dp_equil','_M2560_U1_K8_tau0.01_cap0.1-10')])
 def test_exact_names(algorithm, suffix):
     c = load_config(ROOT / f'configs/standalone/mnist_{algorithm}.yaml')
+    learning = 'lr0.5_mom0' if algorithm == 'dp_sgd' else 'lr0.1_mom0.9'
     assert format_run_name(c, datetime(2026,9,11,17,15,0)) == (
-        f'0911-171500_simple_cnn_mnist_{algorithm}_s42_ep5_bs256_lr0.1_mom0.9_eps1_d1e-5_C1' + suffix)
+        f'0911-171500_simple_cnn_mnist_{algorithm}_s42_ep5_bs256_{learning}_eps1_d1e-5_C1' + suffix)
 
 
 def test_prepare_collision_metrics(tmp_path):

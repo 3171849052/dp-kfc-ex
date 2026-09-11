@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ $# -eq 2 && $1 == --config ]]; then
+DEFAULT_CONFIG="$ROOT/configs/standalone/mnist_dp_equil.yaml"
+if [[ $# -eq 0 ]]; then
+  CONFIG="$DEFAULT_CONFIG"
+elif [[ $# -eq 2 && $1 == --config ]]; then
   CONFIG="$2"
 elif [[ $# -eq 1 && $1 != --* ]]; then
   CONFIG="$1"
 else
-  echo "usage: $0 [--config] CONFIG" >&2
+  echo "usage: $0 [--config CONFIG]" >&2
   exit 2
 fi
 CONFIG="$(realpath "$CONFIG")"

@@ -7,7 +7,7 @@ import yaml
 DEFAULTS = {
     'seed': 42,
     'model': {'name': 'simple_cnn'},
-    'data': {'dataset': 'mnist', 'root': 'data', 'batch_size': 256,
+    'data': {'dataset': 'mnist', 'root': 'exp1/data', 'batch_size': 256,
              'eval_batch_size': 256, 'num_workers': 0},
     'training': {'epochs': 5, 'optimizer': 'sgd', 'learning_rate': 0.1,
                  'momentum': 0.9, 'weight_decay': 0.0},
