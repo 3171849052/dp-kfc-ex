@@ -1,0 +1,1 @@
+epoch,global_step,train_loss,test_loss,test_accuracy,epsilon_spent,noise_multiplier,sample_rate,clip_fraction,mean_clip_factor,precond_build_seconds,epoch_train_seconds,epoch_total_seconds,peak_allocated_mb_epoch,preconditioner_storage_mb,gain_p10,gain_median,gain_p90,gain_max

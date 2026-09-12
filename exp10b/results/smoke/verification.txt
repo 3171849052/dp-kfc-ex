@@ -1,0 +1,30 @@
+exp10b verification
+Integrity checks: PASS
+Completed: 5/5 runs; 1 epochs each.
+Quick tests: PASS
+Final accuracy mean +/- sample std (percentage points):
+  DP-SGD: 18.1641 +/- 0.0000
+  Full-Fisher Equil: 21.0938 +/- 0.0000
+  Module-Elementwise Equil: 21.0938 +/- 0.0000
+  Factorized Equil: 20.3125 +/- 0.0000
+  Layer-Scalar Equil: 18.5547 +/- 0.0000
+Paired final accuracy differences (first minus second, percentage points):
+  Module-Elementwise Equil - Factorized Equil: {42: 0.78125}; mean=+0.7812
+  Module-Elementwise Equil - Layer-Scalar Equil: {42: 2.5390625}; mean=+2.5391
+  Factorized Equil - Layer-Scalar Equil: {42: 1.7578125}; mean=+1.7578
+Effective operator DOF (subtract global GM=1 constraint):
+  Module-Elementwise Equil: 206921
+  Factorized Equil: 2034
+  Layer-Scalar Equil: 3
+Approximation on shared Module-Elementwise trajectory (global mean over builds):
+  Module-Elementwise Equil: RMSE=0.000000, Pearson=1.000000, Spearman=1.000000
+  Factorized Equil: RMSE=0.155947, Pearson=0.929663, Spearman=0.945498
+  Layer-Scalar Equil: RMSE=0.422840, Pearson=0.046367, Spearman=0.013663
+Maximum global GM error: 9.87e-09
+Applied gain range: [0.0774623, 2.47553]; maximum log10(max/min)=1.308542
+NaN/Inf or training failure: none in required finite metrics/model parameters.
+Undefined constant-vector correlations are blank by definition (Layer-Scalar per module; DP-SGD).
+sigma=0 smoke epsilon is +Inf by definition.
+Gain anomaly flag (range > 6 decades): False
+Build time includes same-target approximation diagnostics; private train time excludes diagnostics.
+All three projections share identical statistic/target hashes within each source model build.

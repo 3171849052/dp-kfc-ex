@@ -1,0 +1,35 @@
+exp10b verification
+Integrity checks: PASS
+Completed: 10/10 runs; 5 epochs each.
+Quick tests: PASS
+Final accuracy mean +/- sample std (percentage points):
+  DP-SGD: 92.1200 +/- 0.0283
+  Full-Fisher Equil: 93.2000 +/- 0.0707
+  Module-Elementwise Equil: 93.1350 +/- 0.1909
+  Factorized Equil: 93.0450 +/- 0.1626
+  Layer-Scalar Equil: 92.3150 +/- 0.1344
+Paired final accuracy differences (first minus second, percentage points):
+  Module-Elementwise Equil - Factorized Equil: {7: 0.07000000000000339, 42: 0.10999999999999899}; mean=+0.0900
+  Module-Elementwise Equil - Layer-Scalar Equil: {7: 0.5900000000000016, 42: 1.0499999999999954}; mean=+0.8200
+  Factorized Equil - Layer-Scalar Equil: {7: 0.5199999999999982, 42: 0.9399999999999964}; mean=+0.7300
+Effective operator DOF (subtract global GM=1 constraint):
+  Module-Elementwise Equil: 206921
+  Factorized Equil: 2034
+  Layer-Scalar Equil: 3
+Approximation on shared Module-Elementwise trajectory (global mean over builds):
+  Module-Elementwise Equil: RMSE=0.000000, Pearson=1.000000, Spearman=1.000000
+  Factorized Equil: RMSE=0.111763, Pearson=0.945802, Spearman=0.963601
+  Layer-Scalar Equil: RMSE=0.336155, Pearson=0.165538, Spearman=0.105018
+Maximum global GM error: 5.61e-08
+Applied gain range: [0.0774623, 2.62444]; maximum log10(max/min)=1.308542
+NaN/Inf or training failure: none in required finite metrics/model parameters.
+Undefined constant-vector correlations are blank by definition (Layer-Scalar per module; DP-SGD).
+Full experiment epsilon values are finite; accounting follows exp10 unchanged.
+Gain anomaly flag (range > 6 decades): False
+Build time includes same-target approximation diagnostics; private train time excludes diagnostics.
+All three projections share identical statistic/target hashes within each source model build.
+Persisted-results audit: PASS; 7 numerical tests + 28 standalone regression tests + five-method sigma=0 smoke passed.
+All 500 approximation rows have finite non-correlation diagnostics; undefined correlations are intentional.
+Epoch-1 statistic/target hashes match across all three structured training methods for both seeds.
+Final epsilon: 0.99681275 to 0.99681275.
+Existing exp9/data cache absent: used the repository's exp1/data MNIST cache, with identical preprocessing.

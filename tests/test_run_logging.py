@@ -9,14 +9,14 @@ from dp_kfac.standalone.run_logging import (format_run_name, prepare_run,
 from test_standalone_config import ROOT
 
 @pytest.mark.parametrize('algorithm,suffix', [('dp_sgd',''), ('dp_kfc','_M2560_U1_damp0.001'),
-    ('dp_equil','_M2560_U1_K8_tau0.01_cap0.1-10')])
+    ('dp_equil','_M2560_U1_K8_tau0.01')])
 def test_exact_names(algorithm, suffix):
     c = load_config(ROOT / f'configs/standalone/mnist_{algorithm}.yaml')
     # Fix the naming fixture independently of editable experiment settings.
     c['training'].update(learning_rate=.5 if algorithm == 'dp_sgd' else .1,
                          momentum=0. if algorithm == 'dp_sgd' else .9)
     c['synthetic'].update(samples=2560, refresh_every_epochs=1)
-    c['equil'].update(probes=8, tau=.01, scale_min=.1, scale_max=10.)
+    c['equil'].update(probes=8, tau=.01)
     learning = 'lr0.5_mom0' if algorithm == 'dp_sgd' else 'lr0.1_mom0.9'
     assert format_run_name(c, datetime(2026,9,11,17,15,0)) == (
         f'0911-171500_simple_cnn_mnist_{algorithm}_s42_ep5_bs256_{learning}_eps1_d1e-5_C1' + suffix)

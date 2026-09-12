@@ -96,7 +96,7 @@ def build_equil(model, c, device, epoch):
         gamma = c['equil']['tau'] * values.median()
         scales = {p: (v + gamma).rsqrt() for p, v in e.items()}
         normalizer = (sum(v.log().sum() for v in scales.values()) / values.numel()).exp()
-        return {p: (v / normalizer).clamp(c['equil']['scale_min'], c['equil']['scale_max'])
+        return {p: v / normalizer
                 for p, v in scales.items()}
 
 

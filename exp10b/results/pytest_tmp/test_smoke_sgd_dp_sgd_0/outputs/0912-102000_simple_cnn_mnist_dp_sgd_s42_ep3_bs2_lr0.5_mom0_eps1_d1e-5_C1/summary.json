@@ -1,0 +1,17 @@
+{
+  "status": "completed",
+  "algorithm": "dp_sgd",
+  "optimizer": "sgd",
+  "seed": 42,
+  "completed_epochs": 3,
+  "global_step": 9,
+  "final_test_loss": 16010525.4,
+  "final_test_accuracy": 0.0,
+  "best_test_accuracy": 0.0,
+  "final_epsilon": 0.9971181972704595,
+  "noise_multiplier": 5.2734375,
+  "training_total_seconds": 4.058970382902771,
+  "mean_epoch_total_seconds": 1.2433918432798237,
+  "max_peak_allocated_mb": null,
+  "max_preconditioner_storage_mb": 0.0
+}

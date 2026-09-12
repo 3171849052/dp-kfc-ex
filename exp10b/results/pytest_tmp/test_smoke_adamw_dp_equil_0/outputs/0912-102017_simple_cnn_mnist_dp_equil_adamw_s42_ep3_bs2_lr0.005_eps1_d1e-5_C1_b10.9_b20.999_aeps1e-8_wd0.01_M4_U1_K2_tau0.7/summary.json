@@ -1,0 +1,17 @@
+{
+  "status": "completed",
+  "algorithm": "dp_equil",
+  "optimizer": "adamw",
+  "seed": 42,
+  "completed_epochs": 3,
+  "global_step": 9,
+  "final_test_loss": 2.3142026901245116,
+  "final_test_accuracy": 0.2,
+  "best_test_accuracy": 0.2,
+  "final_epsilon": 0.9971181972704595,
+  "noise_multiplier": 5.2734375,
+  "training_total_seconds": 0.3970804000273347,
+  "mean_epoch_total_seconds": 0.042385007332389556,
+  "max_peak_allocated_mb": null,
+  "max_preconditioner_storage_mb": 0.7893447875976562
+}

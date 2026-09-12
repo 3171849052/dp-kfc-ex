@@ -1,0 +1,13 @@
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+test_01_exp10_estimator_and_unbounded_scale (exp10b.test_exp10b.OperatorsTest.test_01_exp10_estimator_and_unbounded_scale) ... ok
+test_02_factorization_least_squares_and_bias (exp10b.test_exp10b.OperatorsTest.test_02_factorization_least_squares_and_bias) ... ok
+test_03_scalar_and_coordinate_weighted_gm (exp10b.test_exp10b.OperatorsTest.test_03_scalar_and_coordinate_weighted_gm) ... ok
+test_04_same_targets_rng_and_full_gm (exp10b.test_exp10b.OperatorsTest.test_04_same_targets_rng_and_full_gm) ... ok
+test_05_private_update_matches_dense_reference_without_materialization (exp10b.test_exp10b.OperatorsTest.test_05_private_update_matches_dense_reference_without_materialization) ... ok
+test_06_dof (exp10b.test_exp10b.OperatorsTest.test_06_dof) ... ok
+test_configs_names_and_unbounded_formula (exp10b.test_standalone.StandaloneTest.test_configs_names_and_unbounded_formula) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.957s
+
+OK

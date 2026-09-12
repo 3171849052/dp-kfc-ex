@@ -1,0 +1,41 @@
+{
+  "epochs": 5,
+  "batch_size": 256,
+  "learning_rate": 0.5,
+  "momentum": 0.0,
+  "weight_decay": 0.0,
+  "epsilon": 1.0,
+  "delta": 1e-05,
+  "max_grad_norm": 1.0,
+  "synthetic_batch_size": 256,
+  "probes": 8,
+  "tau": 1.0,
+  "preconditioner_batches": 10,
+  "seeds": [
+    42,
+    7
+  ],
+  "layers": [
+    "conv1",
+    "conv2",
+    "fc1",
+    "fc2"
+  ],
+  "methods": [
+    "DP-SGD",
+    "Full-Fisher Equil",
+    "Module-Elementwise Equil",
+    "Factorized Equil",
+    "Layer-Scalar Equil"
+  ],
+  "structured": [
+    "Module-Elementwise Equil",
+    "Factorized Equil",
+    "Layer-Scalar Equil"
+  ],
+  "noise_multiplier": 1.068115234375,
+  "train_samples": 60000,
+  "test_samples": 10000,
+  "model": "SimpleCNN",
+  "optimizer": "SGD"
+}

@@ -129,7 +129,7 @@ def test_exp6_preconditioner_regression(tmp_path, algorithm):
     spec.loader.exec_module(reference)
     c, _ = smoke_config(tmp_path, algorithm)
     # Match the historical reference, independent of experiment tuning.
-    c['equil'].update(tau=.01, scale_min=.1, scale_max=10.)
+    c['equil'].update(tau=.01)
     reference.PRECOND_STEPS = 2
     reference.PROBES = 2
     device = torch.device('cpu')
@@ -145,7 +145,11 @@ def test_exp6_preconditioner_regression(tmp_path, algorithm):
                 torch.manual_seed(c['seed'] + 30001)
                 probes = reference.rademacher(list(model.parameters()), 2)
             _, e = reference.fisher_statistics(model, reference.pink_batches(2, device), device, probes)
-            expected = reference.stabilized_scales(e)
+            # Keep the historical estimator, but normalization now has no hard bounds.
+            values = torch.cat([v.flatten() for v in e.values()])
+            raw = {p: (v + .01 * values.median()).rsqrt() for p, v in e.items()}
+            gm = (sum(v.log().sum() for v in raw.values()) / values.numel()).exp()
+            expected = {p: v / gm for p, v in raw.items()}
     for left, right in zip(actual if algorithm == 'dp_kfc' else (actual,),
                            expected if algorithm == 'dp_kfc' else (expected,)):
         assert left.keys() == right.keys()

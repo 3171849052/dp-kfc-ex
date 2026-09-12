@@ -1,0 +1,64 @@
+seed: 42
+model:
+  name: simple_cnn
+data:
+  dataset: mnist
+  root: exp1/data
+  batch_size: 2
+  eval_batch_size: 2
+  num_workers: 0
+training:
+  epochs: 3
+  optimizer: adamw
+  learning_rate: 0.005
+  momentum: 0.9
+  weight_decay: 0.01
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+privacy:
+  epsilon: 1.0
+  delta: 1.0e-05
+  max_grad_norm: 1.0
+  accountant: rdp
+synthetic:
+  samples: 4
+  batch_size: 2
+  distribution: pink_noise
+  refresh_every_epochs: 1
+equil:
+  probes: 2
+  tau: 0.7
+kfac:
+  damping: 0.001
+runtime:
+  device: cpu
+  gpu: 0
+  threads: 1
+  deterministic: true
+output:
+  root: /XYAIFS00/HDD_POOL/sysu_qling/sysu_qling_3/longteng/dp-kfc-ex/exp10b/results/pytest_tmp/test_smoke_adamw_dp_equil_0/outputs
+algorithm: dp_equil
+train_size: 5
+test_size: 5
+steps_per_epoch: 3
+total_steps: 9
+sample_rate: 0.4
+noise_multiplier: 5.2734375
+actual_device: cpu
+physical_gpu_index: null
+gpu_name: null
+run_directory: /XYAIFS00/HDD_POOL/sysu_qling/sysu_qling_3/longteng/dp-kfc-ex/exp10b/results/pytest_tmp/test_smoke_adamw_dp_equil_0/outputs/0912-102017_simple_cnn_mnist_dp_equil_adamw_s42_ep3_bs2_lr0.005_eps1_d1e-5_C1_b10.9_b20.999_aeps1e-8_wd0.01_M4_U1_K2_tau0.7
+rng_seeds:
+  model_and_dp_noise: 42
+  train_loader: 42
+  test_loader: 42
+  synthetic_epoch_seeds:
+    1: 10043
+    2: 10044
+    3: 10045
+  probe_epoch_seeds:
+    1: 30043
+    2: 30044
+    3: 30045

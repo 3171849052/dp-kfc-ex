@@ -1,0 +1,3 @@
+algorithm: dp_sgd
+equil:
+  tau: .nan

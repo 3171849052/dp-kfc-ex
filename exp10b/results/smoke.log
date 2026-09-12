@@ -1,0 +1,42 @@
+adamex python=/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/adamex/bin/python; torch=2.14.0+cu126; GPU=NVIDIA A800 80GB PCIe; sigma=0.0; epochs=1
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+DP-SGD seed=42 epoch=1 accuracy=0.1816 build=0.81s train=1.05s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Full-Fisher Equil seed=42 epoch=1 accuracy=0.2109 build=0.30s train=0.07s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Module-Elementwise Equil seed=42 epoch=1 accuracy=0.2109 build=0.33s train=0.07s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Factorized Equil seed=42 epoch=1 accuracy=0.2031 build=0.32s train=0.07s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Layer-Scalar Equil seed=42 epoch=1 accuracy=0.1855 build=0.36s train=0.07s
+exp10b verification
+Integrity checks: PASS
+Completed: 5/5 runs; 1 epochs each.
+Quick tests: PASS
+Final accuracy mean +/- sample std (percentage points):
+  DP-SGD: 18.1641 +/- 0.0000
+  Full-Fisher Equil: 21.0938 +/- 0.0000
+  Module-Elementwise Equil: 21.0938 +/- 0.0000
+  Factorized Equil: 20.3125 +/- 0.0000
+  Layer-Scalar Equil: 18.5547 +/- 0.0000
+Paired final accuracy differences (first minus second, percentage points):
+  Module-Elementwise Equil - Factorized Equil: {42: 0.78125}; mean=+0.7812
+  Module-Elementwise Equil - Layer-Scalar Equil: {42: 2.5390625}; mean=+2.5391
+  Factorized Equil - Layer-Scalar Equil: {42: 1.7578125}; mean=+1.7578
+Effective operator DOF (subtract global GM=1 constraint):
+  Module-Elementwise Equil: 206921
+  Factorized Equil: 2034
+  Layer-Scalar Equil: 3
+Approximation on shared Module-Elementwise trajectory (global mean over builds):
+  Module-Elementwise Equil: RMSE=0.000000, Pearson=1.000000, Spearman=1.000000
+  Factorized Equil: RMSE=0.155947, Pearson=0.929663, Spearman=0.945498
+  Layer-Scalar Equil: RMSE=0.422840, Pearson=0.046367, Spearman=0.013663
+Maximum global GM error: 9.87e-09
+Applied gain range: [0.0774623, 2.47553]; maximum log10(max/min)=1.308542
+NaN/Inf or training failure: none in required finite metrics/model parameters.
+Undefined constant-vector correlations are blank by definition (Layer-Scalar per module; DP-SGD).
+sigma=0 smoke epsilon is +Inf by definition.
+Gain anomaly flag (range > 6 decades): False
+Build time includes same-target approximation diagnostics; private train time excludes diagnostics.
+All three projections share identical statistic/target hashes within each source model build.
+

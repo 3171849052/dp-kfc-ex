@@ -1,0 +1,3 @@
+algorithm: dp_sgd
+data:
+  dataset: cifar10

@@ -1,0 +1,42 @@
+algorithm: dp_kfc
+data:
+  batch_size: 2
+  dataset: mnist
+  eval_batch_size: 2
+  num_workers: 0
+  root: exp1/data
+equil:
+  probes: 2
+  tau: 0.01
+kfac:
+  damping: 0.001
+model:
+  name: simple_cnn
+output:
+  root: /XYAIFS00/HDD_POOL/sysu_qling/sysu_qling_3/longteng/dp-kfc-ex/exp10b/results/pytest_tmp/test_exp6_preconditioner_regre0/outputs
+privacy:
+  accountant: rdp
+  delta: 1.0e-05
+  epsilon: 1.0
+  max_grad_norm: 1.0
+runtime:
+  deterministic: true
+  device: cpu
+  gpu: 0
+  threads: 1
+seed: 42
+synthetic:
+  batch_size: 2
+  distribution: pink_noise
+  refresh_every_epochs: 1
+  samples: 4
+training:
+  betas:
+  - 0.9
+  - 0.999
+  epochs: 3
+  eps: 1.0e-08
+  learning_rate: 0.5
+  momentum: 0.0
+  optimizer: sgd
+  weight_decay: 0.0

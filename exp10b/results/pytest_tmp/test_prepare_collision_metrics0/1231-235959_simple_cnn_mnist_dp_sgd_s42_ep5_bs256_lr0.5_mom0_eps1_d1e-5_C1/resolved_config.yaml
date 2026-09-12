@@ -1,0 +1,58 @@
+seed: 42
+model:
+  name: simple_cnn
+data:
+  dataset: mnist
+  root: exp1/data
+  batch_size: 256
+  eval_batch_size: 256
+  num_workers: 0
+training:
+  epochs: 5
+  optimizer: sgd
+  learning_rate: 0.5
+  momentum: 0.0
+  weight_decay: 0.0
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+privacy:
+  epsilon: 1.0
+  delta: 1.0e-05
+  max_grad_norm: 1.0
+  accountant: rdp
+synthetic:
+  samples: 2560
+  batch_size: 256
+  distribution: pink_noise
+  refresh_every_epochs: 1
+equil:
+  probes: 8
+  tau: 0.01
+kfac:
+  damping: 0.001
+runtime:
+  device: cuda
+  gpu: 0
+  threads: 4
+  deterministic: true
+output:
+  root: /XYAIFS00/HDD_POOL/sysu_qling/sysu_qling_3/longteng/dp-kfc-ex/exp10b/results/pytest_tmp/test_prepare_collision_metrics0
+algorithm: dp_sgd
+train_size: 60000
+test_size: 10000
+steps_per_epoch: 235
+total_steps: 1175
+sample_rate: 0.004266666666666667
+noise_multiplier: null
+actual_device: null
+physical_gpu_index: null
+gpu_name: null
+run_directory: /XYAIFS00/HDD_POOL/sysu_qling/sysu_qling_3/longteng/dp-kfc-ex/exp10b/results/pytest_tmp/test_prepare_collision_metrics0/1231-235959_simple_cnn_mnist_dp_sgd_s42_ep5_bs256_lr0.5_mom0_eps1_d1e-5_C1
+rng_seeds:
+  model_and_dp_noise: 42
+  train_loader: 42
+  test_loader: 42
+  synthetic_epoch_seeds: {}
+  probe_epoch_seeds: {}

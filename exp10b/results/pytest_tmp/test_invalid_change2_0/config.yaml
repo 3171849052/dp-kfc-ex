@@ -1,0 +1,3 @@
+algorithm: dp_sgd
+privacy:
+  delta: 2

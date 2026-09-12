@@ -15,7 +15,7 @@ DEFAULTS = {
     'privacy': {'epsilon': 1.0, 'delta': 1e-5, 'max_grad_norm': 1.0, 'accountant': 'rdp'},
     'synthetic': {'samples': 2560, 'batch_size': 256, 'distribution': 'pink_noise',
                   'refresh_every_epochs': 1},
-    'equil': {'probes': 8, 'tau': 0.01, 'scale_min': 0.1, 'scale_max': 10.0},
+    'equil': {'probes': 8, 'tau': 0.01},
     'kfac': {'damping': 1e-3},
     'runtime': {'device': 'cuda', 'gpu': 0, 'threads': 4, 'deterministic': True},
     'output': {'root': 'outputs'},
@@ -59,7 +59,7 @@ def load_config(path):
             if type(c[section][name]) is not int or c[section][name] <= 0:
                 raise ValueError(f'{section}.{name} must be a positive integer')
     for section, fields in {'training': ['learning_rate', 'eps'], 'privacy': ['epsilon', 'delta', 'max_grad_norm'],
-            'equil': ['tau', 'scale_min', 'scale_max'], 'kfac': ['damping']}.items():
+            'equil': ['tau'], 'kfac': ['damping']}.items():
         for name in fields:
             v = c[section][name]
             if type(v) not in (float, int) or not math.isfinite(v) or v <= 0:
@@ -77,8 +77,8 @@ def load_config(path):
         v = c['training'][name]
         if type(v) not in (float, int) or not math.isfinite(v) or v < 0:
             raise ValueError(f'training.{name} must be finite and nonnegative')
-    if c['privacy']['delta'] >= 1 or c['equil']['scale_min'] > c['equil']['scale_max']:
-        raise ValueError('invalid delta or scale bounds')
+    if c['privacy']['delta'] >= 1:
+        raise ValueError('delta must be less than 1')
     if c['synthetic']['samples'] % c['synthetic']['batch_size']:
         raise ValueError('synthetic.samples must be divisible by synthetic.batch_size')
     return c

@@ -28,8 +28,6 @@ synthetic:
 equil:
   probes: 8
   tau: 0.7
-  scale_min: 1.0e-8
-  scale_max: 1.0e+8
 runtime:
   device: cuda
   gpu: 0

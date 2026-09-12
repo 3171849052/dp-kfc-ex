@@ -41,8 +41,6 @@ def format_run_name(c, timestamp=None):
     if c['algorithm'] == 'dp_equil':
         values += [('K', c['equil']['probes']), ('tau', c['equil']['tau'])]
     tokens += [key + format_number(value) for key, value in values]
-    if c['algorithm'] == 'dp_equil':
-        tokens += ['cap' + format_number(c['equil']['scale_min']) + '-' + format_number(c['equil']['scale_max'])]
     return '_'.join(tokens)
 
 

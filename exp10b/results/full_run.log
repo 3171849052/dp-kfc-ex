@@ -1,0 +1,94 @@
+/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/adamex/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+adamex python=/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/adamex/bin/python; torch=2.14.0+cu126; GPU=NVIDIA A800 80GB PCIe; sigma=1.068115234375; epochs=5
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+DP-SGD seed=42 epoch=1 accuracy=0.8409 build=0.00s train=8.79s
+DP-SGD seed=42 epoch=2 accuracy=0.8995 build=0.00s train=8.47s
+DP-SGD seed=42 epoch=3 accuracy=0.8986 build=0.00s train=8.24s
+DP-SGD seed=42 epoch=4 accuracy=0.9133 build=0.00s train=8.13s
+DP-SGD seed=42 epoch=5 accuracy=0.9210 build=0.00s train=8.12s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Full-Fisher Equil seed=42 epoch=1 accuracy=0.8617 build=0.26s train=8.12s
+Full-Fisher Equil seed=42 epoch=2 accuracy=0.9070 build=0.19s train=8.03s
+Full-Fisher Equil seed=42 epoch=3 accuracy=0.9132 build=0.19s train=8.05s
+Full-Fisher Equil seed=42 epoch=4 accuracy=0.9236 build=0.19s train=8.66s
+Full-Fisher Equil seed=42 epoch=5 accuracy=0.9315 build=0.19s train=8.16s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Module-Elementwise Equil seed=42 epoch=1 accuracy=0.8436 build=0.44s train=8.02s
+Module-Elementwise Equil seed=42 epoch=2 accuracy=0.9065 build=0.33s train=8.05s
+Module-Elementwise Equil seed=42 epoch=3 accuracy=0.9125 build=0.29s train=8.23s
+Module-Elementwise Equil seed=42 epoch=4 accuracy=0.9216 build=0.29s train=8.50s
+Module-Elementwise Equil seed=42 epoch=5 accuracy=0.9327 build=0.34s train=8.11s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Factorized Equil seed=42 epoch=1 accuracy=0.8397 build=0.31s train=8.22s
+Factorized Equil seed=42 epoch=2 accuracy=0.9036 build=0.33s train=8.19s
+Factorized Equil seed=42 epoch=3 accuracy=0.9074 build=0.33s train=8.22s
+Factorized Equil seed=42 epoch=4 accuracy=0.9154 build=0.33s train=8.02s
+Factorized Equil seed=42 epoch=5 accuracy=0.9316 build=0.34s train=8.12s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Layer-Scalar Equil seed=42 epoch=1 accuracy=0.8375 build=0.31s train=8.16s
+Layer-Scalar Equil seed=42 epoch=2 accuracy=0.9023 build=0.33s train=8.11s
+Layer-Scalar Equil seed=42 epoch=3 accuracy=0.8992 build=0.33s train=8.10s
+Layer-Scalar Equil seed=42 epoch=4 accuracy=0.9142 build=0.30s train=8.08s
+Layer-Scalar Equil seed=42 epoch=5 accuracy=0.9222 build=0.30s train=8.09s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+DP-SGD seed=7 epoch=1 accuracy=0.8867 build=0.00s train=8.01s
+DP-SGD seed=7 epoch=2 accuracy=0.8610 build=0.00s train=8.00s
+DP-SGD seed=7 epoch=3 accuracy=0.9106 build=0.00s train=8.06s
+DP-SGD seed=7 epoch=4 accuracy=0.9174 build=0.00s train=8.08s
+DP-SGD seed=7 epoch=5 accuracy=0.9214 build=0.00s train=8.27s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Full-Fisher Equil seed=7 epoch=1 accuracy=0.8864 build=0.13s train=8.17s
+Full-Fisher Equil seed=7 epoch=2 accuracy=0.8655 build=0.19s train=8.22s
+Full-Fisher Equil seed=7 epoch=3 accuracy=0.9183 build=0.19s train=8.15s
+Full-Fisher Equil seed=7 epoch=4 accuracy=0.9229 build=0.18s train=8.23s
+Full-Fisher Equil seed=7 epoch=5 accuracy=0.9325 build=0.20s train=8.31s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Module-Elementwise Equil seed=7 epoch=1 accuracy=0.8849 build=0.31s train=8.28s
+Module-Elementwise Equil seed=7 epoch=2 accuracy=0.8600 build=0.33s train=8.07s
+Module-Elementwise Equil seed=7 epoch=3 accuracy=0.9169 build=0.33s train=8.02s
+Module-Elementwise Equil seed=7 epoch=4 accuracy=0.9203 build=0.33s train=8.15s
+Module-Elementwise Equil seed=7 epoch=5 accuracy=0.9300 build=0.34s train=8.10s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Factorized Equil seed=7 epoch=1 accuracy=0.8862 build=0.30s train=8.38s
+Factorized Equil seed=7 epoch=2 accuracy=0.8626 build=0.34s train=8.22s
+Factorized Equil seed=7 epoch=3 accuracy=0.9159 build=0.33s train=8.29s
+Factorized Equil seed=7 epoch=4 accuracy=0.9189 build=0.33s train=8.27s
+Factorized Equil seed=7 epoch=5 accuracy=0.9293 build=0.34s train=8.16s
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+Layer-Scalar Equil seed=7 epoch=1 accuracy=0.8866 build=0.29s train=8.16s
+Layer-Scalar Equil seed=7 epoch=2 accuracy=0.8607 build=0.34s train=8.34s
+Layer-Scalar Equil seed=7 epoch=3 accuracy=0.9114 build=0.33s train=8.26s
+Layer-Scalar Equil seed=7 epoch=4 accuracy=0.9155 build=0.34s train=8.24s
+Layer-Scalar Equil seed=7 epoch=5 accuracy=0.9241 build=0.34s train=8.17s
+exp10b verification
+Integrity checks: PASS
+Completed: 10/10 runs; 5 epochs each.
+Quick tests: PASS
+Final accuracy mean +/- sample std (percentage points):
+  DP-SGD: 92.1200 +/- 0.0283
+  Full-Fisher Equil: 93.2000 +/- 0.0707
+  Module-Elementwise Equil: 93.1350 +/- 0.1909
+  Factorized Equil: 93.0450 +/- 0.1626
+  Layer-Scalar Equil: 92.3150 +/- 0.1344
+Paired final accuracy differences (first minus second, percentage points):
+  Module-Elementwise Equil - Factorized Equil: {7: 0.07000000000000339, 42: 0.10999999999999899}; mean=+0.0900
+  Module-Elementwise Equil - Layer-Scalar Equil: {7: 0.5900000000000016, 42: 1.0499999999999954}; mean=+0.8200
+  Factorized Equil - Layer-Scalar Equil: {7: 0.5199999999999982, 42: 0.9399999999999964}; mean=+0.7300
+Effective operator DOF (subtract global GM=1 constraint):
+  Module-Elementwise Equil: 206921
+  Factorized Equil: 2034
+  Layer-Scalar Equil: 3
+Approximation on shared Module-Elementwise trajectory (global mean over builds):
+  Module-Elementwise Equil: RMSE=0.000000, Pearson=1.000000, Spearman=1.000000
+  Factorized Equil: RMSE=0.111763, Pearson=0.945802, Spearman=0.963601
+  Layer-Scalar Equil: RMSE=0.336155, Pearson=0.165538, Spearman=0.105018
+Maximum global GM error: 5.61e-08
+Applied gain range: [0.0774623, 2.62444]; maximum log10(max/min)=1.308542
+NaN/Inf or training failure: none in required finite metrics/model parameters.
+Undefined constant-vector correlations are blank by definition (Layer-Scalar per module; DP-SGD).
+Full experiment epsilon values are finite; accounting follows exp10 unchanged.
+Gain anomaly flag (range > 6 decades): False
+Build time includes same-target approximation diagnostics; private train time excludes diagnostics.
+All three projections share identical statistic/target hashes within each source model build.
+
