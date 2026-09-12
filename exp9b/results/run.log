@@ -1,0 +1,55 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+
+device=cuda:0, noise_multiplier=1.068115234375, runs=8, output=/media/data/data/lt/DP-KFC/exp9b/results
+Private-gradient diagnostics: analysis_only=True; not DP releases.
+All configurations share statistics from the Full-Equil tau=1 trajectory.
+Full-Equil tau=1 epoch=1 accuracy=0.8777 build=0.72s train=12.85s
+Full-Equil tau=1 epoch=2 accuracy=0.9102 build=0.09s train=12.83s
+Full-Equil tau=1 epoch=3 accuracy=0.9129 build=0.09s train=12.85s
+Full-Equil tau=1 epoch=4 accuracy=0.9331 build=0.09s train=12.85s
+Full-Equil tau=1 epoch=5 accuracy=0.9337 build=0.09s train=12.85s
+DP-SGD tau=nan epoch=1 accuracy=0.8708 build=0.04s train=12.71s
+DP-SGD tau=nan epoch=2 accuracy=0.8998 build=0.04s train=12.75s
+DP-SGD tau=nan epoch=3 accuracy=0.8981 build=0.04s train=12.74s
+DP-SGD tau=nan epoch=4 accuracy=0.9216 build=0.04s train=12.69s
+DP-SGD tau=nan epoch=5 accuracy=0.9262 build=0.04s train=12.74s
+Full-Equil tau=0.3 epoch=1 accuracy=0.8779 build=0.07s train=12.75s
+Full-Equil tau=0.3 epoch=2 accuracy=0.9091 build=0.07s train=12.83s
+Full-Equil tau=0.3 epoch=3 accuracy=0.9137 build=0.08s train=12.74s
+Full-Equil tau=0.3 epoch=4 accuracy=0.9305 build=0.08s train=12.76s
+Full-Equil tau=0.3 epoch=5 accuracy=0.9336 build=0.08s train=12.80s
+Full-Equil tau=3 epoch=1 accuracy=0.8745 build=0.07s train=12.77s
+Full-Equil tau=3 epoch=2 accuracy=0.9064 build=0.07s train=12.80s
+Full-Equil tau=3 epoch=3 accuracy=0.9108 build=0.08s train=12.79s
+Full-Equil tau=3 epoch=4 accuracy=0.9307 build=0.08s train=12.71s
+Full-Equil tau=3 epoch=5 accuracy=0.9314 build=0.08s train=12.76s
+Full-Equil tau=10 epoch=1 accuracy=0.8702 build=0.07s train=12.77s
+Full-Equil tau=10 epoch=2 accuracy=0.9027 build=0.08s train=12.77s
+Full-Equil tau=10 epoch=3 accuracy=0.9045 build=0.08s train=12.73s
+Full-Equil tau=10 epoch=4 accuracy=0.9267 build=0.08s train=12.73s
+Full-Equil tau=10 epoch=5 accuracy=0.9288 build=0.08s train=12.74s
+Shuffled-Equil tau=1 epoch=1 accuracy=0.8663 build=0.09s train=12.73s
+Shuffled-Equil tau=1 epoch=2 accuracy=0.8969 build=0.08s train=12.71s
+Shuffled-Equil tau=1 epoch=3 accuracy=0.8979 build=0.08s train=12.68s
+Shuffled-Equil tau=1 epoch=4 accuracy=0.9150 build=0.08s train=12.69s
+Shuffled-Equil tau=1 epoch=5 accuracy=0.9217 build=0.08s train=12.69s
+TensorGM-Equil tau=1 epoch=1 accuracy=0.8751 build=0.04s train=12.75s
+TensorGM-Equil tau=1 epoch=2 accuracy=0.8983 build=0.03s train=10.13s
+TensorGM-Equil tau=1 epoch=3 accuracy=0.8989 build=0.03s train=10.11s
+TensorGM-Equil tau=1 epoch=4 accuracy=0.9203 build=0.03s train=10.11s
+TensorGM-Equil tau=1 epoch=5 accuracy=0.9243 build=0.03s train=10.12s
+Reverse-Equil tau=1 epoch=1 accuracy=0.8676 build=0.06s train=10.14s
+Reverse-Equil tau=1 epoch=2 accuracy=0.8897 build=0.05s train=10.12s
+Reverse-Equil tau=1 epoch=3 accuracy=0.8967 build=0.05s train=10.12s
+Reverse-Equil tau=1 epoch=4 accuracy=0.9140 build=0.05s train=10.12s
+Reverse-Equil tau=1 epoch=5 accuracy=0.9177 build=0.05s train=10.11s
+
