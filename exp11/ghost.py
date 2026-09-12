@@ -1,4 +1,4 @@
-"""Exact spatial-Gram norms followed by one weighted ordinary backward."""
+"""Hybrid exact structured norms followed by one weighted ordinary backward."""
 import torch
 import torch.nn.functional as F
 from exp10 import run_exp10 as base
@@ -9,6 +9,7 @@ class GhostNorm:
         self.operator = operator
         self.enabled = False
         self.activations = {}
+        self.backends = {}
         self.handles = []
         for name, module in model.named_modules():
             if isinstance(module, (torch.nn.Linear, torch.nn.Conv2d)):
@@ -36,6 +37,14 @@ class GhostNorm:
             a = torch.cat((a, torch.ones_like(a[:, :1])), 1)
         a = self.operator.transform_activation(name, a)
         b = self.operator.transform_backprop(name, b)
+        # Compare spatial Gram size with augmented gradient-matrix size.
+        if a.shape[2] ** 2 > b.shape[1] * a.shape[1]:
+            self.backends[name] = 'gradient_matrix'
+            matrix = b @ a.transpose(1, 2)
+            self.norm_sq.add_(matrix.square().sum((1, 2)))
+            del matrix
+            return
+        self.backends[name] = 'gram'
         # ||sum_t b_t a_t^T||² = sum_st <b_s,b_t><a_s,a_t>.
         # Tile spatial positions, never batch examples or parameter gradients.
         for start in range(0, a.shape[2], 32):

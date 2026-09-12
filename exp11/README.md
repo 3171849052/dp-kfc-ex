@@ -19,7 +19,8 @@ batches of 256, no hard clamp. We reuse exp10b's statistic, scale function
 and Factorized Operator constructor directly, omitting its audit machinery.
 KFC calls exp6's covariance/inverse-square-root builder (10 synthetic
 batches, damping=.001). Builders run once per epoch on synthetic inputs;
-only this build phase uses GSM in Ghost methods.
+only the Factorized Equil build uses GSM in Ghost methods. KFC builds on
+the ordinary model without per-sample gradients.
 
 All private training batches are exactly 256 (`drop_last=True`): 234 batches
 per full MNIST epoch, discarding the shuffled last 96 examples. Sigma is
@@ -30,9 +31,14 @@ are unnoised research metrics, not private releases.
 
 For each layer, augment unfolded activations with a coordinate of ones.
 Transform backprops by L and activations by R^T. The exact identity
-`||sum_t b_t a_t^T||_F^2 = sum_st <b_s,b_t><a_s,a_t>` computes norms
-without constructing per-example weight gradients. Spatial Gram rows are
-tiled by 32 to bound temporary storage; this is not batch accumulation.
+`||sum_t b_t a_t^T||_F^2 = sum_st <b_s,b_t><a_s,a_t>` provides the Gram
+backend. Each layer uses Gram when `T² <= d_out * d_in_augmented`, with
+spatial rows tiled by 32. Otherwise it computes `B' @ A'^T`, reduces its
+squared Frobenius norm, and immediately releases the temporary matrix.
+Neither backend stores per-sample matrices on parameters or across layers.
+SimpleCNN uses the matrix backend for both convolutions and Gram for both
+Linear layers. Both backends use transformed activations/backprops and are
+exact; spatial tiling is not batch accumulation.
 Linear layers with one position reduce to the outer-product norm identity.
 All layer norms contribute before global clipping. The second ordinary
 backward weights each loss by its detached clip factor, then applies LGR

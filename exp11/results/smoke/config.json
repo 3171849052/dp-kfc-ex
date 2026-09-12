@@ -1,0 +1,36 @@
+{
+  "dataset": "MNIST",
+  "model": "SimpleCNN",
+  "methods": [
+    "DP-SGD Exact",
+    "DP-SGD Ghost",
+    "Factorized Equil Exact",
+    "Factorized Equil Ghost",
+    "DP-KFC Exact",
+    "DP-KFC Ghost"
+  ],
+  "epochs": 1,
+  "seeds": [
+    42
+  ],
+  "batch_size": 256,
+  "physical_batch_size": 256,
+  "drop_last": true,
+  "optimizer": "SGD",
+  "learning_rate": 0.5,
+  "momentum": 0.0,
+  "weight_decay": 0.0,
+  "epsilon": 1.0,
+  "delta": 1e-05,
+  "max_grad_norm": 1.0,
+  "noise_multiplier": 0.0,
+  "tau": 1.0,
+  "probes": 8,
+  "synthetic_batch_size": 256,
+  "preconditioner_batches": 10,
+  "hard_clamp": false,
+  "kfc_damping": 0.001,
+  "accounting": "RDP; same shuffled fixed-batch convention as exp10b",
+  "train_samples": 256,
+  "batches_per_epoch": 1
+}

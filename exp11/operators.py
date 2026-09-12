@@ -56,11 +56,10 @@ class StructuredOperator:
 def build(model, kind, seed, epoch, device):
     if kind == 'DP-SGD':
         return StructuredOperator(kind)
-    # GSM is used only on synthetic data during the unchanged builder.
-    wrapped = base.GradSampleModule(model, loss_reduction='sum')
     with torch.random.fork_rng(devices=[device.index]):
         torch.manual_seed(seed + 10000 + epoch)
         if kind == 'Factorized Equil':
+            wrapped = base.GradSampleModule(model, loss_reduction='sum')
             batches = base.pink_batches(cfg.PRECONDITIONER_BATCHES, device)
             with torch.random.fork_rng(devices=[device.index]):
                 torch.manual_seed(seed + 30000 + epoch)
@@ -68,9 +67,9 @@ def build(model, kind, seed, epoch, device):
             statistic = base.layerwise_statistics(wrapped, batches, device, probes)
             reference = Operator(kind, augmented(wrapped, equil_scales(statistic)))
             result = StructuredOperator(kind, reference.data, reference)
+            wrapped.zero_grad(set_to_none=True)
+            wrapped.to_standard_module()
         else:
-            a, g = kfac_factors(wrapped, cfg.SYNTHETIC_BATCH_SIZE, device)
+            a, g = kfac_factors(model, cfg.SYNTHETIC_BATCH_SIZE, device)
             result = StructuredOperator(kind, {k: (g[k], a[k]) for k in a})
-    wrapped.zero_grad(set_to_none=True)
-    wrapped.to_standard_module()
     return result

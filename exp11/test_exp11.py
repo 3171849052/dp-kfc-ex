@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import copy
 import json
+from unittest.mock import patch
 import pytest
 import torch
 from exp11.operators import build
@@ -33,7 +34,11 @@ def test_equivalence(kind):
     torch.manual_seed(42)
     device = torch.device('cuda:0')
     model = base.SimpleCNN().to(device)
-    operator = build(model, kind, 42, 1, device)
+    if kind == 'DP-KFC':
+        with patch.object(base, 'GradSampleModule', side_effect=AssertionError('KFC builder must use plain model')):
+            operator = build(model, kind, 42, 1, device)
+    else:
+        operator = build(model, kind, 42, 1, device)
     reference = base.GradSampleModule(copy.deepcopy(model), loss_reduction='sum')
     hooks = GhostNorm(model, operator)
     x = torch.randn(4, 1, 28, 28, device=device)
@@ -42,6 +47,8 @@ def test_equivalence(kind):
     opt_g = torch.optim.SGD(model.parameters(), lr=.5)
     _, ne, ce, _ = exact_aggregate(reference, operator, x, y)
     _, ng, cg, _ = ghost_aggregate(model, hooks, x, y)
+    assert hooks.backends == dict(conv1='gradient_matrix', conv2='gradient_matrix',
+                                  fc1='gram', fc2='gram')
     compare(kind + '/norm', ne, ng)
     compare(kind + '/clip', ce, cg)
     compare(kind + '/aggregate', torch.cat([p.grad.flatten() for p in reference.parameters()]),

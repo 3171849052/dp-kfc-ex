@@ -1,0 +1,98 @@
+{
+  "DP-SGD/norm": {
+    "max_absolute": 4.76837158203125e-07,
+    "relative_inf": 6.860364720751022e-08
+  },
+  "DP-SGD/clip": {
+    "max_absolute": 1.4901161193847656e-08,
+    "relative_inf": 9.57114636435108e-08
+  },
+  "DP-SGD/aggregate": {
+    "max_absolute": 1.4901161193847656e-08,
+    "relative_inf": 1.4994496666531631e-07
+  },
+  "DP-SGD/conv1.bias": {
+    "max_absolute": 4.6566128730773926e-09,
+    "relative_inf": 6.930525842108182e-07
+  },
+  "DP-SGD/conv2.bias": {
+    "max_absolute": 5.122274160385132e-09,
+    "relative_inf": 5.15464307682123e-07
+  },
+  "DP-SGD/fc1.bias": {
+    "max_absolute": 3.725290298461914e-09,
+    "relative_inf": 9.619198948485064e-08
+  },
+  "DP-SGD/fc2.bias": {
+    "max_absolute": 1.4901161193847656e-08,
+    "relative_inf": 1.4994496666531631e-07
+  },
+  "DP-SGD/update": {
+    "max_absolute": 7.450580596923828e-09,
+    "relative_inf": 2.233132256890258e-08
+  },
+  "Factorized Equil/norm": {
+    "max_absolute": 4.76837158203125e-07,
+    "relative_inf": 1.0600707867070014e-07
+  },
+  "Factorized Equil/clip": {
+    "max_absolute": 2.9802322387695312e-08,
+    "relative_inf": 1.215520342157106e-07
+  },
+  "Factorized Equil/aggregate": {
+    "max_absolute": 2.2351741790771484e-08,
+    "relative_inf": 6.40429846043844e-07
+  },
+  "Factorized Equil/conv1.bias": {
+    "max_absolute": 7.916241884231567e-09,
+    "relative_inf": 6.522230364680581e-07
+  },
+  "Factorized Equil/conv2.bias": {
+    "max_absolute": 6.05359673500061e-09,
+    "relative_inf": 6.89407841036882e-07
+  },
+  "Factorized Equil/fc1.bias": {
+    "max_absolute": 4.190951585769653e-09,
+    "relative_inf": 2.437100192764774e-07
+  },
+  "Factorized Equil/fc2.bias": {
+    "max_absolute": 7.450580596923828e-09,
+    "relative_inf": 3.495380269669113e-07
+  },
+  "Factorized Equil/update": {
+    "max_absolute": 2.9802322387695312e-08,
+    "relative_inf": 8.9194124086589e-08
+  },
+  "DP-KFC/norm": {
+    "max_absolute": 6.103515625e-05,
+    "relative_inf": 9.520948651697836e-08
+  },
+  "DP-KFC/clip": {
+    "max_absolute": 1.1641532182693481e-10,
+    "relative_inf": 7.006264723941058e-08
+  },
+  "DP-KFC/aggregate": {
+    "max_absolute": 1.023290678858757e-07,
+    "relative_inf": 1.2236008615218452e-06
+  },
+  "DP-KFC/conv1.bias": {
+    "max_absolute": 1.280568540096283e-09,
+    "relative_inf": 5.379895924306766e-07
+  },
+  "DP-KFC/conv2.bias": {
+    "max_absolute": 2.0489096641540527e-08,
+    "relative_inf": 6.687367317681492e-07
+  },
+  "DP-KFC/fc1.bias": {
+    "max_absolute": 9.778887033462524e-08,
+    "relative_inf": 1.37362599161861e-06
+  },
+  "DP-KFC/fc2.bias": {
+    "max_absolute": 7.450580596923828e-09,
+    "relative_inf": 3.375401718130888e-07
+  },
+  "DP-KFC/update": {
+    "max_absolute": 2.9802322387695312e-08,
+    "relative_inf": 8.922477690020969e-08
+  }
+}

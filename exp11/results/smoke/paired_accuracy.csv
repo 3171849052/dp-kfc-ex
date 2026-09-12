@@ -1,0 +1,4 @@
+algorithm,seed,epoch,Exact,Ghost,ghost_minus_exact
+DP-KFC,42,1,0.17578125,0.17578125,0.0
+DP-SGD,42,1,0.20703125,0.20703125,0.0
+Factorized Equil,42,1,0.20703125,0.20703125,0.0
