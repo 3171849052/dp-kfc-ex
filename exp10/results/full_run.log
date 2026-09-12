@@ -1,0 +1,48 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+
+device=cuda:0, noise_multiplier=1.068115234375, epochs=5, output=/media/data/data/lt/DP-KFC/exp10/results
+DP-SGD seed=42 epoch=1 accuracy=0.8708 build=0.00s train=9.89s
+DP-SGD seed=42 epoch=2 accuracy=0.8998 build=0.00s train=9.48s
+DP-SGD seed=42 epoch=3 accuracy=0.8981 build=0.00s train=9.48s
+DP-SGD seed=42 epoch=4 accuracy=0.9216 build=0.00s train=10.39s
+DP-SGD seed=42 epoch=5 accuracy=0.9262 build=0.00s train=12.05s
+Layerwise Equil seed=42 epoch=1 accuracy=0.8689 build=0.21s train=12.15s
+Layerwise Equil seed=42 epoch=2 accuracy=0.9103 build=0.08s train=12.20s
+Layerwise Equil seed=42 epoch=3 accuracy=0.9110 build=0.08s train=12.18s
+Layerwise Equil seed=42 epoch=4 accuracy=0.9321 build=0.08s train=12.12s
+Layerwise Equil seed=42 epoch=5 accuracy=0.9340 build=0.08s train=12.24s
+Full-Fisher Equil seed=42 epoch=1 accuracy=0.8749 build=0.09s train=12.11s
+Full-Fisher Equil seed=42 epoch=2 accuracy=0.9114 build=0.09s train=12.08s
+Full-Fisher Equil seed=42 epoch=3 accuracy=0.9138 build=0.09s train=12.15s
+Full-Fisher Equil seed=42 epoch=4 accuracy=0.9322 build=0.09s train=12.10s
+Full-Fisher Equil seed=42 epoch=5 accuracy=0.9338 build=0.08s train=12.10s
+DP-SGD seed=7 epoch=1 accuracy=0.8852 build=0.00s train=12.15s
+DP-SGD seed=7 epoch=2 accuracy=0.8637 build=0.00s train=12.03s
+DP-SGD seed=7 epoch=3 accuracy=0.9157 build=0.00s train=12.06s
+DP-SGD seed=7 epoch=4 accuracy=0.9272 build=0.00s train=12.06s
+DP-SGD seed=7 epoch=5 accuracy=0.9234 build=0.00s train=12.12s
+Layerwise Equil seed=7 epoch=1 accuracy=0.8797 build=0.08s train=12.10s
+Layerwise Equil seed=7 epoch=2 accuracy=0.8708 build=0.08s train=12.10s
+Layerwise Equil seed=7 epoch=3 accuracy=0.9213 build=0.08s train=12.13s
+Layerwise Equil seed=7 epoch=4 accuracy=0.9286 build=0.08s train=12.18s
+Layerwise Equil seed=7 epoch=5 accuracy=0.9321 build=0.08s train=12.13s
+Full-Fisher Equil seed=7 epoch=1 accuracy=0.8861 build=0.09s train=12.13s
+Full-Fisher Equil seed=7 epoch=2 accuracy=0.8763 build=0.09s train=12.16s
+Full-Fisher Equil seed=7 epoch=3 accuracy=0.9228 build=0.09s train=12.12s
+Full-Fisher Equil seed=7 epoch=4 accuracy=0.9305 build=0.09s train=12.15s
+Full-Fisher Equil seed=7 epoch=5 accuracy=0.9332 build=0.09s train=12.07s
+           method  seed  test_accuracy  mean_final_accuracy  std_final_accuracy
+           DP-SGD    42         0.9262              0.92480            0.001980
+  Layerwise Equil    42         0.9340              0.93305            0.001344
+Full-Fisher Equil    42         0.9338              0.93350            0.000424
+           DP-SGD     7         0.9234              0.92480            0.001980
+  Layerwise Equil     7         0.9321              0.93305            0.001344
+Full-Fisher Equil     7         0.9332              0.93350            0.000424
+

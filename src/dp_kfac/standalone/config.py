@@ -10,7 +10,8 @@ DEFAULTS = {
     'data': {'dataset': 'mnist', 'root': 'exp1/data', 'batch_size': 256,
              'eval_batch_size': 256, 'num_workers': 0},
     'training': {'epochs': 5, 'optimizer': 'sgd', 'learning_rate': 0.1,
-                 'momentum': 0.9, 'weight_decay': 0.0},
+                 'momentum': 0.9, 'weight_decay': 0.0,
+                 'betas': [0.9, 0.999], 'eps': 1e-8},
     'privacy': {'epsilon': 1.0, 'delta': 1e-5, 'max_grad_norm': 1.0, 'accountant': 'rdp'},
     'synthetic': {'samples': 2560, 'batch_size': 256, 'distribution': 'pink_noise',
                   'refresh_every_epochs': 1},
@@ -40,17 +41,24 @@ def load_config(path):
         else:
             c[key] = value
     for section, name, expected in [('model', 'name', 'simple_cnn'),
-            ('data', 'dataset', 'mnist'), ('training', 'optimizer', 'sgd'),
+            ('data', 'dataset', 'mnist'),
             ('privacy', 'accountant', 'rdp'), ('synthetic', 'distribution', 'pink_noise')]:
         if c[section][name] != expected:
             raise ValueError(f'{section}.{name} must be {expected}')
+    if c['training']['optimizer'] not in ('sgd', 'adamw'):
+        raise ValueError('training.optimizer must be sgd or adamw')
+    betas = c['training']['betas']
+    if (not isinstance(betas, list) or len(betas) != 2
+            or any(type(v) not in (int, float) or not math.isfinite(v)
+                   or not 0 <= v < 1 for v in betas)):
+        raise ValueError('training.betas must contain two finite numbers in [0, 1)')
     for section, fields in {'data': ['batch_size', 'eval_batch_size'],
             'training': ['epochs'], 'synthetic': ['samples', 'batch_size', 'refresh_every_epochs'],
             'equil': ['probes'], 'runtime': ['threads']}.items():
         for name in fields:
             if type(c[section][name]) is not int or c[section][name] <= 0:
                 raise ValueError(f'{section}.{name} must be a positive integer')
-    for section, fields in {'training': ['learning_rate'], 'privacy': ['epsilon', 'delta', 'max_grad_norm'],
+    for section, fields in {'training': ['learning_rate', 'eps'], 'privacy': ['epsilon', 'delta', 'max_grad_norm'],
             'equil': ['tau', 'scale_min', 'scale_max'], 'kfac': ['damping']}.items():
         for name in fields:
             v = c[section][name]

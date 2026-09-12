@@ -1,0 +1,60 @@
+seed: 42
+model:
+  name: simple_cnn
+data:
+  dataset: mnist
+  root: exp1/data
+  batch_size: 256
+  eval_batch_size: 256
+  num_workers: 0
+training:
+  epochs: 5
+  optimizer: adamw
+  learning_rate: 0.005
+  momentum: 0.9
+  weight_decay: 0.01
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+privacy:
+  epsilon: 1.0
+  delta: 1.0e-05
+  max_grad_norm: 1.0
+  accountant: rdp
+synthetic:
+  samples: 2560
+  batch_size: 256
+  distribution: pink_noise
+  refresh_every_epochs: 1
+equil:
+  probes: 8
+  tau: 0.01
+  scale_min: 0.1
+  scale_max: 10.0
+kfac:
+  damping: 0.001
+runtime:
+  device: cuda
+  gpu: 0
+  threads: 4
+  deterministic: true
+output:
+  root: outputs
+algorithm: dp_sgd
+train_size: 60000
+test_size: 10000
+steps_per_epoch: 235
+total_steps: 1175
+sample_rate: 0.004266666666666667
+noise_multiplier: 1.068115234375
+actual_device: cuda:0
+physical_gpu_index: 0
+gpu_name: NVIDIA GeForce RTX 3080 Ti
+run_directory: /media/data/data/lt/DP-KFC/outputs/0912-133211_simple_cnn_mnist_dp_sgd_adamw_s42_ep5_bs256_lr0.005_eps1_d1e-5_C1_b10.9_b20.999_aeps1e-8_wd0.01
+rng_seeds:
+  model_and_dp_noise: 42
+  train_loader: 42
+  test_loader: 42
+  synthetic_epoch_seeds: {}
+  probe_epoch_seeds: {}

@@ -1,4 +1,4 @@
-algorithm: dp_equil
+algorithm: dp_sgd
 seed: 42
 model:
   name: simple_cnn
@@ -11,7 +11,7 @@ data:
 training:
   epochs: 5
   optimizer: sgd
-  learning_rate: 0.5
+  learning_rate: 0.1
   momentum: 0.0
   weight_decay: 0.0
 privacy:
@@ -19,16 +19,6 @@ privacy:
   delta: 1.0e-05
   max_grad_norm: 1.0
   accountant: rdp
-synthetic:
-  samples: 256
-  batch_size: 256
-  distribution: pink_noise
-  refresh_every_epochs: 1
-equil:
-  probes: 8
-  tau: 0.7
-  scale_min: 1.0e-8  
-  scale_max: 1.0e+8 
 runtime:
   device: cuda
   gpu: 0

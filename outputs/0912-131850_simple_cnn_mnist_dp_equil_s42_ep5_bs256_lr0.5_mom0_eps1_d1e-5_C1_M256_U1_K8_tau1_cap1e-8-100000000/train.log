@@ -1,0 +1,8 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+dp_equil epoch=1 accuracy=0.8778 epsilon=0.7863
+dp_equil epoch=2 accuracy=0.9100 epsilon=0.8390
+dp_equil epoch=3 accuracy=0.9133 epsilon=0.8916
+dp_equil epoch=4 accuracy=0.9332 epsilon=0.9442
+dp_equil epoch=5 accuracy=0.9335 epsilon=0.9968

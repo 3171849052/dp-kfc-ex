@@ -13,8 +13,8 @@ from dp_kfac.standalone import trainer
 from test_standalone_config import ROOT
 
 
-def smoke_config(tmp_path, algorithm):
-    c = load_config(ROOT / f'configs/standalone/mnist_{algorithm}.yaml')
+def smoke_config(tmp_path, algorithm, optimizer='sgd'):
+    c = load_config(ROOT / f"configs/standalone/mnist_{algorithm}{'_adamw' if optimizer == 'adamw' else ''}.yaml")
     c['runtime'].update(device='cpu', threads=1)
     c['training']['epochs'] = 3
     c['data'].update(batch_size=2, eval_batch_size=2)
@@ -27,8 +27,9 @@ def smoke_config(tmp_path, algorithm):
 
 
 @pytest.mark.parametrize('algorithm', ['dp_sgd','dp_kfc','dp_equil'])
-def test_smoke(tmp_path, algorithm):
-    c, path = smoke_config(tmp_path, algorithm)
+@pytest.mark.parametrize('optimizer', ['sgd', 'adamw'])
+def test_smoke(tmp_path, algorithm, optimizer):
+    c, path = smoke_config(tmp_path, algorithm, optimizer)
     generator = torch.Generator().manual_seed(1)
     data = TensorDataset(torch.randn(5,1,28,28,generator=generator), torch.arange(5))
     directory = prepare_run(c, path)
@@ -46,6 +47,7 @@ def test_smoke(tmp_path, algorithm):
     assert pink.call_count == (0 if algorithm == 'dp_sgd' else 3)
     stored = json.loads((directory / 'summary.json').read_text())
     assert summary == stored
+    assert stored['optimizer'] == optimizer
     assert stored['completed_epochs'] == 3
     assert stored['global_step'] == 9  # Includes the final partial minibatch.
     assert stored['max_peak_allocated_mb'] is None
@@ -66,10 +68,12 @@ def test_smoke(tmp_path, algorithm):
         assert stored['max_preconditioner_storage_mb'] > 0
 
 
-def test_privacy_order(tmp_path):
+@pytest.mark.parametrize('optimizer_name', ['sgd', 'adamw'])
+def test_privacy_order(tmp_path, optimizer_name):
     c, _ = smoke_config(tmp_path, 'dp_kfc')
     model = GradSampleModule(SimpleCNN(), loss_reduction='sum')
-    optimizer = torch.optim.SGD(model.parameters(), lr=.1)
+    c['training']['optimizer'] = optimizer_name
+    optimizer = trainer.build_optimizer(model, c['training'])
     accountant = trainer.RDPAccountant()
     events = []
     original_clip = trainer.clip_and_noise_gradients
@@ -124,6 +128,8 @@ def test_exp6_preconditioner_regression(tmp_path, algorithm):
     reference = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(reference)
     c, _ = smoke_config(tmp_path, algorithm)
+    # Match the historical reference, independent of experiment tuning.
+    c['equil'].update(tau=.01, scale_min=.1, scale_max=10.)
     reference.PRECOND_STEPS = 2
     reference.PROBES = 2
     device = torch.device('cpu')

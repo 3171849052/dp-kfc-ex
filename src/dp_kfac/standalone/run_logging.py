@@ -29,6 +29,11 @@ def format_run_name(c, timestamp=None):
     values = [('s', c['seed']), ('ep', t['epochs']), ('bs', c['data']['batch_size']),
               ('lr', t['learning_rate']), ('mom', t['momentum']), ('eps', p['epsilon']),
               ('d', p['delta']), ('C', p['max_grad_norm'])]
+    if t['optimizer'] == 'adamw':
+        tokens.append('adamw')
+        values = [(key, value) for key, value in values if key != 'mom']
+        values += [('b1', t['betas'][0]), ('b2', t['betas'][1]),
+                   ('aeps', t['eps']), ('wd', t['weight_decay'])]
     if c['algorithm'] != 'dp_sgd':
         values += [('M', s['samples']), ('U', s['refresh_every_epochs'])]
     if c['algorithm'] == 'dp_kfc':

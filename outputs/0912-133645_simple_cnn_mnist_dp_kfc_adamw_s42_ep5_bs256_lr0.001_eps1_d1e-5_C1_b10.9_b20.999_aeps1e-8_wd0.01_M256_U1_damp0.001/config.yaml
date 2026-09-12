@@ -1,4 +1,4 @@
-algorithm: dp_equil
+algorithm: dp_kfc
 seed: 42
 model:
   name: simple_cnn
@@ -10,10 +10,11 @@ data:
   num_workers: 0
 training:
   epochs: 5
-  optimizer: sgd
-  learning_rate: 0.5
-  momentum: 0.0
-  weight_decay: 0.0
+  optimizer: adamw
+  learning_rate: 0.001
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 0.01
 privacy:
   epsilon: 1.0
   delta: 1.0e-05
@@ -24,11 +25,8 @@ synthetic:
   batch_size: 256
   distribution: pink_noise
   refresh_every_epochs: 1
-equil:
-  probes: 8
-  tau: 0.7
-  scale_min: 1.0e-8  
-  scale_max: 1.0e+8 
+kfac:
+  damping: 0.001
 runtime:
   device: cuda
   gpu: 0

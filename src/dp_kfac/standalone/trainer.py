@@ -19,6 +19,17 @@ from dp_kfac.privacy import (clip_and_noise_gradients,
 from .run_logging import MetricsCSVWriter, write_yaml, write_summary, rng_seeds
 
 
+def build_optimizer(model, training):
+    """Apply the base optimizer to the clipped, noisy aggregate gradient."""
+    common = dict(lr=training['learning_rate'], weight_decay=training['weight_decay'])
+    if training['optimizer'] == 'adamw':
+        return torch.optim.AdamW(model.parameters(), betas=tuple(training['betas']),
+                                 eps=training['eps'], **common)
+    if training['optimizer'] == 'sgd':
+        return torch.optim.SGD(model.parameters(), momentum=training['momentum'], **common)
+    raise ValueError(f"unsupported optimizer: {training['optimizer']}")
+
+
 def timestamp(device):
     if device.type == 'cuda':
         torch.cuda.synchronize(device)
@@ -166,8 +177,7 @@ def train(c, run_dir):
     torch.manual_seed(c['seed'])
     model = GradSampleModule(SimpleCNN().to(device), loss_reduction='sum')
     t, d, p = c['training'], c['data'], c['privacy']
-    optimizer = torch.optim.SGD(model.parameters(), lr=t['learning_rate'],
-                                momentum=t['momentum'], weight_decay=t['weight_decay'])
+    optimizer = build_optimizer(model, t)
     train_data, test_data = load_data(c)
     if d['batch_size'] > len(train_data):
         raise ValueError('batch_size exceeds training dataset size')
@@ -230,7 +240,7 @@ def train(c, run_dir):
             epoch_train_seconds=train_seconds, epoch_total_seconds=epoch_seconds,
             peak_allocated_mb_epoch=peak, preconditioner_storage_mb=storage, **gains))
         print(f"{c['algorithm']} epoch={epoch} accuracy={accuracy:.4f} epsilon={epsilon:.4f}", flush=True)
-    summary = dict(status='completed', algorithm=c['algorithm'], seed=c['seed'],
+    summary = dict(status='completed', algorithm=c['algorithm'], optimizer=t['optimizer'], seed=c['seed'],
         completed_epochs=t['epochs'], global_step=global_step, final_test_loss=test_loss,
         final_test_accuracy=accuracy, best_test_accuracy=best_accuracy, final_epsilon=epsilon,
         noise_multiplier=sigma, training_total_seconds=evaluation_end-training_start,

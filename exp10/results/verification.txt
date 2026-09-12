@@ -1,0 +1,7 @@
+30 epoch rows / 6 final rows; required fields, finite values, clipping, gains, timings and epsilon checks passed.
+All 5 seed-42 Full-Fisher epochs exactly match Exp9 for accuracy, losses, epsilon, clipping and gain statistics.
+Full-Fisher Equil: [93.38, 93.32000000000001], mean=93.350000%, sample std=0.042426 percentage points
+Layerwise Equil: [93.4, 93.21000000000001], mean=93.305000%, sample std=0.134350 percentage points
+DP-SGD: [92.62, 92.34], mean=92.480000%, sample std=0.197990 percentage points
+seed 42: Full - Layerwise = -0.0200 percentage points
+seed 7: Full - Layerwise = +0.1100 percentage points

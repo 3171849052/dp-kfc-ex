@@ -12,7 +12,7 @@ def test_configs(algorithm):
     assert c['training']['epochs'] == 5
     assert c['data']['batch_size'] == 256
     assert c['data']['root'] == 'exp1/data'
-    assert c['synthetic']['samples'] == 2560
+    assert c['synthetic']['samples'] == (2560 if algorithm == 'dp_sgd' else 256)
     assert c['runtime']['device'] == 'cuda'
 
 

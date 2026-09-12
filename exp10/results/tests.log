@@ -1,0 +1,98 @@
+ERROR conda.cli.main_run:execute(127): `conda run python -m pytest -q tests` failed. (See above for error)
+......FF...............................                                  [100%]
+=================================== FAILURES ===================================
+_____________________ test_adamw_config_and_update[dp_kfc] _____________________
+
+algorithm = 'dp_kfc'
+
+    @pytest.mark.parametrize('algorithm', ['dp_sgd', 'dp_kfc', 'dp_equil'])
+    def test_adamw_config_and_update(algorithm):
+        c = load_config(ROOT / f'configs/standalone/mnist_{algorithm}_adamw.yaml')
+        model = torch.nn.Linear(1, 1, bias=False)
+        with torch.no_grad():
+            model.weight.fill_(2.)
+        optimizer = build_optimizer(model, c['training'])
+        assert isinstance(optimizer, torch.optim.AdamW)
+        assert optimizer.defaults['betas'] == (.9, .999)
+        model.weight.grad = torch.zeros_like(model.weight)
+        optimizer.step()
+        # Decoupled decay applies even with a zero sanitized gradient.
+>       torch.testing.assert_close(model.weight, torch.tensor([[2 * (1 - .001 * .01)]]))
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 1 / 1 (100.0%)
+E       Greatest absolute difference: 7.998943328857422e-05 at index (0, 0) (up to 1e-05 allowed)
+E       Greatest relative difference: 3.999511682195589e-05 at index (0, 0) (up to 1.3e-06 allowed)
+
+tests/test_standalone_adamw.py:22: AssertionError
+____________________ test_adamw_config_and_update[dp_equil] ____________________
+
+algorithm = 'dp_equil'
+
+    @pytest.mark.parametrize('algorithm', ['dp_sgd', 'dp_kfc', 'dp_equil'])
+    def test_adamw_config_and_update(algorithm):
+        c = load_config(ROOT / f'configs/standalone/mnist_{algorithm}_adamw.yaml')
+        model = torch.nn.Linear(1, 1, bias=False)
+        with torch.no_grad():
+            model.weight.fill_(2.)
+        optimizer = build_optimizer(model, c['training'])
+        assert isinstance(optimizer, torch.optim.AdamW)
+        assert optimizer.defaults['betas'] == (.9, .999)
+        model.weight.grad = torch.zeros_like(model.weight)
+        optimizer.step()
+        # Decoupled decay applies even with a zero sanitized gradient.
+>       torch.testing.assert_close(model.weight, torch.tensor([[2 * (1 - .001 * .01)]]))
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 1 / 1 (100.0%)
+E       Greatest absolute difference: 7.998943328857422e-05 at index (0, 0) (up to 1e-05 allowed)
+E       Greatest relative difference: 3.999511682195589e-05 at index (0, 0) (up to 1.3e-06 allowed)
+
+tests/test_standalone_adamw.py:22: AssertionError
+=============================== warnings summary ===============================
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_sgd]
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_kfc]
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_equil]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_sgd]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_kfc]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_equil]
+  /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+    warnings.warn(
+
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_sgd]
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_kfc]
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_equil]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_sgd]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_kfc]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_equil]
+tests/test_standalone_smoke.py::test_privacy_order[sgd]
+tests/test_standalone_smoke.py::test_privacy_order[adamw]
+  /media/data/data/lt/DP-KFC/src/dp_kfac/standalone/trainer.py:134: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_kfc]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_kfc]
+tests/test_standalone_smoke.py::test_exp6_preconditioner_regression[dp_kfc]
+  /media/data/data/lt/DP-KFC/src/dp_kfac/standalone/trainer.py:57: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(model(x), y, reduction='sum').backward()
+
+tests/test_standalone_smoke.py::test_smoke[sgd-dp_equil]
+tests/test_standalone_smoke.py::test_smoke[adamw-dp_equil]
+tests/test_standalone_smoke.py::test_exp6_preconditioner_regression[dp_equil]
+  /media/data/data/lt/DP-KFC/src/dp_kfac/standalone/trainer.py:84: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(model(x), y, reduction='sum').backward()
+
+tests/test_standalone_smoke.py::test_exp6_preconditioner_regression[dp_kfc]
+  /media/data/data/lt/DP-KFC/exp6/run_exp6.py:103: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(model(x), y, reduction="sum").backward()
+
+tests/test_standalone_smoke.py::test_exp6_preconditioner_regression[dp_equil]
+  /media/data/data/lt/DP-KFC/exp6/run_exp6.py:68: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(model(x.to(device)), y.to(device), reduction="sum").backward()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_standalone_adamw.py::test_adamw_config_and_update[dp_kfc]
+FAILED tests/test_standalone_adamw.py::test_adamw_config_and_update[dp_equil]
+2 failed, 37 passed, 22 warnings in 22.36s
+

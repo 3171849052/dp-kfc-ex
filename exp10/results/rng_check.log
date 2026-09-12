@@ -1,0 +1,5 @@
+sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+
+seed=42: identical initialization, 10 synthetic batches/labels, K=8 probes; CPU/CUDA RNG restored
+seed=7: identical initialization, 10 synthetic batches/labels, K=8 probes; CPU/CUDA RNG restored
+
