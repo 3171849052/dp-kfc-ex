@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source /HOME/sysu_qling/sysu_qling_3/miniconda3/etc/profile.d/conda.sh
-conda activate adamex
+conda activate curve
 export PYTHONDONTWRITEBYTECODE=1
 trap 'code=$?; printf "%s\n" "$code" > exp10b/results/exit_code.txt' EXIT
 python -m unittest exp10b.test_exp10b exp10b.test_standalone -v > exp10b/results/tests.log 2>&1

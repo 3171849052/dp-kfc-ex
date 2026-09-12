@@ -4,7 +4,7 @@ All new source and output for this experiment live here. Historical exp7/9/10 ar
 At the user's explicit request, the standalone training entry also loses Equil
 scale_min/scale_max defaults, validation, YAML fields, run-name cap suffix and
 algorithm hard clamp. Its Fisher estimator, stabilization and DP clipping are unchanged.
-Run from the repository root in conda environment `adamex`.
+Run from the repository root in conda environment `curve`.
 
 ## Fixed configuration and reuse
 
@@ -82,7 +82,7 @@ Unnoised training diagnostics follow exp10 and are analysis-only.
 
 ```bash
 source /HOME/sysu_qling/sysu_qling_3/miniconda3/etc/profile.d/conda.sh
-conda activate adamex
+conda activate curve
 export PYTHONDONTWRITEBYTECODE=1
 python -m unittest exp10b.test_exp10b exp10b.test_standalone -v > exp10b/results/tests.log 2>&1
 python -u exp10b/run_exp10b.py --smoke > exp10b/results/smoke.log 2>&1

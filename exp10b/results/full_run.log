@@ -1,6 +1,6 @@
-/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/adamex/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
-adamex python=/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/adamex/bin/python; torch=2.14.0+cu126; GPU=NVIDIA A800 80GB PCIe; sigma=1.068115234375; epochs=5
+curve python=/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/curve/bin/python; torch=2.14.0+cu126; GPU=NVIDIA A800 80GB PCIe; sigma=1.068115234375; epochs=5
 sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
 DP-SGD seed=42 epoch=1 accuracy=0.8409 build=0.00s train=8.79s
 DP-SGD seed=42 epoch=2 accuracy=0.8995 build=0.00s train=8.47s

@@ -101,7 +101,7 @@ def main():
                     train_samples=len(train), test_samples=len(test),
                     model="SimpleCNN", optimizer="SGD")
     (output/"config.json").write_text(json.dumps(resolved, indent=2)+"\n")
-    print(f"adamex python={sys.executable}; torch={torch.__version__}; "
+    print(f"curve python={sys.executable}; torch={torch.__version__}; "
           f"GPU={torch.cuda.get_device_name(device)}; sigma={sigma}; epochs={epochs}", flush=True)
     rows, records = [], []
     for seed in seeds:

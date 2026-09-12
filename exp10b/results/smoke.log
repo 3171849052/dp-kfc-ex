@@ -1,4 +1,4 @@
-adamex python=/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/adamex/bin/python; torch=2.14.0+cu126; GPU=NVIDIA A800 80GB PCIe; sigma=0.0; epochs=1
+curve python=/HOME/sysu_qling/sysu_qling_3/miniconda3/envs/curve/bin/python; torch=2.14.0+cu126; GPU=NVIDIA A800 80GB PCIe; sigma=0.0; epochs=1
 sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
 DP-SGD seed=42 epoch=1 accuracy=0.1816 build=0.81s train=1.05s
 sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
