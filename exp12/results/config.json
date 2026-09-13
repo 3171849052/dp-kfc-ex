@@ -11,5 +11,7 @@
     1
   ],
   "device": "cuda",
-  "output": "/media/data/data/lt/DP-KFC/exp12/results"
+  "output": "/media/data/data/lt/DP-KFC/exp12/results",
+  "warmup": 2,
+  "repeats": 5
 }

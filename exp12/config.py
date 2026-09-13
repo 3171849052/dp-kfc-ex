@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 
 
-def parse():
+def parse(argv=None):
     p = argparse.ArgumentParser(description='Frozen SimpleCNN curvature diagnostics')
     p.add_argument('--smoke', action='store_true')
     p.add_argument('--checkpoint', type=Path)
@@ -15,7 +15,9 @@ def parse():
     p.add_argument('--label-seeds', type=int, nargs='+', default=[0, 1, 2])
     p.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     p.add_argument('--output', type=Path, default=Path(__file__).parent/'results')
-    a = p.parse_args()
+    p.add_argument('--warmup', type=int, default=2)
+    p.add_argument('--repeats', type=int, default=5)
+    a = p.parse_args(argv)
     if a.smoke:
         a.synthetic_batches, a.batch_size, a.private_samples = 1, 4, 4
         a.label_seeds = [0, 1]

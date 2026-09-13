@@ -29,8 +29,8 @@ def compare(factors, reference, damping):
             e = e.clamp_min(floor)
             conds.append((e[-1]/e[0]).item())
             logs.append(e.log())
-        whitening.append({'layer': name, 'condition_number': conds[0]*conds[1],
-                          'log_eigenvalue_spread': (logs[0].var(unbiased=False)+logs[1].var(unbiased=False)).sqrt().item(),
-                          'A_rank': ranks[0], 'A_dim': len(a), 'C_rank': ranks[1], 'C_dim': len(c),
-                          'relative_spectral_floor': 1e-7})
+        whitening.append({'layer': name, 'floored_condition_number': conds[0]*conds[1],
+                          'floored_log_eigenvalue_spread': (logs[0].var(unbiased=False)+logs[1].var(unbiased=False)).sqrt().item(),
+                          'A_effective_rank': ranks[0], 'A_dim': len(a), 'C_effective_rank': ranks[1], 'C_dim': len(c),
+                          'spectral_floor_ratio': 1e-7})
     return errors, whitening
