@@ -1,0 +1,4 @@
+method,seeds,final_accuracy_mean,final_accuracy_std,clip_fraction_mean,clip_fraction_std,mean_clip_factor_mean,mean_clip_factor_std,preconditioner_build_time_mean,total_runtime_mean,peak_allocated_memory_mean,peak_allocated_memory_max
+DP-KFC,1,0.17578125,,1.0,,0.0010707955807447433,,0.6104421345517039,0.8451213845983148,160109568.0,160109568
+DP-KFLR,1,0.17578125,,1.0,,0.0010882019996643066,,0.1362565429881215,0.24034038837999105,160109568.0,160109568
+DP-KFRA-block,1,0.17578125,,1.0,,0.0010881421621888876,,0.13537492137402296,0.23805295582860708,160109568.0,160109568

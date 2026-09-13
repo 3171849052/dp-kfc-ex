@@ -1,0 +1,4 @@
+seed,comparison,test_accuracy_difference,clip_fraction_difference,mean_clip_factor_difference,total_training_seconds_difference,total_runtime_seconds_difference
+42,DP-KFLR minus DP-KFC,0.0,0.0,1.7406418919563293e-05,-0.047409175895154476,-0.6047809962183237
+42,DP-KFRA-block minus DP-KFC,0.0,0.0,1.734658144414425e-05,-0.04886108823120594,-0.6070684287697077
+42,DP-KFLR minus DP-KFRA-block,0.0,0.0,5.98374754190445e-08,0.001451912336051464,0.002287432551383972
