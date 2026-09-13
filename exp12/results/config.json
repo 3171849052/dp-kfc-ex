@@ -1,0 +1,15 @@
+{
+  "smoke": true,
+  "checkpoint": null,
+  "synthetic_batches": 1,
+  "batch_size": 4,
+  "private_samples": 4,
+  "damping": 0.001,
+  "seed": 42,
+  "label_seeds": [
+    0,
+    1
+  ],
+  "device": "cuda",
+  "output": "/media/data/data/lt/DP-KFC/exp12/results"
+}
