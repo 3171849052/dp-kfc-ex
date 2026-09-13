@@ -2582,6 +2582,10 @@
     13966,
     7404
   ],
+  "cudnn_benchmark": false,
+  "cudnn_deterministic": true,
+  "matmul_allow_tf32": false,
+  "cudnn_allow_tf32": false,
   "train_loss_definition": "Mean cross entropy on the fixed diagnostic train subset",
   "epoch_definition": "Completed steps divided by batches per epoch",
   "save_steps": [

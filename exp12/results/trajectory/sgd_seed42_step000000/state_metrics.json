@@ -1,0 +1,7 @@
+{
+  "synthetic_mean_max_probability": 0.10724795597918331,
+  "synthetic_mean_prediction_entropy": 2.3018618947275136,
+  "synthetic_normalized_entropy": 0.999685918983523,
+  "synthetic_mean_kl_to_uniform": 0.0007231982665323322,
+  "checkpoint": "/media/data/data/lt/DP-KFC/exp12/checkpoints/sgd_seed42_step000000.pt"
+}
