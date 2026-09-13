@@ -1,0 +1,7 @@
+{
+  "synthetic_mean_max_probability": 0.11097926796529163,
+  "synthetic_mean_prediction_entropy": 2.2991879920894176,
+  "synthetic_normalized_entropy": 0.9985246578226514,
+  "synthetic_mean_kl_to_uniform": 0.003397100904628303,
+  "checkpoint": "/media/data/data/lt/DP-KFC/exp12/checkpoints/smoke_domains/sgd_seed42_final.pt"
+}

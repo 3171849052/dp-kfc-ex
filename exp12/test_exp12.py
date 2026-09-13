@@ -272,3 +272,97 @@ def test_training_trajectory_checkpoints():
         assert len(summary) == 8*4
         assert not summary.isna().any().any()
         assert (summary.loc[summary.estimator == 'KFLR', 'C_relative_error_vs_KFLR'] == 0).all()
+
+
+def test_synthetic_state_metrics_use_supplied_cache():
+    import math
+    from exp12.state_metrics import synthetic_state_metrics
+    model = nn.Linear(2, 10).double().eval()
+    with torch.no_grad():
+        model.weight.copy_(torch.arange(20, dtype=torch.double).reshape(10, 2)/3)
+    cache = [torch.tensor([[0., 1.]], dtype=torch.double),
+             torch.tensor([[1., 0.], [100., -2.]], dtype=torch.double)]
+    seen = []
+    handle = model.register_forward_pre_hook(lambda m, args: seen.append(args[0]))
+    actual = synthetic_state_metrics(model, cache)
+    handle.remove()
+    assert len(seen) == len(cache) and all(a is b for a, b in zip(seen, cache))
+    logp = model(torch.cat(cache)).log_softmax(-1)
+    p = logp.exp()
+    entropy = (-(p*logp).sum(-1)).mean().item()
+    assert abs(actual['synthetic_mean_prediction_entropy']-entropy) < 1e-12
+    assert abs(actual['synthetic_mean_max_probability']-p.max(-1).values.mean().item()) < 1e-12
+    assert abs(actual['synthetic_mean_kl_to_uniform']-(math.log(10)-entropy)) < 1e-12
+    assert abs(actual['synthetic_normalized_entropy']-entropy/math.log(10)) < 1e-12
+    assert all(math.isfinite(v) for v in actual.values())
+    assert 0 <= actual['synthetic_normalized_entropy'] <= 1
+
+
+def test_final_scheduled_step_is_not_duplicated(monkeypatch):
+    import tempfile
+    import pandas as pd
+    from exp12 import train_trajectory as training
+    parent = Path(__file__).parent/'checkpoints'
+    parent.mkdir(exist_ok=True)
+    # Exercise a scheduled positive step with only two updates.
+    monkeypatch.setattr(training, 'SAVE_STEPS', (0, 2))
+    with tempfile.TemporaryDirectory(dir=parent) as tmp:
+        args = training.parse(['--smoke', '--device', 'cpu', '--output', tmp])
+        training.train(args)
+        rows = pd.read_csv(Path(tmp)/'trajectory.csv')
+        assert rows.step.tolist() == [0, 2]
+        assert rows.iloc[-1].checkpoint_path.endswith('step000002.pt')
+        assert (Path(tmp)/'sgd_seed42_final.pt').is_file()
+        assert not rows.duplicated(['seed', 'step']).any()
+
+
+def test_trajectory_summary_domains_and_duplicate_guard(tmp_path):
+    import pandas as pd
+    import pytest
+    from types import SimpleNamespace
+    from exp12.run_trajectory_sweep import summarize_checkpoint, main
+    identity = dict(estimator='KFAC-U-1', layer='fc2', label_seed=0)
+    pd.DataFrame([dict(identity, kron_relative_error=.2, C_relative_error_vs_KFLR=.1)]).to_csv(tmp_path/'curvature_error.csv', index=False)
+    pd.DataFrame([dict(identity, floored_condition_number=10.)]).to_csv(tmp_path/'whitening.csv', index=False)
+    pd.DataFrame([dict(estimator='KFAC-U-1', label_seed=0, build_median_seconds=.01)]).to_csv(tmp_path/'compute_budget.csv', index=False)
+    fields = ['mean_max_probability', 'mean_prediction_entropy', 'normalized_entropy', 'mean_kl_to_uniform']
+    synthetic = {'synthetic_'+k: i+.25 for i, k in enumerate(fields)}
+    (tmp_path/'state_metrics.json').write_text(json.dumps(synthetic))
+    row = SimpleNamespace(checkpoint_path='model.pt', step=2, epoch=.1, **{k: i+.5 for i, k in enumerate(fields)})
+    result = summarize_checkpoint(tmp_path, row).iloc[0]
+    for key in fields:
+        assert result['mnist_'+key] == getattr(row, key)
+        assert result['synthetic_'+key] == synthetic['synthetic_'+key]
+        assert key not in result.index
+    assert result.epoch == .1
+    pd.DataFrame([{'seed': 42, 'step': 2}]*2).to_csv(tmp_path/'duplicate.csv', index=False)
+    with pytest.raises(AssertionError, match='must be unique'):
+        main(['--trajectory', str(tmp_path/'duplicate.csv'), '--output', str(tmp_path/'unused')])
+    assert not (tmp_path/'unused').exists()
+
+
+def test_cuda_runtime_settings_and_cold_start():
+    import subprocess
+    import sys
+    from exp12.runtime import runtime
+    with runtime('cpu'):
+        assert not torch.backends.cudnn.benchmark
+        assert torch.backends.cudnn.deterministic
+        assert not torch.backends.cuda.matmul.allow_tf32
+        assert not torch.backends.cudnn.allow_tf32
+        assert not torch.autograd.is_multithreading_enabled()
+    if torch.cuda.is_available():
+        code = '''from exp12.runtime import runtime
+import torch
+from exp12.benchmark import measure
+with runtime('cuda'):
+    def build():
+        a = torch.ones(3, 3, device='cuda', requires_grad=True)
+        g, = torch.autograd.grad((a @ a).sum(), a)
+        return {'linear': {'A': g, 'C': g}}, {}
+    _, stats, rows = measure(build, 'cuda', warmup=2, repeats=2)
+    assert len(rows) == 2 and stats['build_median_seconds'] > 0
+'''
+        result = subprocess.run([sys.executable, '-c', code], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, check=True)
+        assert 'no current CUDA context' not in result.stderr
+        assert 'cuBLAS' not in result.stderr

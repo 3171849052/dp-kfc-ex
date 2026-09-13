@@ -4,6 +4,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import argparse
+import json
 import subprocess
 import pandas as pd
 
@@ -19,8 +20,12 @@ def summarize_checkpoint(directory, checkpoint_row):
     out = out.groupby(['estimator', 'layer']).mean(numeric_only=True).drop(columns='label_seed').reset_index()
     out = out.rename(columns={'kron_relative_error': 'kron_relative_error_vs_private_oracle'})
     out.insert(0, 'checkpoint', Path(checkpoint_row.checkpoint_path).stem)
-    for key in ['step', 'normalized_entropy', 'mean_kl_to_uniform']:
+    for key in ['step', 'epoch']:
         out[key] = getattr(checkpoint_row, key)
+    state = json.loads((directory/'state_metrics.json').read_text())
+    for key in ['mean_max_probability', 'mean_prediction_entropy', 'normalized_entropy', 'mean_kl_to_uniform']:
+        out['mnist_'+key] = getattr(checkpoint_row, key)
+        out['synthetic_'+key] = state['synthetic_'+key]
     return out
 
 
@@ -30,9 +35,11 @@ def main(argv=None):
     p.add_argument('--output', type=Path, default=ROOT/'exp12/results/trajectory')
     args, diagnostic_args = p.parse_known_args(argv)
     assert '--checkpoint' not in diagnostic_args
+    trajectory = pd.read_csv(args.trajectory)
+    assert not trajectory.duplicated(['seed', 'step']).any(), 'Trajectory (seed, step) must be unique'
     args.output.mkdir(parents=True, exist_ok=True)
     summaries = []
-    for row in pd.read_csv(args.trajectory).itertuples(index=False):
+    for row in trajectory.itertuples(index=False):
         checkpoint = ROOT/row.checkpoint_path
         directory = args.output/checkpoint.stem
         subprocess.run([sys.executable, str(ROOT/'exp12/run_budget_sweep.py'),

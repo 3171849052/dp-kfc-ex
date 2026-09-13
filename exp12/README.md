@@ -138,8 +138,9 @@ Checkpoints are raw `model.state_dict()` files in `exp12/checkpoints/`, named
 `sgd_seed42_step000000.pt`, `sgd_seed42_step000050.pt`, etc., plus
 `sgd_seed42_final.pt`. Save steps are 0/50/100/250/500/1000/2000 and final; steps
 beyond training are skipped. Five MNIST epochs have 1175 updates, so step 2000 is
-skipped. Final always has its own file/row even if it coincides with a scheduled
-step. No optimizer is saved. `--epochs`, `--max-steps`, `--seed`, `--device`,
+skipped. Final always has its own file. If it coincides with a scheduled step, the
+trajectory keeps only the scheduled row; otherwise it adds a final row. The sweep
+asserts that (seed, step) is unique before launching any diagnostics. No optimizer is saved. `--epochs`, `--max-steps`, `--seed`, `--device`,
 `--diagnostic-samples`, `--test-samples` and `--output` can be set explicitly;
 output must remain inside Exp12.
 
@@ -170,10 +171,37 @@ other paths; remaining diagnostic options (e.g. `--device`, `--seed`, `--smoke`)
 pass through unchanged. Use the same diagnostic seed across checkpoints to share
 synthetic probes/private subset selection across model states.
 
-`trajectory_summary.csv` joins checkpoint step/entropy/KL with estimator × layer
+`trajectory_summary.csv` joins checkpoint step/epoch and domain-specific entropy/KL
+with estimator × layer
 means over label seeds: C error against **synthetic KFLR**, Kronecker error against
 **private KFLR**, floored condition number, and median build time. The build column
 is the mean over seeds of each seed's measured median. KFLR self-error is zero;
 KFRA-block is included. The additional `C_relative_error_vs_KFLR` column in each
 `curvature_error.csv` supplies this comparison without changing any estimator or
 existing metric definition. Per-seed source rows remain in each checkpoint folder.
+
+
+## Prediction domains and CUDA execution
+
+`state_metrics.json` records the four `synthetic_*` prediction statistics, computed
+in double precision directly from the **same cached pink-noise tensors** passed to
+the curvature estimators. No probes are regenerated. The statistics pass is outside
+benchmark timing and reverse/forward budget counts, and does not change the frozen
+model. The checkpoint path is recorded when supplied.
+
+Trajectory summaries preserve the four real-data statistics under `mnist_*` names
+and include all four `synthetic_*` statistics. The primary mechanism comparison is
+**`synthetic_mean_kl_to_uniform` vs `C_relative_error_vs_KFLR`**. MNIST-domain KL
+only describes the model's training state; it should not substitute for probe-domain
+KL when interpreting synthetic curvature bias. Original trajectory.csv field names
+remain unchanged for compatibility.
+
+Training and diagnostic entry points set cuDNN benchmark=False,
+cuDNN deterministic=True, CUDA matmul TF32=False, and cuDNN TF32=False.
+Diagnostics initialize CUDA with a small matrix-multiply VJP before measurement.
+Autograd multithreading is disabled within these entry points so reverse-mode work
+uses the caller thread with its initialized CUDA context, avoiding lazy cuBLAS
+context creation in an autograd worker. Warnings are not suppressed. Existing
+per-estimator warm-ups and synchronized repeated measurements remain in place.
+These settings improve same-environment repeatability; they do not promise bitwise
+agreement across hardware or PyTorch versions.

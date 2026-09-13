@@ -12,6 +12,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 from dp_kfac.models import SimpleCNN
+from exp12.runtime import runtime
 
 SAVE_STEPS = (0, 50, 100, 250, 500, 1000, 2000)
 
@@ -62,6 +63,11 @@ def state_metrics(model, diagnostic_loader, test_loader, device):
 
 
 def train(args):
+    with runtime(args.device):
+        return _train(args)
+
+
+def _train(args):
     torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     model = SimpleCNN().to(args.device)
@@ -78,6 +84,8 @@ def train(args):
     metadata = dict(vars(args), model='SimpleCNN', dataset='MNIST', normalization=[.1307, .3081],
                     optimizer='SGD', lr=.5, momentum=0, weight_decay=0, batch_size=256,
                     shuffle=True, diagnostic_split='train', diagnostic_indices=indices,
+                    cudnn_benchmark=False, cudnn_deterministic=True,
+                    matmul_allow_tf32=False, cudnn_allow_tf32=False,
                     train_loss_definition='Mean cross entropy on the fixed diagnostic train subset',
                     epoch_definition='Completed steps divided by batches per epoch', save_steps=SAVE_STEPS)
     (args.output/'metadata.json').write_text(json.dumps(metadata, default=str, indent=2))
@@ -86,6 +94,8 @@ def train(args):
         suffix = 'final' if final else f'step{step:06d}'
         path = args.output/f'sgd_seed{args.seed}_{suffix}.pt'
         torch.save(model.state_dict(), path)
+        if final and any(row['step'] == step for row in rows):
+            return
         row = dict(checkpoint_path=str(path.resolve().relative_to(ROOT)), seed=args.seed,
                    step=step, epoch=step/len(train_loader),
                    **state_metrics(model, diagnostic_loader, test_loader, args.device))

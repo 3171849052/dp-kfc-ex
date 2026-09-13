@@ -14,10 +14,17 @@ from exp12.curvature import estimate
 from exp12 import oracle
 from exp12.metrics import compare, relative
 from exp12.benchmark import measure
+from exp12.runtime import runtime
+from exp12.state_metrics import synthetic_state_metrics
 
 
 def main(argv=None):
     args = parse(argv)
+    with runtime(args.device):
+        run(args)
+
+
+def run(args):
     torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     model = SimpleCNN().to(args.device).eval()
@@ -29,6 +36,9 @@ def main(argv=None):
     private = oracle.private_cache(args.private_samples, args.batch_size, args.device, args.seed+2)
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output/'config.json').write_text(json.dumps(vars(args), default=str, indent=2))
+    state = synthetic_state_metrics(model, cache)
+    state['checkpoint'] = str(args.checkpoint) if args.checkpoint else None
+    (args.output/'state_metrics.json').write_text(json.dumps(state, indent=2))
     budgets, raw = [], []
     def benchmark(name, k, seed, fn, private_input=False):
         factors, stats, rows = measure(fn, args.device, args.warmup, args.repeats)
