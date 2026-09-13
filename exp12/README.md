@@ -1,7 +1,8 @@
 # Exp12: frozen-model curvature diagnostics
 
-Exp12 does not train, run DP training, attach Ghost Clipping, or compare final
-accuracy. Private MNIST inputs are used without labels only by the diagnostic
+The curvature diagnostic path does not train, run DP training, attach Ghost
+Clipping, or compare final accuracy. The optional SGD trajectory producer below
+is a separate checkpoint-generation path. Private MNIST inputs are used without labels only by the diagnostic
 oracle; they never feed back into synthetic estimators. Diagnostics are not a DP
 release. All synthetic methods receive the **same cached pink-noise inputs**, using
 the existing DP-KFC generator. Parameters remain frozen.
@@ -117,3 +118,62 @@ Correctness checks cover Hessian factors, Fisher/GGN equivalence, one/two/deeper
 MLP recursion, CNN local weight/reshape/gate recursion against independent
 Jacobians, original DP-KFC U1 equivalence, shared A and single-pass streaming,
 MC convergence and non-uniform U/M limits, and oracle import isolation.
+
+## Generate frozen checkpoints with ordinary SGD
+
+The optional training entry point is separate from curvature diagnostics. It uses
+MNIST, the same normalization, repository SimpleCNN, and ordinary **non-private**
+SGD: lr=0.5, momentum=0, weight decay=0, batch size=256, shuffled batches, seed=42,
+CUDA by default, five epochs. It uses no curvature estimator or Ghost Clipping.
+Training is only for producing model states; high accuracy or monotone confidence
+is not guaranteed with this learning rate.
+
+```bash
+conda run -n curve python exp12/train_trajectory.py
+# Only two updates; outputs go to exp12/checkpoints/smoke/.
+conda run -n curve python exp12/train_trajectory.py --smoke
+```
+
+Checkpoints are raw `model.state_dict()` files in `exp12/checkpoints/`, named
+`sgd_seed42_step000000.pt`, `sgd_seed42_step000050.pt`, etc., plus
+`sgd_seed42_final.pt`. Save steps are 0/50/100/250/500/1000/2000 and final; steps
+beyond training are skipped. Five MNIST epochs have 1175 updates, so step 2000 is
+skipped. Final always has its own file/row even if it coincides with a scheduled
+step. No optimizer is saved. `--epochs`, `--max-steps`, `--seed`, `--device`,
+`--diagnostic-samples`, `--test-samples` and `--output` can be set explicitly;
+output must remain inside Exp12.
+
+`metadata.json` records settings and fixed diagnostic indices. `trajectory.csv`
+has one row per checkpoint. `epoch` is fractional completed epochs. `train_loss`
+is checkpoint cross entropy on a **fixed training diagnostic subset**, including
+step 0, rather than a last-minibatch loss. Prediction confidence, entropy and KL
+use that same subset (2560 train images, seed + 2, matching default oracle subset
+selection). `test_accuracy` is a fraction over all 10000 test images by default.
+Smoke uses 32 diagnostic images and 64 test images. These evaluations never
+update the model or choose its optimizer settings. KL is measured on MNIST inputs,
+not synthetic pink noise; interpret its relationship to synthetic curvature error
+accordingly. Entropy is in nats; normalized entropy divides by log(10), and
+`mean_kl_to_uniform = log(10) - mean_prediction_entropy`.
+
+Training exits after saving checkpoints and never launches diagnostics.
+
+```bash
+conda run -n curve python exp12/run_budget_sweep.py --checkpoint exp12/checkpoints/sgd_seed42_step000500.pt --output exp12/results/sgd_step500
+# Explicit opt-in: processes every row in the saved trajectory.
+conda run -n curve python exp12/run_trajectory_sweep.py
+```
+
+The trajectory runner reads `exp12/checkpoints/trajectory.csv`, invokes existing
+curvature diagnostics separately per checkpoint, and writes to
+`exp12/results/trajectory/<checkpoint_name>/`. `--trajectory` and `--output` select
+other paths; remaining diagnostic options (e.g. `--device`, `--seed`, `--smoke`)
+pass through unchanged. Use the same diagnostic seed across checkpoints to share
+synthetic probes/private subset selection across model states.
+
+`trajectory_summary.csv` joins checkpoint step/entropy/KL with estimator × layer
+means over label seeds: C error against **synthetic KFLR**, Kronecker error against
+**private KFLR**, floored condition number, and median build time. The build column
+is the mean over seeds of each seed's measured median. KFLR self-error is zero;
+KFRA-block is included. The additional `C_relative_error_vs_KFLR` column in each
+`curvature_error.csv` supplies this comparison without changing any estimator or
+existing metric definition. Per-seed source rows remain in each checkpoint folder.

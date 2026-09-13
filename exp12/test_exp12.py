@@ -223,3 +223,52 @@ def test_nonuniform_u_m_limits():
     assert (m['0']['C']-fisher).norm()/fisher.norm() < .06
     assert (u['0']['C']-uniform).norm()/uniform.norm() < .04
     assert (u['0']['C']-fisher).norm()/fisher.norm() > 1
+
+
+def test_training_trajectory_checkpoints():
+    """A short real-MNIST trajectory and the actual checkpoint CLI loading path."""
+    import math
+    import subprocess
+    import sys
+    import tempfile
+    import pandas as pd
+    from dp_kfac.models import SimpleCNN
+    from exp12.train_trajectory import parse, train
+    from exp12.run_trajectory_sweep import summarize_checkpoint
+    root = Path(__file__).resolve().parents[1]
+    parent = root/'exp12/checkpoints'
+    parent.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='test_', dir=parent) as tmp:
+        output = Path(tmp)
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        rows = train(parse(['--smoke', '--device', device, '--output', str(output)]))
+        initial = torch.load(root/rows.iloc[0].checkpoint_path, map_location='cpu', weights_only=True)
+        torch.manual_seed(42)
+        expected = SimpleCNN().state_dict()
+        assert initial.keys() == expected.keys()
+        assert all(isinstance(v, torch.Tensor) for v in initial.values())
+        for key in expected:
+            assert torch.equal(initial[key], expected[key])
+        final_path = root/rows.iloc[-1].checkpoint_path
+        final = torch.load(final_path, map_location='cpu', weights_only=True)
+        assert final.keys() == expected.keys()
+        assert all(isinstance(v, torch.Tensor) for v in final.values())
+        assert any(not torch.equal(initial[k], final[k]) for k in initial)
+        table = pd.read_csv(output/'trajectory.csv')
+        assert table.step.tolist() == [0, 2]
+        assert torch.isfinite(torch.tensor(table.select_dtypes('number').to_numpy())).all()
+        assert table.normalized_entropy.between(0, 1).all()
+        assert table.mean_prediction_entropy.between(0, math.log(10)).all()
+        assert table.mean_kl_to_uniform.between(0, math.log(10)).all()
+        assert table.mean_max_probability.between(.1, 1).all()
+        assert table.test_accuracy.between(0, 1).all()
+        torch.testing.assert_close(torch.tensor(table.mean_kl_to_uniform.to_numpy()),
+                                   math.log(10)-torch.tensor(table.mean_prediction_entropy.to_numpy()))
+        diagnostic = output/'diagnostic'
+        subprocess.run([sys.executable, str(root/'exp12/run_budget_sweep.py'), '--checkpoint',
+                        str(final_path), '--output', str(diagnostic), '--device', device,
+                        '--smoke', '--warmup', '1', '--repeats', '1'], check=True, capture_output=True, text=True)
+        summary = summarize_checkpoint(diagnostic, next(table.tail(1).itertuples(index=False)))
+        assert len(summary) == 8*4
+        assert not summary.isna().any().any()
+        assert (summary.loc[summary.estimator == 'KFLR', 'C_relative_error_vs_KFLR'] == 0).all()

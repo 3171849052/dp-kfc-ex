@@ -45,6 +45,9 @@ def main(argv=None):
     errors, whites, mc = [], [], []
     def record(name, seed, factors):
         e, w = compare(factors, ref, args.damping)
+        for row in e:
+            n = row["layer"]
+            row["C_relative_error_vs_KFLR"] = relative(factors[n]["C"], exact[n]["C"])
         for rows, target in [(e, errors), (w, whites)]:
             target.extend(dict(estimator=name, label_seed=seed, **r) for r in rows)
         for n in exact:

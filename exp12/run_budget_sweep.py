@@ -2,7 +2,7 @@
 
 Examples:
   python exp12/run_budget_sweep.py
-  python exp12/run_budget_sweep.py --checkpoint PATH --warmup 2 --repeats 5
+  python exp12/run_budget_sweep.py --checkpoint exp12/checkpoints/sgd_seed42_step000500.pt --output exp12/results/sgd_step500
 """
 import sys
 from run_diagnostics import main

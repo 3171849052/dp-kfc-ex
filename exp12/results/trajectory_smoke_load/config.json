@@ -1,0 +1,17 @@
+{
+  "smoke": true,
+  "checkpoint": "exp12/checkpoints/smoke/sgd_seed42_final.pt",
+  "synthetic_batches": 1,
+  "batch_size": 4,
+  "private_samples": 4,
+  "damping": 0.001,
+  "seed": 42,
+  "label_seeds": [
+    0,
+    1
+  ],
+  "device": "cuda",
+  "output": "exp12/results/trajectory_smoke_load",
+  "warmup": 1,
+  "repeats": 1
+}

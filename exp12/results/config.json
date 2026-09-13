@@ -1,14 +1,15 @@
 {
-  "smoke": true,
+  "smoke": false,
   "checkpoint": null,
-  "synthetic_batches": 1,
-  "batch_size": 4,
-  "private_samples": 4,
+  "synthetic_batches": 10,
+  "batch_size": 256,
+  "private_samples": 2560,
   "damping": 0.001,
   "seed": 42,
   "label_seeds": [
     0,
-    1
+    1,
+    2
   ],
   "device": "cuda",
   "output": "/media/data/data/lt/DP-KFC/exp12/results",
