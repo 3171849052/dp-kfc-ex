@@ -56,8 +56,8 @@ conda run -n curve python exp13/run_exp13.py --smoke
 参数更新，写入 `exp13/results/smoke/`。零噪声 smoke **不提供 DP 保证**，
 epsilon 留空，accountant_steps=0；单 seed 的 sample std 同样留空，不伪造数值。
 测试仅包含共同 A、damped whitening、KFLR/KFRA-block Ghost aggregate 对
-逐样本显式参考、builder RNG 隔离。按研究原型范围不新增 golden/bitwise regression、
-hardening 或额外 smoke；初始化由同一函数保证。
+逐样本显式参考、builder RNG 隔离，另包含同 seed 三模型参数完全一致和 DP-KFC 对 Exp12
+固定 cache/固定 uniform labels 的 A/C 与 operator regression。无额外 smoke。
 
 正式完整实验（本次不自动启动）：
 
@@ -69,13 +69,31 @@ conda run -n curve python exp13/run_exp13.py
 最后 epoch，附累计时间和跨 epoch 峰值），`paired_summary.csv`（三对差值），
 `method_summary.csv`（两 seed 描述统计，sample std，未做显著性检验）。
 Accuracy 单位为 [0,1]；paired difference 均为名称前者减后者；build time mean
-是每个 seed 累计 build 时间的均值；total runtime 含 build、training、evaluation
-及 epoch 统计，不含 CSV 写出、数据加载初始化和 warmup。仅两 seeds，不能据此宣称
+是每个 seed 累计 build 时间的均值。主论文 cost comparison 使用
+`algorithm_epoch_seconds = preconditioner_build_seconds + private_train_seconds`。
+`wall_epoch_seconds` 定义为 build + state metric + private train + evaluation 四阶段
+之和，不含 CSV 写出、阶段间统计/管理、数据加载初始化和 warmup。
+summary 累计 `total_build_seconds`、`total_private_train_seconds`、
+`total_algorithm_seconds`、`total_state_metric_seconds`、`total_wall_seconds`；
+paired summary 同时报告 private train、algorithm 和 wall 时间差。
+不再使用含义混合的 total_epoch_seconds / total_runtime_seconds。
+正式运行在 `exp13/results/config.json` 保存实际配置（含统一 sigma、sample rate、
+accountant steps、seed schedules、warmup 和计时定义）；smoke 配置单独存入 smoke 目录。
+已有旧正式 CSV 不回填新 timing，需重新实验才能得到可比较的分阶段时间。仅两 seeds，不能据此宣称
 统计显著性。重新生成 summary：`python exp13/analyze.py [结果目录]`。
 
 CUDA：benchmark=False、deterministic=True、两项 TF32=False；复用 Exp12 runtime
-在计时前 warmup CUDA/cuBLAS。build（含 cache、state metrics、inverse sqrt）与
-training 分别同步计时和重置 peak allocated memory；total peak 是两阶段最大值。
+在计时前 warmup CUDA/cuBLAS。进入 seed/method 循环前，再执行一次完整 disposable
+warmup：独立 SimpleCNN、256 synthetic inputs、三个 builder、synthetic diagnostic
+forward，以及 256 个 MNIST 样本的 Ghost 两遍 backward（内部已执行一次 aggregate
+transform，不重复变换）。不调用 optimizer.step，不推进 accountant，不写 metrics；
+fork_rng 和独立 generator 隔离随机数，结束时同步、移除 hooks、释放 disposable
+对象，并断言 CPU/所有 CUDA RNG states 恢复。
+
+build（cache + curvature + inverse sqrt）与 training 分别同步计时和重置 peak
+allocated memory；total peak 是两阶段最大值。`state_metric_seconds` 在同一个 cache
+object 上另行同步计时，诊断 forward 不进入 build timing 或 builder budget。
+`evaluation_seconds` 单独记录。
 不在 batch 内 empty_cache。额外 state metric forward 单独记录，不混入 curvature
 builder budget。
 

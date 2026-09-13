@@ -86,3 +86,37 @@ def test_builder_rng_isolation(setup):
         build_preconditioner(model, method, 42, 1, device, batches=1, batch_size=4)
         assert torch.equal(torch.random.get_rng_state(), cpu)
         assert all(torch.equal(a, b) for a, b in zip(torch.cuda.get_rng_state_all(), cuda))
+
+
+def test_same_initialization(setup):
+    _, _, device = setup
+    m1 = initialize(42, device)
+    m2 = initialize(42, device)
+    m3 = initialize(42, device)
+    for p1, p2, p3 in zip(m1.parameters(), m2.parameters(), m3.parameters()):
+        assert torch.equal(p1, p2)
+        assert torch.equal(p1, p3)
+
+
+def test_kfc_regression(setup):
+    from unittest.mock import patch
+    from exp12.curvature import estimate_kfac_with_labels
+    from exp13.builders import build_from_cache
+    model, _, device = setup
+    cache = synthetic_cache(42, 1, device, 1, 4)
+    generator = torch.Generator(device=device).manual_seed(42 + 20000 + 1)
+    labels = [torch.multinomial(torch.ones(len(x), 10, device=device), 1, generator=generator)
+              for x in cache]
+    reference, _ = estimate_kfac_with_labels(model, cache, labels)
+    # Observe the actual factors passed by the production builder to its operator.
+    with patch('exp13.builders.Operator', wraps=Operator) as constructor:
+        actual, stats = build_from_cache(model, 'DP-KFC', cache, 42, 1)
+    factors = constructor.call_args.args[0]
+    expected = Operator(reference)
+    for name in reference:
+        for key in ('A', 'C'):
+            torch.testing.assert_close(factors[name][key], reference[name][key])
+        for value, target in zip(actual.data[name], expected.data[name]):
+            torch.testing.assert_close(value, target)
+    assert stats['builder_forward_calls'] == stats['builder_vjp_calls'] == 1
+    assert stats['builder_reverse_vectors'] == 4

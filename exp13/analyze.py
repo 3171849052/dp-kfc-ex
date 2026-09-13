@@ -10,9 +10,11 @@ def save(rows, output):
     frame.to_csv(output / 'metrics.csv', index=False)
     keys = ['method', 'seed']
     totals = frame.groupby(keys).agg(
-        total_training_seconds=('private_train_seconds', 'sum'),
+        total_private_train_seconds=('private_train_seconds', 'sum'),
         total_build_seconds=('preconditioner_build_seconds', 'sum'),
-        total_runtime_seconds=('total_epoch_seconds', 'sum'),
+        total_algorithm_seconds=('algorithm_epoch_seconds', 'sum'),
+        total_state_metric_seconds=('state_metric_seconds', 'sum'),
+        total_wall_seconds=('wall_epoch_seconds', 'sum'),
         peak_allocated_bytes=('total_peak_cuda_allocated_bytes', 'max'))
     final = frame.groupby(keys, sort=False).tail(1).set_index(keys).join(totals).reset_index()
     final.to_csv(output / 'summary.csv', index=False)
@@ -24,7 +26,7 @@ def save(rows, output):
                 pairs.append(dict(seed=seed, comparison=f'{a} minus {b}', **{
                     f'{k}_difference': group.loc[a, k] - group.loc[b, k]
                     for k in ('test_accuracy', 'clip_fraction', 'mean_clip_factor',
-                              'total_training_seconds', 'total_runtime_seconds')}))
+                              'total_private_train_seconds', 'total_algorithm_seconds', 'total_wall_seconds')}))
     pd.DataFrame(pairs).to_csv(output / 'paired_summary.csv', index=False)
     summary = final.groupby('method').agg(
         seeds=('seed', 'count'),
@@ -32,7 +34,9 @@ def save(rows, output):
         clip_fraction_mean=('clip_fraction', 'mean'), clip_fraction_std=('clip_fraction', 'std'),
         mean_clip_factor_mean=('mean_clip_factor', 'mean'), mean_clip_factor_std=('mean_clip_factor', 'std'),
         preconditioner_build_time_mean=('total_build_seconds', 'mean'),
-        total_runtime_mean=('total_runtime_seconds', 'mean'),
+        total_algorithm_seconds_mean=('total_algorithm_seconds', 'mean'),
+        total_state_metric_seconds_mean=('total_state_metric_seconds', 'mean'),
+        total_wall_seconds_mean=('total_wall_seconds', 'mean'),
         peak_allocated_memory_mean=('peak_allocated_bytes', 'mean'),
         peak_allocated_memory_max=('peak_allocated_bytes', 'max'))
     summary.to_csv(output / 'method_summary.csv')
