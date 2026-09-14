@@ -1,0 +1,4 @@
+epoch=1 p0_identity=passed p1_relative_error=2.486e-15 fractional_finite=passed probe_reset=passed synthetic_batches=3 min_memory_pairs=3
+lambda=0.3 seed=42 epoch=1 accuracy=0.0938 epsilon=0.712335
+epoch=2 p0_identity=passed p1_relative_error=2.961e-15 fractional_finite=passed probe_reset=passed synthetic_batches=3 min_memory_pairs=6
+lambda=0.3 seed=42 epoch=2 accuracy=0.1250 epsilon=0.996392

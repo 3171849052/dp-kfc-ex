@@ -1,0 +1,31 @@
+........                                                                 [100%]
+=============================== warnings summary ===============================
+exp15b/tests/test_exp15b.py::test_two_lambda_smoke
+  /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+    warnings.warn(
+
+exp15b/tests/test_exp15b.py::test_two_lambda_smoke
+  sys:1: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.0001]
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.3]
+  /media/data/data/lt/DP-KFC/exp15/preconditioner.py:104: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.0001]
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.3]
+  /media/data/data/lt/DP-KFC/exp15/preconditioner.py:128: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.0001]
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.3]
+  /media/data/data/lt/DP-KFC/exp15b/tests/test_exp15b.py:82: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(model(x), y, reduction='sum').backward()
+
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.0001]
+exp15b/tests/test_exp15b.py::test_synthetic_batch_independence_and_private_update[0.3]
+  /media/data/data/lt/DP-KFC/exp15/run_exp15.py:64: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+8 passed, 10 warnings in 11.12s
