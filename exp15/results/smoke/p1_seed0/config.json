@@ -1,0 +1,61 @@
+{
+  "algorithm": "synthetic_klbfgs_h_power",
+  "seed": 0,
+  "model": {
+    "name": "simple_cnn"
+  },
+  "data": {
+    "dataset": "mnist",
+    "root": "/media/data/data/lt/DP-KFC/exp1/data",
+    "batch_size": 4,
+    "eval_batch_size": 16,
+    "num_workers": 0
+  },
+  "training": {
+    "epochs": 2,
+    "optimizer": "sgd",
+    "learning_rate": 0.5,
+    "momentum": 0.0,
+    "weight_decay": 0.0
+  },
+  "privacy": {
+    "epsilon": 1.0,
+    "delta": 1e-05,
+    "max_grad_norm": 1.0,
+    "accountant": "rdp"
+  },
+  "synthetic": {
+    "samples": 8,
+    "batch_size": 8,
+    "distribution": "pink_noise",
+    "refresh_every_epochs": 1
+  },
+  "kfac": {
+    "damping": 0.001
+  },
+  "runtime": {
+    "device": "cuda",
+    "gpu": 0,
+    "threads": 4,
+    "deterministic": true
+  },
+  "output": {
+    "root": "/media/data/data/lt/DP-KFC/exp15/results"
+  },
+  "lbfgs": {
+    "memory": 100,
+    "initial_scale": 1.0,
+    "factor_damping": 0.03162277660168379,
+    "activation_decay": 0.9,
+    "pair_decay": 0.9,
+    "synthetic_lookahead_lr": 0.5
+  },
+  "p": 1.0,
+  "smoke": true,
+  "noise_multiplier": 4.53125,
+  "sample_rate": 0.5,
+  "total_steps": 4,
+  "train_size": 8,
+  "test_size": 32,
+  "actual_device": "cuda:0"
+}

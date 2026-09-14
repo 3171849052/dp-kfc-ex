@@ -1,0 +1,4 @@
+epoch=1 p0_identity=passed p1_relative_error=1.886e-15 fractional_finite=passed
+p=0 seed=0 epoch=1 accuracy=0.1250 epsilon=0.712335
+epoch=2 p0_identity=passed p1_relative_error=7.580e-16 fractional_finite=passed
+p=0 seed=0 epoch=2 accuracy=0.0938 epsilon=0.996392

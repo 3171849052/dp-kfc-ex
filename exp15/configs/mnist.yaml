@@ -1,0 +1,11 @@
+# Inherit the existing MNIST+CNN DP-KFC SGD settings; only these additions.
+base: configs/standalone/mnist_dp_kfc.yaml
+powers: [0.0, 0.25, 0.5, 0.75, 1.0]
+seeds: [0, 1]
+lbfgs:
+  memory: 100
+  initial_scale: 1.0
+  factor_damping: 0.03162277660168379 # sqrt(existing kfac.damping=0.001)
+  activation_decay: 0.9
+  pair_decay: 0.9
+  synthetic_lookahead_lr: 0.5

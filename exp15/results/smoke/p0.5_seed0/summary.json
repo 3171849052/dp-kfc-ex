@@ -1,0 +1,58 @@
+{
+  "p": 0.5,
+  "seed": 0,
+  "smoke": true,
+  "test_accuracy": 0.09375,
+  "epsilon_spent": 0.9963923627328367,
+  "steps": 4,
+  "diagnostics": {
+    "conv1/a": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0
+    },
+    "conv1/g": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 1,
+      "modified_damping": 1
+    },
+    "conv2/a": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0
+    },
+    "conv2/g": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 2
+    },
+    "fc1/a": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0
+    },
+    "fc1/g": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 1
+    },
+    "fc2/a": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0
+    },
+    "fc2/g": {
+      "accepted": 2,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 1
+    }
+  }
+}

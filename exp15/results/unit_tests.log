@@ -1,0 +1,17 @@
+...                                                                      [100%]
+=============================== warnings summary ===============================
+exp15/tests/test_core.py::test_identity_matches_existing_dp_sgd
+exp15/tests/test_core.py::test_kronecker_preclip_and_noisy_update
+  /media/data/data/lt/DP-KFC/exp15/run_exp15.py:61: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+exp15/tests/test_core.py::test_identity_matches_existing_dp_sgd
+  /media/data/data/lt/DP-KFC/src/dp_kfac/standalone/trainer.py:134: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+exp15/tests/test_core.py::test_kronecker_preclip_and_noisy_update
+  /media/data/data/lt/DP-KFC/exp15/tests/test_core.py:66: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(model(x), y, reduction='sum').backward()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+3 passed, 4 warnings in 4.33s
