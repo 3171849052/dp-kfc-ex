@@ -165,6 +165,9 @@ def analyze(smoke=False):
     import matplotlib.pyplot as plt
     directory = ROOT / 'exp15/results' / ('smoke' if smoke else 'formal')
     paths = sorted(directory.glob('p*_seed*/summary.json'))
+    if not smoke:
+        seeds = yaml.safe_load((ROOT / 'exp15/configs/mnist.yaml').read_text())['seeds']
+        paths = [path for path in paths if path.parent.name.endswith(tuple(f'_seed{seed}' for seed in seeds))]
     frame = pd.DataFrame([json.loads(path.read_text()) for path in paths])
     if not smoke:
         # Old protocol results must not be pooled with corrected runs.
@@ -192,7 +195,7 @@ def analyze(smoke=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--p', type=float, choices=[0., .25, .5, .75, 1.])
-    parser.add_argument('--seed', type=int, choices=[0, 1], default=0)
+    parser.add_argument('--seed', type=int, choices=[42, 7], default=42)
     parser.add_argument('--smoke', action='store_true', help='one tiny suite covering p=0,0.5,1')
     parser.add_argument('--summarize', action='store_true')
     args = parser.parse_args()
@@ -200,7 +203,7 @@ if __name__ == '__main__':
         analyze(args.smoke)
     elif args.smoke:
         for p in (0., .5, 1.):
-            run(p, 0, True)
+            run(p, args.seed, True)
         analyze(True)
     else:
         if args.p is None:

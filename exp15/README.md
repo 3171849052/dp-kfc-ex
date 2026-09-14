@@ -14,11 +14,11 @@ conda activate curve
 脚本顺序执行恰好 10 个正式 runs，然后生成汇总和图。单独重跑：
 
 ```bash
-python exp15/run_exp15.py --p 0.5 --seed 1
+python exp15/run_exp15.py --p 0.5 --seed 42
 python exp15/run_exp15.py --summarize
 ```
 
-`--p` 可选 `0.0 0.25 0.5 0.75 1.0`，`--seed` 可选 `0 1`。同一 p/seed 重跑覆盖其结果。正式汇总会拒绝旧协议结果与本次修复结果混用；完整脚本重跑全部 10 个组合后，每个 p 的 count=2。默认使用可见的第一张 CUDA GPU，可用 `CUDA_VISIBLE_DEVICES` 指定。
+`--p` 可选 `0.0 0.25 0.5 0.75 1.0`，`--seed` 可选 `42 7`，默认 `42`。同一 p/seed 重跑覆盖其结果。正式汇总会拒绝旧协议结果与本次修复结果混用；完整脚本重跑全部 10 个组合后，每个 p 的 count=2。默认使用可见的第一张 CUDA GPU，可用 `CUDA_VISIBLE_DEVICES` 指定。
 
 ## 固定配置与复用
 
@@ -26,7 +26,7 @@ python exp15/run_exp15.py --summarize
 
 | 参数 | 正式实验值 |
 |---|---|
-| p × seed | `{0, .25, .5, .75, 1}` × `{0, 1}` |
+| p × seed | `{0, .25, .5, .75, 1}` × `{42, 7}` |
 | 模型/数据 | 原 `SimpleCNN`、MNIST、原归一化 |
 | SGD | lr=0.5，momentum=0，weight decay=0 |
 | DP | epsilon=1，delta=1e-5，C=1，RDP |
@@ -89,6 +89,8 @@ H^p v = gamma^p v + (QU) diag(lambda^p-gamma^p) (QU)^T v
 
 ## 输出
 
+正式汇总仅纳入当前配置的 seeds 42、7，保留但不混入已有 seed 0、1 结果。后续 `--smoke` 使用 `--seed` 指定的 seed（默认 42）；下述 seed=0 验证记录为历史结果。
+
 正式结果位于 `results/formal/p{p}_seed{seed}/`；smoke 独立位于 `results/smoke/`。
 
 - `config.json`：展开配置和实际噪声/采样参数。
@@ -119,7 +121,7 @@ python exp15/run_exp15.py --smoke
 4. 正式配置固定 1170 steps、10×256 synthetic；创建 smoke 配置不会污染正式配置。
 5. 多 synthetic batches 实际 before-forward 参数逐元素等于 refresh 开始的 `theta_t`；确认 lookahead 确实修改副本，随后 batch 已恢复；前一批接受的 pair 内容及计数保留。刷新后再独立计算整个 CNN 的 precondition→global clip→noise→update，对照 private step。
 
-同一 tiny smoke 覆盖 p=0、0.5、1，seed=0；每分支使用 8 个 MNIST 训练样本、32 个测试样本、private batch=4、2 epochs，synthetic 为每 epoch **3×8**。共享 `verification.py` 在 smoke 中实际断言 before-forward reset、private model 不变、pair 保留及代表性 factor memory >1；每次刷新还检查 H 的幂。正式路径仍使用原 SyntheticKLBFGS，不加载这些测试断言。
+此前已完成的 tiny smoke 覆盖 p=0、0.5、1，seed=0；每分支使用 8 个 MNIST 训练样本、32 个测试样本、private batch=4、2 epochs，synthetic 为每 epoch **3×8**。共享 `verification.py` 在 smoke 中实际断言 before-forward reset、private model 不变、pair 保留及代表性 factor memory >1；每次刷新还检查 H 的幂。正式路径仍使用原 SyntheticKLBFGS，不加载这些测试断言。
 
 2026-09-14 修复后在 `curve` 环境按上述顺序执行：**pytest 5 passed**；真实 MNIST+CNN smoke 的三个 p 分支全部通过。每个分支完成 4 个 private logical steps、2 次 refresh；所有因子在第一次 refresh 后有 3 对、第二次后有 6 对。每分支累计 accepted=48、rejected=0、Powell damping=3、modified damping=16；before-forward reset 和 pair retention 断言全部通过。p=1 相对 sibling Hv 最大误差 `4.84e-15`，fractional 输出 finite。
 
