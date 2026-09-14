@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 MEASURES = ('test_accuracy', 'clip_fraction', 'transformed_norm_p90',
-            'transformed_norm_p99', 'transformed_block_condition_number')
+            'transformed_norm_p99', 'transformed_block_floored_condition_number')
 
 
 def save(rows, geometry, output):
@@ -13,9 +13,9 @@ def save(rows, geometry, output):
     frame.to_csv(output / 'metrics.csv', index=False)
     geo.to_csv(output / 'geometry.csv', index=False)
     keys = ['beta', 'seed']
-    # Explicit arithmetic mean preserves infinity for singular blocks.
-    block = geo.groupby(keys + ['epoch']).kappa_block.agg(lambda x: sum(x) / len(x))
-    frame = frame.merge(block.rename('transformed_block_condition_number').reset_index(),
+    # Equal-weight layer mean; an all-zero factor keeps the result undefined.
+    block = geo.groupby(keys + ['epoch']).floored_kappa_block.agg(lambda x: sum(x) / len(x))
+    frame = frame.merge(block.rename('transformed_block_floored_condition_number').reset_index(),
                         on=keys + ['epoch'])
     totals = frame.groupby(keys).agg(
         total_build_seconds=('preconditioner_build_seconds', 'sum'),

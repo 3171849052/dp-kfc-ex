@@ -34,17 +34,24 @@ convention（不是 Poisson sampling），正式共 1170 steps。
 每 epoch 在更新前同一 factors 上，float64 eigvalsh，计算
 `lambda_tilde = lambda * (lambda + π)^(-2β)`。
 只处理 A、C，不构造 Kronecker matrix。估计 PSD factor 的负舍入 eigenvalues
-截为零；condition number 定义为 transformed max/min，log-eigenvalue spread
-定义为自然对数的总体标准差。有零 eigenvalue 时二者记为 inf（不做 spectral floor）。
-`kappa_block = kappa_A * kappa_C`。奇异因素会让 block 汇总为 inf；
-inf-inf 的 paired difference 和含 inf 的 std 留空，不能解释为有限改善。
+截为零。True transformed spectrum 仍可能是 singular（奇异）的。为了跨 β 做有限、
+稳定的描述性比较，使用 `floor = 1e-7 * transformed.max()`，并对
+`floored = transformed.clamp_min(floor)` 计算 max/min condition number 和
+自然对数的总体标准差（log-eigenvalue spread）。A/C 分别记录 spectral_floor_ratio。
+`floored_kappa_block = A_floored_condition_number * C_floored_condition_number`。
+同时分别保留 dimension、zero_eigenvalue_count 和
+`effective_rank = (transformed > floor).sum()`：零 eigenvalue 数保留奇异信息，
+effective rank 描述该阈值下的数值秩，不等同于精确代数秩。
+Floored condition number 只是 diagnostic，不代表奇异情况下真实 condition number 有限。
+若整个 transformed spectrum 为零，condition、spread、floor ratio 记 NaN，rank=0；
+汇总保留该未定义值，不提供替代数值。
 
 - `metrics.csv`：每 beta/seed/epoch 的 Exp13 指标，另含 beta、geometry_seconds。
-- `geometry.csv`：每 beta/seed/epoch/layer 的 A/C condition、log spread、block condition。
+- `geometry.csv`：每 beta/seed/epoch/layer 的 A/C floored condition、log spread、rank、dimension、zero count、floor ratio 和 floored block condition。
 - `summary.csv`：每 beta/seed 最后 epoch，附累计时间和峰值 memory，
-  transformed_block_condition_number 是该 epoch 各层 kappa_block 的等权算术均值。
+  transformed_block_floored_condition_number 是该 epoch 各层 floored_kappa_block 的等权算术均值。
 - `paired_summary.csv`：同 seed 最后 epoch 各 β 减 β=0.5 的 accuracy、clip fraction、
-  norm p90/p99、block condition 差值。
+  norm p90/p99、floored block condition 差值。
 - `beta_summary.csv`：最后 epoch 的上述五个量，按 β 汇总跨 seed 均值与 sample std。
 - `config.json`：固定设置、实际统一 sigma/accounting、RNG schedule 和计时定义。
 

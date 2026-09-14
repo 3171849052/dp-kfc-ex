@@ -9,18 +9,28 @@ def spectrum_stats(factor, beta):
     # Estimated PSD factors can have small negative roundoff eigenvalues.
     eigenvalues = eigenvalues.clamp_min(0)
     transformed = eigenvalues * (eigenvalues + DAMPING).pow(-2 * beta)
-    singular = bool((transformed == 0).any())
-    condition = float('inf') if singular else (transformed.max() / transformed.min()).item()
-    spread = float('inf') if singular else transformed.log().std(correction=0).item()
-    return condition, spread
+    maximum = transformed.max()
+    floor = 1e-7 * maximum
+    stats = dict(zero_eigenvalue_count=(transformed == 0).sum().item(),
+                 dimension=len(transformed),
+                 effective_rank=(transformed > floor).sum().item())
+    if maximum == 0:
+        return dict(**stats, floored_condition_number=float('nan'),
+                    log_eigenvalue_spread=float('nan'), spectral_floor_ratio=float('nan'))
+    floored = transformed.clamp_min(floor)
+    return dict(**stats,
+                floored_condition_number=(floored.max() / floored.min()).item(),
+                log_eigenvalue_spread=floored.log().std(correction=0).item(),
+                spectral_floor_ratio=(floor / maximum).item())
 
 
 def diagnose(factors, beta, seed, epoch):
     rows = []
     for name, f in factors.items():
-        ka, sa = spectrum_stats(f['A'], beta)
-        kc, sc = spectrum_stats(f['C'], beta)
+        a = spectrum_stats(f['A'], beta)
+        c = spectrum_stats(f['C'], beta)
         rows.append(dict(beta=beta, seed=seed, epoch=epoch, layer=name,
-                         kappa_A=ka, kappa_C=kc, kappa_block=ka * kc,
-                         A_log_eigenvalue_spread=sa, C_log_eigenvalue_spread=sc))
+                         **{f'A_{key}': value for key, value in a.items()},
+                         **{f'C_{key}': value for key, value in c.items()},
+                         floored_kappa_block=a['floored_condition_number'] * c['floored_condition_number']))
     return rows

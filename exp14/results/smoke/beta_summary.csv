@@ -1,6 +1,6 @@
-beta,seeds,test_accuracy_mean,test_accuracy_std,clip_fraction_mean,clip_fraction_std,transformed_norm_p90_mean,transformed_norm_p90_std,transformed_norm_p99_mean,transformed_norm_p99_std,transformed_block_condition_number_mean,transformed_block_condition_number_std
-0.0,1,0.20703125,,1.0,,5.60185432434082,,6.0499958992004395,,inf,
-0.25,1,0.19921875,,1.0,,48.91565704345703,,52.705631256103516,,inf,
-0.5,1,0.17578125,,1.0,,1096.2060546875,,1201.9781494140625,,inf,
-0.75,1,0.171875,,1.0,,30393.6640625,,33901.61328125,,inf,
-1.0,1,0.1484375,,1.0,,898464.0625,,1008273.0,,inf,
+beta,seeds,test_accuracy_mean,test_accuracy_std,clip_fraction_mean,clip_fraction_std,transformed_norm_p90_mean,transformed_norm_p90_std,transformed_norm_p99_mean,transformed_norm_p99_std,transformed_block_floored_condition_number_mean,transformed_block_floored_condition_number_std
+0.0,1,0.20703125,,1.0,,5.60185432434082,,6.0499958992004395,,50000003524209.28,
+0.25,1,0.19921875,,1.0,,48.91565704345703,,52.705631256103516,,50000000044530.484,
+0.5,1,0.17578125,,1.0,,1096.2060546875,,1201.9781494140625,,27957859701330.46,
+0.75,1,0.171875,,1.0,,30393.6640625,,33901.61328125,,25341738654903.133,
+1.0,1,0.1484375,,1.0,,898464.0625,,1008273.0,,25039691529742.766,

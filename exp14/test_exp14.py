@@ -108,3 +108,32 @@ def test_same_initialization(setup):
         model = initialize(42, device)
         for p, q in zip(model.parameters(), reference.parameters()):
             assert torch.equal(p, q)
+
+
+@pytest.mark.parametrize('beta', cfg.BETAS)
+def test_geometry_singular_spectrum(beta):
+    from exp14.geometry import diagnose
+    factor = torch.diag(torch.tensor([0., 1e-16, 1., 2.], dtype=torch.float64))
+    row = diagnose({'layer': {'A': factor, 'C': factor}}, beta, 42, 1)[0]
+    for prefix in ('A', 'C'):
+        assert row[f'{prefix}_floored_condition_number'] == pytest.approx(1e7)
+        assert row[f'{prefix}_zero_eigenvalue_count'] == 1
+        assert row[f'{prefix}_effective_rank'] == 2
+        assert row[f'{prefix}_dimension'] == 4
+        assert row[f'{prefix}_spectral_floor_ratio'] == pytest.approx(1e-7)
+        assert torch.isfinite(torch.tensor(row[f'{prefix}_log_eigenvalue_spread']))
+    assert row['floored_kappa_block'] == pytest.approx(1e14)
+
+
+@pytest.mark.parametrize('beta', cfg.BETAS)
+def test_geometry_nonsingular_spectrum(beta):
+    from exp14.geometry import spectrum_stats
+    eigenvalues = torch.tensor([1., 2., 4.], dtype=torch.float64)
+    transformed = eigenvalues * (eigenvalues + cfg.DAMPING).pow(-2 * beta)
+    stats = spectrum_stats(torch.diag(eigenvalues), beta)
+    assert stats['floored_condition_number'] == pytest.approx(
+        (transformed.max() / transformed.min()).item())
+    assert stats['log_eigenvalue_spread'] == pytest.approx(
+        transformed.log().std(correction=0).item())
+    assert stats['zero_eigenvalue_count'] == 0
+    assert stats['effective_rank'] == 3
