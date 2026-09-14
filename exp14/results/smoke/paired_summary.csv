@@ -1,0 +1,5 @@
+seed,beta,reference_beta,test_accuracy_difference,clip_fraction_difference,transformed_norm_p90_difference,transformed_norm_p99_difference,transformed_block_condition_number_difference
+42,0.0,0.5,0.03125,0.0,-1090.6042003631592,-1195.928153514862,
+42,0.25,0.5,0.0234375,0.0,-1047.290397644043,-1149.272518157959,
+42,0.75,0.5,-0.00390625,0.0,29297.4580078125,32699.635131835938,
+42,1.0,0.5,-0.02734375,0.0,897367.8564453125,1007071.0218505859,
