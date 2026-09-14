@@ -1,0 +1,5 @@
+p=0.25 seed=0 epoch=1 accuracy=0.8883 epsilon=0.786337
+p=0.25 seed=0 epoch=2 accuracy=0.9148 epsilon=0.838956
+p=0.25 seed=0 epoch=3 accuracy=0.9179 epsilon=0.891575
+p=0.25 seed=0 epoch=4 accuracy=0.9249 epsilon=0.944194
+p=0.25 seed=0 epoch=5 accuracy=0.9332 epsilon=0.996813

@@ -84,3 +84,51 @@ def test_kronecker_preclip_and_noisy_update():
     assert abs(result['preclip_norm_mean'] - norms.mean().item()) < 1e-5
     for actual, expected_p in zip(model.parameters(), expected_parameters):
         torch.testing.assert_close(actual, expected_p, rtol=1e-5, atol=1e-6)
+
+
+def test_formal_protocol():
+    # Building smoke configuration must not mutate a later formal run.
+    configuration(.5, 0, smoke=True)
+    c = configuration(.5, 0)
+    assert c['data']['batch_size'] == c['data']['eval_batch_size'] == 256
+    assert c['data']['drop_last'] is True
+    assert c['training'] == dict(epochs=5, optimizer='sgd', learning_rate=.5,
+                                 momentum=0., weight_decay=0.)
+    assert c['privacy'] == dict(epsilon=1., delta=1e-5, max_grad_norm=1., accountant='rdp')
+    assert c['training']['epochs'] * (60000 // c['data']['batch_size']) == 1170
+    assert c['synthetic']['samples'] == 2560
+    assert c['synthetic']['batch_size'] == 256
+    assert c['synthetic']['refresh_every_epochs'] == 1
+
+
+def test_synthetic_batch_independence_and_private_update():
+    from exp15.verification import CheckedSyntheticKLBFGS
+    torch.set_num_threads(4)
+    torch.manual_seed(9)
+    c = configuration(.5, 0, smoke=True)
+    model = GradSampleModule(SimpleCNN(), loss_reduction='sum')
+    state = CheckedSyntheticKLBFGS(c, torch.device('cpu'))
+    state.refresh(model, 1)  # Explicit before-forward reset and pair retention assertions.
+    assert len(state.before_pair_counts) == 3
+    assert state.before_pair_counts[0] == 0
+    assert state.before_pair_counts[2] > state.before_pair_counts[1]
+
+    # Independently aggregate all preconditioned CNN parameters after refresh,
+    # then draw identical noise and compare the actual private SGD update.
+    x, y = torch.randn(2, 1, 28, 28), torch.tensor([2, 3])
+    torch.nn.functional.cross_entropy(model(x), y, reduction='sum').backward()
+    state.apply(model, c['p'])
+    params = list(model.parameters())
+    norms = sum(p.grad_sample.flatten(1).square().sum(1) for p in params).sqrt()
+    clips = _compute_clip_factors(norms.square(), 1.)
+    grads = [(p.grad_sample.flatten(1) * clips[:, None]).sum(0) for p in params]
+    torch.manual_seed(99)
+    expected = [p.detach() - .5 * ((g + 1.3*torch.randn_like(g))/len(x)).view_as(p)
+                for p, g in zip(params, grads)]
+    torch.manual_seed(99)
+    result = private_step(model, build_optimizer(model, c['training']), x, y, c, state, 1.3)
+    # Explicit sum-of-squares vs the utility's float32 norm reduction.
+    torch.testing.assert_close(torch.tensor(result['preclip_norm_mean']), norms.mean(),
+                               rtol=1e-5, atol=1e-6)
+    for actual, reference in zip(params, expected):
+        torch.testing.assert_close(actual, reference, rtol=1e-5, atol=1e-6)

@@ -85,8 +85,11 @@ class SyntheticKLBFGS:
         with torch.random.fork_rng(devices=[self.device.index] if self.device.type == 'cuda' else []):
             torch.manual_seed(self.config['seed'] + 10000 + epoch)
             probe = SimpleCNN().to(self.device)
-            probe.load_state_dict(model._module.state_dict())
+            theta_t = {name: value.detach().clone()
+                       for name, value in model._module.state_dict().items()}
             for x, y in pink_batches(self.config, self.device):
+                # Only memories/EMAs persist; every lookahead starts at theta_t.
+                probe.load_state_dict(theta_t)
                 self._synthetic_pair(probe, x, y)
 
     def _synthetic_pair(self, probe, x, y):

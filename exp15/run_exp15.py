@@ -26,6 +26,9 @@ from exp15.preconditioner import SyntheticKLBFGS
 def configuration(p, seed, smoke=False):
     extra = yaml.safe_load((ROOT / 'exp15/configs/mnist.yaml').read_text())
     c = yaml.safe_load((ROOT / extra['base']).read_text())
+    for section in ('data', 'synthetic'):
+        c[section].update(extra[section])
+    c['accounting_convention'] = 'fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)'
     c.update(lbfgs=extra['lbfgs'], p=p, seed=seed, smoke=smoke)
     c['data']['root'] = str(ROOT / c['data']['root'])
     c['algorithm'] = 'synthetic_klbfgs_h_power'
@@ -33,7 +36,7 @@ def configuration(p, seed, smoke=False):
     if smoke:
         c['data']['batch_size'] = 4
         c['data']['eval_batch_size'] = 16
-        c['synthetic'].update(samples=8, batch_size=8)
+        c['synthetic'].update(samples=24, batch_size=8)
         c['training']['epochs'] = 2
     return c
 
@@ -90,7 +93,7 @@ def run(p, seed, smoke=False):
     if smoke:
         train_data, test_data = Subset(train_data, range(8)), Subset(test_data, range(32))
     d, privacy = c['data'], c['privacy']
-    loader = DataLoader(train_data, batch_size=d['batch_size'], shuffle=True,
+    loader = DataLoader(train_data, batch_size=d['batch_size'], shuffle=True, drop_last=d['drop_last'],
                         num_workers=d['num_workers'], generator=torch.Generator().manual_seed(seed))
     test_loader = DataLoader(test_data, batch_size=d['eval_batch_size'],
                              generator=torch.Generator().manual_seed(seed))
@@ -101,7 +104,12 @@ def run(p, seed, smoke=False):
     c.update(noise_multiplier=sigma, sample_rate=sample_rate, total_steps=steps,
              train_size=len(train_data), test_size=len(test_data), actual_device=str(device))
     (directory / 'config.json').write_text(json.dumps(c, indent=2) + '\n')
-    state, accountant = SyntheticKLBFGS(c, device), RDPAccountant()
+    if smoke:
+        from exp15.verification import CheckedSyntheticKLBFGS
+        state = CheckedSyntheticKLBFGS(c, device)
+    else:
+        state = SyntheticKLBFGS(c, device)
+    accountant = RDPAccountant()
     global_step = 0
     with (directory / 'metrics.csv').open('w') as metrics, (directory / 'training.csv').open('w') as training, (directory / 'train.log').open('w') as log:
         step_writer = epoch_writer = None
@@ -111,7 +119,8 @@ def run(p, seed, smoke=False):
                 state.refresh(model, epoch)
                 if smoke:
                     error = check_factors(state)
-                    log.write(f'epoch={epoch} p0_identity=passed p1_relative_error={error:.3e} fractional_finite=passed\n')
+                    min_pairs = min(len(f.pairs['s']) for fs in state.factors.values() for f in fs)
+                    log.write(f'epoch={epoch} p0_identity=passed p1_relative_error={error:.3e} fractional_finite=passed probe_reset=passed synthetic_batches={len(state.before_pair_counts)} min_memory_pairs={min_pairs}\n')
             loss_sum, count = 0., 0
             for x, y in loader:
                 row = private_step(model, optimizer, x.to(device), y.to(device), c, state, sigma)
@@ -141,7 +150,10 @@ def run(p, seed, smoke=False):
             log.write(message + '\n')
             log.flush()
     summary = dict(p=p, seed=seed, smoke=smoke, test_accuracy=accuracy,
-                   epsilon_spent=epsilon, steps=global_step, diagnostics=state.diagnostics())
+                   epsilon_spent=epsilon, steps=global_step, diagnostics=state.diagnostics(),
+                   accounting_convention=c['accounting_convention'],
+                   drop_last=d['drop_last'], sample_rate=sample_rate, noise_multiplier=sigma,
+                   total_steps=steps, synthetic_batches=c['synthetic']['samples']//c['synthetic']['batch_size'])
     (directory / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     return summary
 
@@ -154,6 +166,11 @@ def analyze(smoke=False):
     directory = ROOT / 'exp15/results' / ('smoke' if smoke else 'formal')
     paths = sorted(directory.glob('p*_seed*/summary.json'))
     frame = pd.DataFrame([json.loads(path.read_text()) for path in paths])
+    if not smoke:
+        # Old protocol results must not be pooled with corrected runs.
+        assert {'total_steps', 'synthetic_batches', 'drop_last'} <= set(frame.columns), 'Old protocol results: rerun all formal p/seed combinations before summarizing'
+        assert (frame.total_steps == 1170).all() and (frame.synthetic_batches == 10).all()
+        assert not frame.smoke.any() and frame.drop_last.all()
     table = frame.groupby('p').test_accuracy.agg(['count', 'mean', 'std']).reset_index()
     table.to_csv(directory / 'summary.csv', index=False)
     fig, ax = plt.subplots()

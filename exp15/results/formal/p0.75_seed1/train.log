@@ -1,0 +1,2 @@
+p=0.75 seed=1 epoch=1 accuracy=0.8748 epsilon=0.786337
+p=0.75 seed=1 epoch=2 accuracy=0.8923 epsilon=0.838956

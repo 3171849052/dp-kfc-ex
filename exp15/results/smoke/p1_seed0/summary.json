@@ -7,52 +7,58 @@
   "steps": 4,
   "diagnostics": {
     "conv1/a": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
       "modified_damping": 0
     },
     "conv1/g": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
-      "powell_damping": 1,
-      "modified_damping": 1
+      "powell_damping": 3,
+      "modified_damping": 3
     },
     "conv2/a": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
       "modified_damping": 0
     },
     "conv2/g": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
-      "modified_damping": 2
+      "modified_damping": 6
     },
     "fc1/a": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
       "modified_damping": 0
     },
     "fc1/g": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
-      "modified_damping": 1
+      "modified_damping": 4
     },
     "fc2/a": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
       "modified_damping": 0
     },
     "fc2/g": {
-      "accepted": 2,
+      "accepted": 6,
       "rejected": 0,
       "powell_damping": 0,
-      "modified_damping": 1
+      "modified_damping": 3
     }
-  }
+  },
+  "accounting_convention": "fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)",
+  "drop_last": true,
+  "sample_rate": 0.5,
+  "noise_multiplier": 4.53125,
+  "total_steps": 4,
+  "synthetic_batches": 3
 }

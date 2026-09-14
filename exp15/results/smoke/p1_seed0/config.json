@@ -9,7 +9,8 @@
     "root": "/media/data/data/lt/DP-KFC/exp1/data",
     "batch_size": 4,
     "eval_batch_size": 16,
-    "num_workers": 0
+    "num_workers": 0,
+    "drop_last": true
   },
   "training": {
     "epochs": 2,
@@ -25,7 +26,7 @@
     "accountant": "rdp"
   },
   "synthetic": {
-    "samples": 8,
+    "samples": 24,
     "batch_size": 8,
     "distribution": "pink_noise",
     "refresh_every_epochs": 1
@@ -42,6 +43,7 @@
   "output": {
     "root": "/media/data/data/lt/DP-KFC/exp15/results"
   },
+  "accounting_convention": "fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)",
   "lbfgs": {
     "memory": 100,
     "initial_scale": 1.0,

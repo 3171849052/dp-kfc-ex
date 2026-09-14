@@ -1,5 +1,11 @@
-# Inherit the existing MNIST+CNN DP-KFC SGD settings; only these additions.
+# Reuse standalone utilities; override training protocol to match exp14.
 base: configs/standalone/mnist_dp_kfc.yaml
+data:
+  drop_last: true
+synthetic:
+  samples: 2560
+  batch_size: 256
+  refresh_every_epochs: 1
 powers: [0.0, 0.25, 0.5, 0.75, 1.0]
 seeds: [0, 1]
 lbfgs:
