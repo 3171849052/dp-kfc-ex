@@ -1,0 +1,82 @@
+{
+  "conv1/a": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 0,
+    "modified_damping": 0,
+    "damping_eligible_pairs": 0,
+    "powell_rate": 0.0,
+    "modified_rate": 0.0,
+    "damping_trigger_rate": 0.0
+  },
+  "conv1/g": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 30,
+    "modified_damping": 34,
+    "damping_eligible_pairs": 40,
+    "powell_rate": 0.75,
+    "modified_rate": 0.85,
+    "damping_trigger_rate": 0.8
+  },
+  "conv2/a": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 0,
+    "modified_damping": 0,
+    "damping_eligible_pairs": 0,
+    "powell_rate": 0.0,
+    "modified_rate": 0.0,
+    "damping_trigger_rate": 0.0
+  },
+  "conv2/g": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 30,
+    "modified_damping": 36,
+    "damping_eligible_pairs": 40,
+    "powell_rate": 0.75,
+    "modified_rate": 0.9,
+    "damping_trigger_rate": 0.825
+  },
+  "fc1/a": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 0,
+    "modified_damping": 0,
+    "damping_eligible_pairs": 0,
+    "powell_rate": 0.0,
+    "modified_rate": 0.0,
+    "damping_trigger_rate": 0.0
+  },
+  "fc1/g": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 0,
+    "modified_damping": 40,
+    "damping_eligible_pairs": 40,
+    "powell_rate": 0.0,
+    "modified_rate": 1.0,
+    "damping_trigger_rate": 0.5
+  },
+  "fc2/a": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 0,
+    "modified_damping": 0,
+    "damping_eligible_pairs": 0,
+    "powell_rate": 0.0,
+    "modified_rate": 0.0,
+    "damping_trigger_rate": 0.0
+  },
+  "fc2/g": {
+    "accepted": 40,
+    "rejected": 0,
+    "powell_damping": 0,
+    "modified_damping": 35,
+    "damping_eligible_pairs": 40,
+    "powell_rate": 0.0,
+    "modified_rate": 0.875,
+    "damping_trigger_rate": 0.4375
+  }
+}

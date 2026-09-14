@@ -1,0 +1,65 @@
+{
+  "algorithm": "synthetic_klbfgs_h_power",
+  "seed": 7,
+  "model": {
+    "name": "simple_cnn"
+  },
+  "data": {
+    "dataset": "mnist",
+    "root": "/media/data/data/lt/DP-KFC/exp15b/data",
+    "batch_size": 256,
+    "eval_batch_size": 256,
+    "num_workers": 0,
+    "drop_last": true,
+    "shuffle": true
+  },
+  "training": {
+    "epochs": 5,
+    "optimizer": "sgd",
+    "learning_rate": 0.5,
+    "momentum": 0.0,
+    "weight_decay": 0.0
+  },
+  "privacy": {
+    "epsilon": 1.0,
+    "delta": 1e-05,
+    "max_grad_norm": 1.0,
+    "accountant": "rdp"
+  },
+  "synthetic": {
+    "samples": 2560,
+    "batch_size": 256,
+    "distribution": "pink_noise",
+    "refresh_every_epochs": 1
+  },
+  "kfac": {
+    "damping": 0.001
+  },
+  "runtime": {
+    "device": "cuda",
+    "gpu": 0,
+    "threads": 4,
+    "deterministic": true
+  },
+  "output": {
+    "root": "/media/data/data/lt/DP-KFC/exp15b/results"
+  },
+  "accounting_convention": "fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)",
+  "lbfgs": {
+    "memory": 100,
+    "initial_scale": 1.0,
+    "factor_damping": 0.1,
+    "activation_decay": 0.9,
+    "pair_decay": 0.9,
+    "synthetic_lookahead_lr": 0.5
+  },
+  "p": 0.25,
+  "smoke": false,
+  "lambda_damping": 0.01,
+  "noise_multiplier": 1.068115234375,
+  "sample_rate": 0.004266666666666667,
+  "total_steps": 1170,
+  "train_size": 60000,
+  "test_size": 10000,
+  "actual_device": "cuda:0"
+}

@@ -1,0 +1,106 @@
+{
+  "lambda_damping": 0.3,
+  "factor_damping": 0.5477225575051661,
+  "p": 0.25,
+  "test_loss": 0.3113409744951874,
+  "clip_fraction": 0.14873798076923078,
+  "preclip_norm_mean": 9.755632438211359,
+  "preclip_norm_p90": 11.813447713342487,
+  "preclip_norm_p99": 169.30570084009415,
+  "powell_rate": 0.4,
+  "modified_rate": 0.96,
+  "damping_trigger_rate": 0.6799999999999999,
+  "seed": 7,
+  "smoke": false,
+  "test_accuracy": 0.9473,
+  "epsilon_spent": 0.995693195331761,
+  "steps": 1170,
+  "diagnostics": {
+    "conv1/a": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0,
+      "damping_eligible_pairs": 0,
+      "powell_rate": 0.0,
+      "modified_rate": 0.0,
+      "damping_trigger_rate": 0.0
+    },
+    "conv1/g": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 40,
+      "modified_damping": 42,
+      "damping_eligible_pairs": 50,
+      "powell_rate": 0.8,
+      "modified_rate": 0.84,
+      "damping_trigger_rate": 0.8200000000000001
+    },
+    "conv2/a": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0,
+      "damping_eligible_pairs": 0,
+      "powell_rate": 0.0,
+      "modified_rate": 0.0,
+      "damping_trigger_rate": 0.0
+    },
+    "conv2/g": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 40,
+      "modified_damping": 50,
+      "damping_eligible_pairs": 50,
+      "powell_rate": 0.8,
+      "modified_rate": 1.0,
+      "damping_trigger_rate": 0.9
+    },
+    "fc1/a": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0,
+      "damping_eligible_pairs": 0,
+      "powell_rate": 0.0,
+      "modified_rate": 0.0,
+      "damping_trigger_rate": 0.0
+    },
+    "fc1/g": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 50,
+      "damping_eligible_pairs": 50,
+      "powell_rate": 0.0,
+      "modified_rate": 1.0,
+      "damping_trigger_rate": 0.5
+    },
+    "fc2/a": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 0,
+      "damping_eligible_pairs": 0,
+      "powell_rate": 0.0,
+      "modified_rate": 0.0,
+      "damping_trigger_rate": 0.0
+    },
+    "fc2/g": {
+      "accepted": 50,
+      "rejected": 0,
+      "powell_damping": 0,
+      "modified_damping": 50,
+      "damping_eligible_pairs": 50,
+      "powell_rate": 0.0,
+      "modified_rate": 1.0,
+      "damping_trigger_rate": 0.5
+    }
+  },
+  "accounting_convention": "fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)",
+  "drop_last": true,
+  "sample_rate": 0.004266666666666667,
+  "noise_multiplier": 1.068115234375,
+  "total_steps": 1170,
+  "synthetic_batches": 10
+}
