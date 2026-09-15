@@ -1,0 +1,57 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.0 seed=42 epoch=1 accuracy=0.8763 build=0.151s train=9.198s
+0.0 seed=42 epoch=2 accuracy=0.9043 build=0.136s train=8.621s
+0.0 seed=42 epoch=3 accuracy=0.9114 build=0.137s train=8.621s
+0.0 seed=42 epoch=4 accuracy=0.9248 build=0.137s train=8.589s
+0.0 seed=42 epoch=5 accuracy=0.9195 build=0.137s train=8.608s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.125 seed=42 epoch=1 accuracy=0.8957 build=0.153s train=8.513s
+0.125 seed=42 epoch=2 accuracy=0.9250 build=0.153s train=8.430s
+0.125 seed=42 epoch=3 accuracy=0.9363 build=0.153s train=8.480s
+0.125 seed=42 epoch=4 accuracy=0.9461 build=0.154s train=8.425s
+0.125 seed=42 epoch=5 accuracy=0.9455 build=0.153s train=8.436s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.25 seed=42 epoch=1 accuracy=0.9055 build=0.152s train=8.706s
+0.25 seed=42 epoch=2 accuracy=0.9336 build=0.154s train=8.664s
+0.25 seed=42 epoch=3 accuracy=0.9487 build=0.154s train=8.641s
+0.25 seed=42 epoch=4 accuracy=0.9558 build=0.153s train=8.655s
+0.25 seed=42 epoch=5 accuracy=0.9587 build=0.153s train=8.606s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.375 seed=42 epoch=1 accuracy=0.9102 build=0.152s train=8.514s
+0.375 seed=42 epoch=2 accuracy=0.9382 build=0.153s train=8.402s
+0.375 seed=42 epoch=3 accuracy=0.9501 build=0.154s train=8.472s
+0.375 seed=42 epoch=4 accuracy=0.9585 build=0.153s train=8.376s
+0.375 seed=42 epoch=5 accuracy=0.9607 build=0.154s train=8.407s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.5 seed=42 epoch=1 accuracy=0.9137 build=0.152s train=8.804s
+0.5 seed=42 epoch=2 accuracy=0.9408 build=0.154s train=8.764s
+0.5 seed=42 epoch=3 accuracy=0.9507 build=0.156s train=8.753s
+0.5 seed=42 epoch=4 accuracy=0.9580 build=0.154s train=8.761s
+0.5 seed=42 epoch=5 accuracy=0.9599 build=0.154s train=8.747s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.625 seed=42 epoch=1 accuracy=0.9158 build=0.186s train=9.372s
+0.625 seed=42 epoch=2 accuracy=0.9410 build=0.154s train=8.743s
+0.625 seed=42 epoch=3 accuracy=0.9481 build=0.154s train=8.756s
+0.625 seed=42 epoch=4 accuracy=0.9558 build=0.154s train=8.747s
+0.625 seed=42 epoch=5 accuracy=0.9593 build=0.154s train=8.740s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+0.75 seed=42 epoch=1 accuracy=0.9173 build=0.167s train=9.259s
+0.75 seed=42 epoch=2 accuracy=0.9409 build=0.154s train=8.664s
+0.75 seed=42 epoch=3 accuracy=0.9473 build=0.154s train=8.583s
+0.75 seed=42 epoch=4 accuracy=0.9553 build=0.154s train=8.571s
+0.75 seed=42 epoch=5 accuracy=0.9581 build=0.154s train=8.577s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+1.0 seed=42 epoch=1 accuracy=0.9125 build=0.152s train=8.538s
+1.0 seed=42 epoch=2 accuracy=0.9406 build=0.154s train=8.502s
+1.0 seed=42 epoch=3 accuracy=0.9456 build=0.154s train=8.471s
+1.0 seed=42 epoch=4 accuracy=0.9506 build=0.154s train=8.438s
+1.0 seed=42 epoch=5 accuracy=0.9537 build=0.154s train=8.478s
+All 8 powers validated; scale matching passed. Analysis saved: /media/data/data/lt/DP-KFC/exp20/results
