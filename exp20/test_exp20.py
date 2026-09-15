@@ -49,27 +49,28 @@ def test_forward_only_no_labels_no_reverse(method, monkeypatch):
     assert stats['builder_forward_calls'] == 1 and stats['builder_samples'] == 8
     assert set(op.data) == set(layers(model))
 
-def test_paired_initialization_shuffle_noise_synthetic_labels():
-    models = [initialize(42, 'cuda') for _ in METHODS]
+@pytest.mark.parametrize("seed", (42, 7, 123, 2024, 3407))
+def test_paired_initialization_shuffle_noise_synthetic_labels(seed):
+    models = [initialize(seed, 'cuda') for _ in METHODS]
     for net in models[1:]:
         for a,b in zip(models[0].parameters(), net.parameters()):
             assert torch.equal(a,b)
     schedules = []
     for method in METHODS:
-        loader = private_loader(torch.arange(1024), 42)
+        loader = private_loader(torch.arange(1024), seed)
         schedules.append([torch.cat(list(loader)) for epoch in range(2)])
     for schedule in schedules[1:]:
         assert all(torch.equal(a,b) for a,b in zip(schedules[0], schedule))
-    caches = [m.synthetic_cache(42, 1, 'cuda', 2, 4) for _ in METHODS]
+    caches = [m.synthetic_cache(seed, 1, 'cuda', 2, 4) for _ in METHODS]
     for cache in caches[1:]:
         assert all(torch.equal(a,b) for a,b in zip(caches[0], cache))
     noise_states = []
     for method, net in zip(METHODS, models):
-        gen = torch.Generator(device='cuda').manual_seed(40042)
+        gen = torch.Generator(device='cuda').manual_seed(seed+40000)
         before = gen.get_state().clone()
         cpu = torch.random.get_rng_state().clone()
         cuda = torch.cuda.get_rng_state().clone()
-        m.build_from_cache(net, method, caches[0], 42, 1)
+        m.build_from_cache(net, method, caches[0], seed, 1)
         assert torch.equal(gen.get_state(), before)
         assert torch.equal(torch.random.get_rng_state(), cpu)
         assert torch.equal(torch.cuda.get_rng_state(), cuda)
@@ -255,3 +256,50 @@ def test_synthetic_forks_only_selected_device(monkeypatch):
     monkeypatch.setattr(torch.random, 'fork_rng', tracked)
     m.synthetic_cache(42, 1, 'cuda:0', 1, 4)
     assert calls == [[0]]
+
+
+def test_balanced_protocol():
+    from exp20.config import SEEDS, POWERS, POWER_ORDER, FORMAL_RUN_COUNT
+    assert SEEDS == (42, 7, 123, 2024, 3407)
+    assert FORMAL_RUN_COUNT == 40
+    for seed in SEEDS:
+        assert sorted(POWER_ORDER[seed]) == list(POWERS)
+    for p in POWERS:
+        assert len({POWER_ORDER[s].index(p) for s in SEEDS}) == 5
+
+
+def test_distinct_seed_schedules():
+    from exp20.config import SEEDS
+    values = []
+    for seed in SEEDS:
+        net = initialize(seed, 'cuda')
+        init = torch.cat([p.detach().flatten() for p in net.parameters()])
+        loader = private_loader(torch.arange(1024), seed)
+        shuffle = torch.cat([torch.cat(list(loader)) for _ in range(2)])
+        noise = torch.randn(1024, device='cuda', generator=torch.Generator(device='cuda').manual_seed(seed+40000))
+        synthetic = torch.cat([m.synthetic_cache(seed, epoch, 'cuda', 1, 4)[0].flatten() for epoch in (1, 2)])
+        values.append((init, shuffle, noise, synthetic))
+    for i, left in enumerate(values):
+        for right in values[i+1:]:
+            assert all(not torch.equal(a, b) for a, b in zip(left, right))
+
+
+def test_paired_alignment_and_bootstrap():
+    import numpy as np
+    import pandas as pd
+    from exp20.config import POWERS, SEEDS
+    from exp20.analyze import paired_analysis, bootstrap, PAIRED, BOOTSTRAP_REPLICATES, BOOTSTRAP_SEED
+    rows = [dict(p=p, seed=s, **{m: 100*i+(p-.5)*(i+1) for m in PAIRED})
+            for p in POWERS for i, s in enumerate(SEEDS)]
+    result = paired_analysis(pd.DataFrame(rows).sample(frac=1, random_state=7), SEEDS)
+    assert (result[result.p.eq(.5)].drop(columns=['p','reference_p','metric']) == 0).all().all()
+    row = result[result.p.eq(.375)&result.metric.eq('final_accuracy')].iloc[0]
+    delta = -.125*np.arange(1, 6)
+    np.testing.assert_array_equal([row[f'delta_seed_{s}'] for s in SEEDS], delta)
+    assert row.paired_mean_delta == delta.mean()
+    assert row.sample_std == delta.std(ddof=1)
+    draws = np.random.default_rng(BOOTSTRAP_SEED).integers(5, size=(20000, 5))
+    assert BOOTSTRAP_REPLICATES == 20000
+    np.testing.assert_array_equal(bootstrap(delta), np.percentile(delta[draws].mean(axis=1), [2.5,97.5]))
+    # Large between-seed baselines cancel exactly before bootstrap.
+    np.testing.assert_array_equal([row.ci95_low, row.ci95_high], bootstrap(delta))

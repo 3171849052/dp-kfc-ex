@@ -16,7 +16,4 @@ else
     [[ $# == 0 ]]
     exec > >(tee exp20/formal.log) 2>&1
 fi
-for p in 0 .125 .25 .375 .5 .625 .75 1; do
-    python exp20/run_one.py --p "$p" --seed 42 "${args[@]}"
-done
-python exp20/analyze.py "${args[@]}"
+python exp20/run_sweep.py "${args[@]}"

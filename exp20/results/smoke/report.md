@@ -1,71 +1,84 @@
-# Exp20
+# Exp20 paired power sweep
+
+SMOKE ONLY: no formal utility conclusions.
+
+## Mean performance and clipping geometry
+
+Best final accuracy: [0.25]. Best accuracy AUC: [0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0].
+
+Lowest clip fraction: [0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0]; lowest norm p99: [0.0]. These are separate geometry criteria, not a single utility optimum.
+
+p,final_accuracy_mean,final_accuracy_sample_std,best_accuracy_mean,best_accuracy_sample_std,accuracy_auc_mean,accuracy_auc_sample_std,clip_fraction_mean,clip_fraction_sample_std,norm_p99_mean,norm_p99_sample_std,scale_match_mean,scale_match_sample_std,transformed_condition_proxy_mean,transformed_condition_proxy_sample_std
+0.0,0.20703125,,0.20703125,,0.0,,1.0,,13.634373664855955,,2.253616802384591,,inf,
+0.125,0.2109375,,0.2109375,,0.0,,1.0,,20.73220443725586,,2.6915774471255904,,inf,
+0.25,0.21484375,,0.21484375,,0.0,,1.0,,34.24514389038086,,2.3486504361541645,,inf,
+0.375,0.1953125,,0.1953125,,0.0,,1.0,,51.23515319824219,,1.6164862477852333,,inf,
+0.5,0.1875,,0.1875,,0.0,,1.0,,72.31537628173828,,1.0,,inf,
+0.625,0.18359375,,0.18359375,,0.0,,1.0,,98.86940002441406,,0.5880331211876101,,inf,
+0.75,0.1875,,0.1875,,0.0,,1.0,,132.1116943359375,,0.3350908607474391,,inf,
+1.0,0.1875,,0.1875,,0.0,,1.0,,223.5239715576172,,0.1019879142089508,,inf,
 
 
+## p=.375 − p=.5
 
-SMOKE ONLY: one zero-noise batch. These observations do not answer formal utility questions.
+Individual seed deltas, paired means, sample standard deviations and bootstrap 95% intervals:
 
-
-
-## 1. Best final accuracy
-
-p=[0.25]; accuracy=0.214844 (all ties listed).
-
-## 2. Best accuracy AUC
-
-p=[0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1.0]; AUC=0.000000. AUC integrates observed epochs; smoke AUC is zero.
-
-## 3. Clipping and norm tails
-
-Clipping fraction is constant; p99 norm is nondecreasing as p increases. Ordered p / mean epoch clip fraction / mean epoch p99 norm:
-
-- 0: 1.000000 / 13.634374
-
-- 0.125: 1.000000 / 20.732204
-
-- 0.25: 1.000000 / 34.245144
-
-- 0.375: 1.000000 / 51.235153
-
-- 0.5: 1.000000 / 72.315376
-
-- 0.625: 1.000000 / 98.869400
-
-- 0.75: 1.000000 / 132.111694
-
-- 1: 1.000000 / 223.523972
-
-## 4. Is anisotropic A geometry useful?
-
-Scale-matched identity accuracy=0.207031. Positive-p accuracy minus identity: 0.125: +0.003906, 0.25: +0.007812, 0.375: -0.011719, 0.5: -0.019531, 0.625: -0.023438, 0.75: -0.019531, 1: -0.019531.
-
-The best anisotropic operator improves on scale-matched identity in this trajectory, supporting geometry utility for this seed. Scale matching controls the synthetic global RMS, not every private norm or optimization effect.
-
-## 5. Above p=0.5: over-preconditioning?
-
-Differences versus p=0.5 (accuracy / p99 / clip fraction):
-
-- 0.625: -0.003906 / +26.554024 / +0.000000; higher tail and lower accuracy are consistent with over-preconditioning.
-
-- 0.75: +0.000000 / +59.796318 / +0.000000; no joint higher-tail/lower-accuracy pattern.
-
-- 1: +0.000000 / +151.208595 / +0.000000; no joint higher-tail/lower-accuracy pattern.
-
-## 6. Interpreting the Exp19 p=0.25 / p=0.5 proximity
-
-Here p=0.25 minus p=0.5: final accuracy +0.027344; AUC +0.000000.
-
-Dense neighboring results (p / final accuracy / AUC): 0.125 / 0.210938 / 0.000000, 0.25 / 0.214844 / 0.000000, 0.375 / 0.195312 / 0.000000, 0.5 / 0.187500 / 0.000000, 0.625 / 0.183594 / 0.000000.
-
-Within p=0.25..0.5, accuracy is nonincreasing, with range 0.027344; the intermediate p=0.375 differs from p=0.5 by +0.007812. Endpoint proximity alone therefore does not establish a flat optimum. This single seed cannot establish that the Exp19 observation generalizes.
+p,reference_p,metric,paired_mean_delta,sample_std,ci95_low,ci95_high,delta_seed_42
+0.375,0.5,final_accuracy,0.0078125,,0.0078125,0.0078125,0.0078125
+0.375,0.5,accuracy_auc,0.0,,0.0,0.0,0.0
+0.375,0.5,clip_fraction,0.0,,0.0,0.0,0.0
+0.375,0.5,norm_p99,-21.080223083496094,,-21.080223083496094,-21.080223083496094,-21.080223083496094
 
 
+Raw paired results:
 
-Smoke cannot establish any of these geometry/utility interpretations.
+p,seed,final_accuracy,best_accuracy,accuracy_auc,clip_fraction,norm_p99,scale_match,transformed_condition_proxy
+0.375,42,0.1953125,0.1953125,0.0,1.0,51.23515319824219,1.6164862477852333,inf
+0.5,42,0.1875,0.1875,0.0,1.0,72.31537628173828,1.0,inf
 
 
+final_accuracy stability (smaller sample std): p=0.375: nan, p=0.5: nan
 
-Scale uses each run’s current synthetic A every epoch. p=0 is scalar identity, not ordinary DP-SGD. Biases use augmented activations. Spectral quantiles weight each activation eigenvalue once; RMS moments additionally weight layer output dimension.
+p=.375 improves final_accuracy in 1/1 seeds; mean delta +0.0078125, CI [+0.0078125, +0.0078125]. Positive in every observed seed.
 
-Timing: algorithm = build + private training; CPU norm diagnostics and evaluation are separate. CUDA memory peaks cover build/train. Layer diagnostics describe fractions of total transformed squared norm.
+accuracy_auc stability (smaller sample std): p=0.375: nan, p=0.5: nan
 
-RDP accounting follows Exp19’s shuffled fixed-batch convention. Private clipping diagnostics are unnoised research measurements.
+p=.375 improves accuracy_auc in 0/1 seeds; mean delta +0, CI [+0, +0]. Not consistently positive across observed seeds.
+
+## Activation anisotropic geometry: p>0 versus p=0
+
+Scale matching controls synthetic global RMS, not all private norms or optimization effects. p=0 is scalar identity, not ordinary DP-SGD.
+
+p=0.125: final accuracy delta mean +0.00390625, CI [+0.00390625, +0.00390625]; positive in 1/1 seeds. Consistent observed support for geometry utility.
+
+p=0.25: final accuracy delta mean +0.0078125, CI [+0.0078125, +0.0078125]; positive in 1/1 seeds. Consistent observed support for geometry utility.
+
+p=0.375: final accuracy delta mean -0.0117188, CI [-0.0117188, -0.0117188]; positive in 0/1 seeds. No uniformly positive geometry benefit across seeds.
+
+p=0.5: final accuracy delta mean -0.0195312, CI [-0.0195312, -0.0195312]; positive in 0/1 seeds. No uniformly positive geometry benefit across seeds.
+
+p=0.625: final accuracy delta mean -0.0234375, CI [-0.0234375, -0.0234375]; positive in 0/1 seeds. No uniformly positive geometry benefit across seeds.
+
+p=0.75: final accuracy delta mean -0.0195312, CI [-0.0195312, -0.0195312]; positive in 0/1 seeds. No uniformly positive geometry benefit across seeds.
+
+p=1.0: final accuracy delta mean -0.0195312, CI [-0.0195312, -0.0195312]; positive in 0/1 seeds. No uniformly positive geometry benefit across seeds.
+
+## Above p=.5: norm tail ↑, clipping ↑, accuracy ↓
+
+p=0.625: joint pattern in 0/1 seeds; mean deltas {'final_accuracy': -0.00390625, 'accuracy_auc': 0.0, 'clip_fraction': 0.0, 'norm_p99': 26.55402374267578}. Pattern is not consistent across all seeds. This association does not establish causation.
+
+p=0.75: joint pattern in 0/1 seeds; mean deltas {'final_accuracy': 0.0, 'accuracy_auc': 0.0, 'clip_fraction': 0.0, 'norm_p99': 59.79631805419922}. Pattern is not consistent across all seeds. This association does not establish causation.
+
+p=1.0: joint pattern in 0/1 seeds; mean deltas {'final_accuracy': 0.0, 'accuracy_auc': 0.0, 'clip_fraction': 0.0, 'norm_p99': 151.2085952758789}. Pattern is not consistent across all seeds. This association does not establish causation.
+
+## Moderate optimum and under/over-conditioning
+
+Both mean-utility maxima lie in p≈.375–.5: False. The two mean-utility maxima do not jointly support that optimum region.
+
+Using mean-final-accuracy winner p=0.25 as the candidate sweet spot: improvement over p=0 in 1/1 seeds; higher tail/clipping and lower accuracy at p=.625,.75,1 in [0, 0, 0] seeds respectively. Consistent full pattern across observed seeds: False. This selection is descriptive and made after observing the sweep.
+
+The p=0 comparisons and above-.5 joint counts quantify the proposed under-conditioning → sweet spot → over-preconditioning pattern; mixed seed signs limit its stability. Mean maxima alone do not establish a universal optimum.
+
+Timing: algorithm = builder + private training; diagnostic CPU transfers and evaluation excluded; CUDA internal breakdown uses deferred Events. Runtime is secondary; small single-machine fluctuations do not establish power-specific speedups.
+
+Biases use augmented activations. Spectral quantiles weight each eigenvalue once; RMS moments additionally weight layer output dimension. RDP uses the unchanged shuffled fixed-batch convention; clipping diagnostics are unnoised research measurements.

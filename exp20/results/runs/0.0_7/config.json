@@ -1,0 +1,109 @@
+{
+  "BATCH_SIZE": 256,
+  "DAMPING": 0.001,
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 1,
+  "FORMAL_RUN_COUNT": 40,
+  "LEARNING_RATE": 0.5,
+  "MAX_GRAD_NORM": 1.0,
+  "METHODS": [
+    0.0,
+    0.125,
+    0.25,
+    0.375,
+    0.5,
+    0.625,
+    0.75,
+    1.0
+  ],
+  "MOMENTUM": 0,
+  "POWERS": [
+    0.0,
+    0.125,
+    0.25,
+    0.375,
+    0.5,
+    0.625,
+    0.75,
+    1.0
+  ],
+  "POWER_ORDER": {
+    "42": [
+      0.0,
+      0.125,
+      0.25,
+      0.375,
+      0.5,
+      0.625,
+      0.75,
+      1.0
+    ],
+    "7": [
+      0.25,
+      0.375,
+      0.5,
+      0.625,
+      0.75,
+      1.0,
+      0.0,
+      0.125
+    ],
+    "123": [
+      0.5,
+      0.625,
+      0.75,
+      1.0,
+      0.0,
+      0.125,
+      0.25,
+      0.375
+    ],
+    "2024": [
+      0.75,
+      1.0,
+      0.0,
+      0.125,
+      0.25,
+      0.375,
+      0.5,
+      0.625
+    ],
+    "3407": [
+      0.125,
+      0.25,
+      0.375,
+      0.5,
+      0.625,
+      0.75,
+      1.0,
+      0.0
+    ]
+  },
+  "SEEDS": [
+    42,
+    7,
+    123,
+    2024,
+    3407
+  ],
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "WEIGHT_DECAY": 0,
+  "smoke": false,
+  "epochs": 5,
+  "noise_multiplier": 1.068115234375,
+  "p": 0.0,
+  "seed": 7,
+  "synthetic_batches": 10,
+  "total_steps": 1170,
+  "drop_last": true,
+  "action_path_warmup": true,
+  "accounting": "RDP, repository shuffled fixed-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "shuffle": "seed",
+    "noise": "seed+40000",
+    "synthetic": "seed+10000+epoch"
+  }
+}
