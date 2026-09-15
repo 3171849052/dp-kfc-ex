@@ -1,0 +1,81 @@
+..................                                                       [100%]
+=============================== warnings summary ===============================
+exp16c/tests/test_exp16c.py::test_identity[fisher]
+exp16c/tests/test_exp16c.py::test_identity[nested_ag]
+exp16c/tests/test_exp16c.py::test_identity[nested_a]
+  /media/data/data/lt/DP-KFC/exp16c/tests/test_exp16c.py:42: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.25-fisher]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.25-nested_ag]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.25-nested_a]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.5-fisher]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.5-nested_ag]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.5-nested_a]
+  /media/data/data/lt/DP-KFC/exp16c/tests/test_exp16c.py:56: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(model(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.25-fisher]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.25-nested_ag]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.25-nested_a]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.5-fisher]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.5-nested_ag]
+exp16c/tests/test_exp16c.py::test_dense_formula_and_dp_order[0.5-nested_a]
+  /media/data/data/lt/DP-KFC/exp16c/run_exp16c.py:47: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[fisher]
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_ag]
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_a]
+exp16c/tests/test_exp16c.py::test_exp16c_damping_reaches_hessian
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.25]
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.5]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.25]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.5]
+  /media/data/data/lt/DP-KFC/exp16c/preconditioner.py:52: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[fisher]
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_ag]
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_a]
+  /media/data/data/lt/DP-KFC/exp16c/tests/test_exp16c.py:161: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_ag]
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_a]
+exp16c/tests/test_exp16c.py::test_exp16c_damping_reaches_hessian
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.25]
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.5]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.25]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.5]
+  /media/data/data/lt/DP-KFC/exp15/preconditioner.py:104: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_ag]
+exp16c/tests/test_exp16c.py::test_refresh_frozen_independent_and_transformed[nested_a]
+exp16c/tests/test_exp16c.py::test_exp16c_damping_reaches_hessian
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.25]
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.5]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.25]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.5]
+  /media/data/data/lt/DP-KFC/exp15/preconditioner.py:128: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.25]
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.5]
+  /media/data/data/lt/DP-KFC/exp16b/preconditioner.py:52: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.25]
+exp16c/tests/test_exp16c.py::test_nested_ag_matches_exp16b[0.5]
+  /media/data/data/lt/DP-KFC/exp16c/tests/test_exp16c.py:224: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(m(x), y, reduction='sum').backward()
+
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.25]
+exp16c/tests/test_exp16c.py::test_nested_a_never_applies_hg_and_matches_raw_fisher[0.5]
+  /media/data/data/lt/DP-KFC/exp16c/tests/test_exp16c.py:262: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.tensor([0, 1, 2, 3]), reduction='sum').backward()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+18 passed, 46 warnings in 17.53s
+
