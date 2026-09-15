@@ -1,0 +1,16 @@
+{
+  "q": 0.25,
+  "mode": "hessian",
+  "seed": 42,
+  "smoke": true,
+  "test_accuracy": 0.125,
+  "epsilon_spent": 0.9963923627328367,
+  "steps": 4,
+  "diagnostics": {},
+  "accounting_convention": "fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)",
+  "drop_last": true,
+  "sample_rate": 0.5,
+  "noise_multiplier": 4.53125,
+  "total_steps": 4,
+  "synthetic_batches": 3
+}

@@ -1,0 +1,58 @@
+...............                                                          [100%]
+=============================== warnings summary ===============================
+exp16b/tests/test_exp16b.py::test_identity[hessian]
+exp16b/tests/test_exp16b.py::test_identity[fisher]
+exp16b/tests/test_exp16b.py::test_identity[nested]
+  /media/data/data/lt/DP-KFC/exp16b/tests/test_exp16b.py:42: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    reduction='sum').backward()
+
+exp16b/tests/test_exp16b.py::test_hessian_matches_exp15[0.25]
+exp16b/tests/test_exp16b.py::test_hessian_matches_exp15[0.5]
+  /media/data/data/lt/DP-KFC/exp16b/tests/test_exp16b.py:58: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(m(x), y, reduction='sum').backward()
+
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.25-hessian]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.25-fisher]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.25-nested]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.5-hessian]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.5-fisher]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.5-nested]
+  /media/data/data/lt/DP-KFC/exp16b/tests/test_exp16b.py:72: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(model(x), y, reduction='sum').backward()
+
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.25-hessian]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.25-fisher]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.25-nested]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.5-hessian]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.5-fisher]
+exp16b/tests/test_exp16b.py::test_dense_formula_and_dp_order[0.5-nested]
+  /media/data/data/lt/DP-KFC/exp16b/run_exp16b.py:47: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[fisher]
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[nested]
+  /media/data/data/lt/DP-KFC/exp16b/preconditioner.py:52: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[fisher]
+  /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+    return next(self.gen)
+
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[fisher]
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[nested]
+  /media/data/data/lt/DP-KFC/exp16b/tests/test_exp16b.py:172: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    torch.nn.functional.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[nested]
+exp16b/tests/test_exp16b.py::test_exp16b_damping_reaches_hessian
+  /media/data/data/lt/DP-KFC/exp15/preconditioner.py:104: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+exp16b/tests/test_exp16b.py::test_refresh_frozen_independent_and_transformed[nested]
+exp16b/tests/test_exp16b.py::test_exp16b_damping_reaches_hessian
+  /media/data/data/lt/DP-KFC/exp15/preconditioner.py:128: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    F.cross_entropy(probe(x), y, reduction='sum').backward()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+15 passed, 26 warnings in 5.78s
+
