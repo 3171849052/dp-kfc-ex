@@ -32,7 +32,8 @@ def save(rows, diagnostics, output, smoke=False):
     for col in ['preconditioner_build_seconds', 'private_train_seconds', 'evaluation_seconds', 'algorithm_epoch_seconds']:
         summary['total_'+col.replace('epoch_', '')] = df.groupby('method')[col].sum()
     summary['peak_cuda_allocated_bytes'] = df.groupby('method').total_peak_cuda_allocated_bytes.max()
-    for col in ['builder_forward_calls','builder_vjp_calls','builder_reverse_vectors']:
+    for col in ['builder_forward_calls','builder_vjp_calls','builder_reverse_vectors',
+                'builder_unique_samples','builder_processed_samples']:
         summary['total_'+col] = df.groupby('method')[col].sum()
     summary.to_csv(output / 'summary.csv')
     summary.to_csv(output / 'method_summary.csv')

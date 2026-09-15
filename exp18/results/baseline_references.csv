@@ -1,0 +1,3 @@
+method,source,seed,beta,test_accuracy,total_algorithm_seconds
+full,exp14b/results/summary.csv,42,0.25,0.957,52.7813833784312
+identity,exp14/results/summary.csv,42,0.0,0.9221,52.67800506297499

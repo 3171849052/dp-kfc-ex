@@ -35,6 +35,7 @@ class Adapter:
 
     def builder(self, model, method, cache, seed, epoch):
         if cfg.rebuild(method, epoch-1):
+            self.operator = None
             self.operator, self.stats, diag = build(model, method, cache, seed, epoch)
             self.rebuilds += 1
             self.diagnostics.extend(dict(method=method, seed=seed, epoch=epoch-1, **d) for d in diag)
@@ -93,6 +94,11 @@ def main():
         label_seed='42 + 20000 + (zero_based_epoch + 1)', sketch_seed='42 + 30000 + (zero_based_epoch + 1)',
         noise_seed=40042, shuffle_seed=42, scale_reference_beta=.5,
         scale_matching='sqrt(m_ref/m_raw), using only each compressed structure; identity side moment = dimension',
+        single_side_scale_caveat='Self-contained lightweight operators: identity moment is dimension for both powers; '
+            'their reference RMS differs from full KFC. A-only versus C-only includes scale-weighting effects, '
+            'not just factor geometry. No private-norm calibration or full-factor oracle.',
+        builder_unique_samples='Samples in the synthetic cache; zero on reuse epochs',
+        builder_processed_samples='Sample instances processed: unique for one pass, 2*unique for rank replay; zero on reuse',
         algorithm_time='build + private training; evaluation recorded separately',
         state_bytes='action tensor payload + float64 global scale/tail powers; excludes Python metadata',
         refresh2_epochs=[0,2,4], frozen_epochs=[0], deterministic=True, tf32=False)

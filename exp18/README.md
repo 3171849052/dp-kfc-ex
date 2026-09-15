@@ -68,11 +68,13 @@ metric forwards are disabled; Exp18 records its own scale and low-rank diagnosti
 `builders.py` reuses Exp12 `forward`, `layers` and KFAC-U VJP semantics. Full lazy
 methods directly call the existing `estimate`. Compressed methods accumulate
 only requested statistics: sums of squares for diagonal, covariance only for
-requested full sides, nothing for identity. Biases are augmented as in Exp13.
+requested full sides, nothing for identity. The pipeline explicitly selects
+`need_a` / `need_c`: a_only runs forward without an autograd graph, labels or VJP;
+c_only skips A-side unfold, bias augmentation and statistics. Biases are augmented as in Exp13.
 The spatial normalization is the same as Exp12 for the fixed-size synthetic batches.
 
 `lowrank.py` makes two streaming passes. First accumulate `Y = sum Xᵀ(XΩ)` and
-trace, with Gaussian Ω width `min(d,r+4)`, and compute `Q=qr(Y)`. Replay the same
+trace as a device scalar tensor (no per-chunk `.item()` synchronization), with Gaussian Ω width `min(d,r+4)`, and compute `Q=qr(Y)`. Replay the same
 samples to accumulate `B=sum (XQ)ᵀ(XQ)/N`. Its top r eigenpairs yield
 `U=QV`, lambda, and `tau=(trace(F)-sum(lambda))/(d-r)`. For r>=d, accumulate the
 exact factor as specified. For r<d, no full covariance is formed; if oversampling
@@ -95,6 +97,10 @@ identity, rather than applying a damping-dependent scalar to I. Sum products
 Both transformed activation and backprop actions get sqrt(s); the aggregate
 gets s exactly once. Scale uses only the compressed structure's own spectrum.
 These are structure-predicted moments, not measured private gradient moments.
+Single-sided methods compare self-contained lightweight operators: their scale
+reference differs from full KFC. Thus a_only versus c_only includes the effects
+of scale weighting as well as factor geometry. No private-norm calibration or
+full-factor scale oracle is used.
 
 Exp13 Structured Ghost Clipping computes transformed per-example **global**
 norms using spatial Gram tiles, clips, aggregates, transforms once, adds Gaussian
@@ -110,7 +116,11 @@ are materialized in production. Tiny explicit gradients occur only in tests.
 - `summary.csv`, `method_summary.csv`: final rows plus summed time/budgets and
   peak memory. Algorithm time means build + private training, consistent with
   Exp14b; evaluation and wall time are separate. Low-rank's replay counts in all
-  budgets. Reuse epochs include only adapter overhead in build time.
+  forward/VJP/reverse-vector budgets. `builder_unique_samples` counts cache examples
+  (2560 formally); `builder_processed_samples` counts sample instances processed
+  (2560 for single-pass builders, 5120 for rank replay). Both are zero on reuse.
+  The ambiguous `builder_samples` field is removed. Summaries sum both new
+  fields with a `total_` prefix. Reuse epochs include only adapter overhead in build time.
 - `lowrank_diagnostics.csv`: each rebuilt layer/side rank, d, tau, captured trace.
 - `config.json`, `baseline_references.csv`, `pareto_summary.csv` / `.md`.
 - `accuracy_vs_operator_state_bytes.png`,
@@ -120,7 +130,9 @@ Operator bytes count retained action tensors plus global scale and scalar tail
 powers, not Python object metadata, model parameters, or temporary builder
 workspace. `stored_scalar_count` uses the same definition. CUDA peak allocation
 captures live tensor workspace as well as model/operator state. Lazy rebuilding
-keeps the old operator alive until replacement, and its peak reflects that.
+releases the old operator before constructing its replacement; the reused
+Exp14b loop deletes its operator/hooks at each epoch end. No `empty_cache()` or
+explicit garbage collection is used. Reuse epochs retain the same operator.
 
 Historical references are read from seed=42 rows, never copied into training
 metrics: **full = .9570** at beta=.25 from `exp14b/results/summary.csv`;

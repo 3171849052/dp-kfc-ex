@@ -4,6 +4,7 @@ import sys
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT/'src')]
+import weakref
 import pytest
 import torch
 from unittest.mock import patch
@@ -54,10 +55,11 @@ def test_power_and_kronecker(kind):
     assert d['scale_match']**2*d['predicted_second_moment_raw'] == pytest.approx(d['predicted_second_moment_ref'])
 
 
-def test_lowrank_stream_and_moment():
+@pytest.mark.parametrize('device', ['cpu', 'cuda:0'])
+def test_lowrank_stream_and_moment(device):
     torch.manual_seed(3)
-    x = torch.randn(43,19,dtype=torch.float64)
-    sketch = Sketch(19,4,'cpu',torch.Generator().manual_seed(9))
+    x = torch.randn(43,19,dtype=torch.float64,device=device)
+    sketch = Sketch(19,4,device,torch.Generator(device=device).manual_seed(9))
     omega = sketch.omega.clone()
     # Fail if the actual sketch operations produce any full-dimension matrix.
     class NoCovariance(TorchDispatchMode):
@@ -68,7 +70,10 @@ def test_lowrank_stream_and_moment():
                     assert t.shape != (19,19)
             return result
     with NoCovariance():
-        for chunk in x.split(7): sketch.first(chunk)
+        with patch.object(torch.Tensor, 'item', side_effect=AssertionError('stream scalar sync')):
+            for chunk in x.split(7): sketch.first(chunk)
+        assert sketch.trace.device == x.device and sketch.trace.dtype == torch.float64
+        torch.testing.assert_close(sketch.trace, x.square().sum())
         sketch.prepare()
         for chunk in x.split(7): sketch.second(chunk)
         factor, diag = sketch.finish()
@@ -77,17 +82,17 @@ def test_lowrank_stream_and_moment():
     e, v = torch.linalg.eigh(q.T@cov@q)
     e, u = e[-4:], q@v[:,-4:]
     tau = (cov.trace()-e.sum())/15
-    reconstructed = (u*e)@u.T+tau*(torch.eye(19)-u@u.T)
-    probe = torch.randn(19,3)
+    reconstructed = (u*e)@u.T+tau*(torch.eye(19,device=device)-u@u.T)
+    probe = torch.randn(19,3,device=device)
     torch.testing.assert_close(factor.action(probe),dense_power(reconstructed)@probe,atol=2e-5,rtol=2e-5)
     for beta in [.25,.5]:
         spectrum = torch.linalg.eigvalsh(reconstructed)
         assert factor.moment(beta) == pytest.approx((spectrum*(spectrum+DAMPING).pow(-2*beta)).sum().item())
     assert diag['tau'] == pytest.approx(tau.item())
-    exact = Sketch(3,4,'cpu',torch.Generator().manual_seed(9))
+    exact = Sketch(3,4,device,torch.Generator(device=device).manual_seed(9))
     exact.first(x[:,:3]); exact.prepare(); exact.second(x[:,:3])
     f, diag = exact.finish()
-    torch.testing.assert_close(f.action(torch.eye(3)),dense_power(x[:,:3].T@x[:,:3]/len(x)))
+    torch.testing.assert_close(f.action(torch.eye(3,device=device)),dense_power(x[:,:3].T@x[:,:3]/len(x)))
     assert diag['rank'] == 3
 
 
@@ -125,7 +130,12 @@ def test_builder_and_global_ghost(method):
     torch.testing.assert_close(actual_norms,norms,atol=2e-5,rtol=2e-5)
     torch.testing.assert_close(torch.cat([p.grad.flatten() for p in model.parameters()]),expected,atol=3e-5,rtol=3e-5)
     assert all(getattr(p,'grad_sample',None) is None for p in model.parameters())
-    assert stats['builder_forward_calls'] == (4 if method.startswith('rank') else 2)
+    passes = 2 if method.startswith('rank') else 1
+    assert stats['builder_forward_calls'] == 2*passes
+    assert stats['builder_vjp_calls'] == (0 if method == 'a_only' else 2*passes)
+    assert stats['builder_reverse_vectors'] == (0 if method == 'a_only' else 8*passes)
+    assert stats['builder_unique_samples'] == 8
+    assert stats['builder_processed_samples'] == 8*passes
 
 
 @pytest.mark.parametrize('sigma',[0.,1.1])
@@ -167,11 +177,23 @@ def test_lazy_and_rng():
         seen, last = [], None
         for epoch in range(1,6):
             cache = adapter.cache(42,epoch,device,1,2)
-            op, stats, _ = adapter.builder(model,method,cache,42,epoch)
-            if stats['rebuilt']: seen.append(epoch-1)
+            old = weakref.ref(last) if last is not None else None
+            if epoch > 1:
+                del op
+            last = None
+            def checked_build(*args):
+                assert adapter.operator is None
+                assert old is None or old() is None
+                return build(*args)
+            with patch('exp18.run_exp18.build', side_effect=checked_build):
+                op, stats, _ = adapter.builder(model,method,cache,42,epoch)
+            if stats['rebuilt']:
+                seen.append(epoch-1)
+                assert old is None or old() is None
             else:
-                assert op is last
-                assert not cache and stats['builder_vjp_calls'] == 0
+                assert op is old()
+                assert not cache
+                assert all(v == 0 for k,v in stats.items() if k.startswith('builder_'))
             last = op
         assert seen == expected
 
@@ -206,3 +228,21 @@ def test_convolution_ghost(method):
         hooks.remove()
         torch.testing.assert_close(actual,norms,rtol=3e-4,atol=2e-5)
         torch.testing.assert_close(torch.cat([p.grad.flatten() for p in model.parameters()]),expected,rtol=3e-4,atol=3e-6)
+
+
+@pytest.mark.parametrize('method', ['a_only', 'c_only'])
+def test_single_side_work(method):
+    model = initialize(42, torch.device('cuda:0'))
+    cache = synthetic_cache(42,1,torch.device('cuda:0'),1,2)
+    if method == 'a_only':
+        with patch('torch.autograd.grad', side_effect=AssertionError('unexpected VJP')), \
+             patch('torch.multinomial', side_effect=AssertionError('unexpected labels')):
+            _, stats, _ = build(model,method,cache,42,1)
+        assert stats['builder_vjp_calls'] == stats['builder_reverse_vectors'] == 0
+    else:
+        with patch('exp18.builders.activation_samples', side_effect=AssertionError('unexpected A samples')), \
+             patch('exp18.builders.F.unfold', side_effect=AssertionError('unexpected unfold')):
+            _, stats, _ = build(model,method,cache,42,1)
+        assert stats['builder_vjp_calls'] == 1
+    identity = Factor('identity', 7)
+    assert identity.moment(.25) == identity.moment(.5) == 7

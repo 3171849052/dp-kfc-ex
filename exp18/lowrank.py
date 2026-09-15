@@ -15,14 +15,14 @@ class Sketch:
         width = min(dimension, rank + OVERSAMPLING)
         self.omega = torch.randn(dimension, width, device=device, dtype=torch.float64, generator=generator)
         self.y = torch.zeros_like(self.omega)
-        self.trace = 0.
+        self.trace = torch.zeros((), device=device, dtype=torch.float64)
         self.count = 0
         if self.exact:
             self.y = torch.zeros(dimension, dimension, device=device, dtype=torch.float64)
 
     def first(self, x):
         x = x.double()
-        self.trace += x.square().sum().item()
+        self.trace.add_(x.square().sum())
         self.count += len(x)
         self.y.add_(x.T @ x if self.exact else x.T @ (x @ self.omega))
 
@@ -45,11 +45,12 @@ class Sketch:
         e, v = torch.linalg.eigh((self.small + self.small.T) / (2*self.count))
         e = e[-r:].clamp_min(0)
         u = (self.q @ v[:, -r:]).float()
-        trace = self.trace / self.count
-        tau = (trace - e.sum().item()) / (d-r)
+        trace = self.trace.item() / self.count
+        captured = e.sum().item()
+        tau = (trace - captured) / (d-r)
         # Same zero-floor PSD roundoff convention as Exp14b; substantive
         # negative residuals fail instead of being repaired.
         assert tau >= -1e-12 * trace
         tau = max(tau, 0.)
         return Factor('lowrank', d, e, u, tau), dict(rank=r, dimension=d, tau=tau,
-            captured_trace_fraction=e.sum().item()/trace)
+            captured_trace_fraction=captured/trace)

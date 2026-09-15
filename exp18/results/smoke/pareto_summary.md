@@ -12,14 +12,14 @@ Pareto flags compare newly trained methods. Historical runtime has separate-run 
 Historical operator bytes are not measured in those CSVs; baseline horizontal lines compare utility only.
 
      method  test_accuracy  utility_retention  operator_state_bytes  total_algorithm_seconds  memory_frontier  runtime_frontier
-       diag            0.5         -12.094556                  8164                 0.412204             True             False
-     a_only            0.5         -12.094556               9998116                 0.237278            False             False
-     c_only            0.5         -12.094556                 71064                 0.028438            False             False
-fullA_diagC            0.5         -12.094556               9998860                 0.124467            False             False
-diagA_fullC            0.5         -12.094556                 78476                 0.019987            False              True
-      rank4            0.5         -12.094556                 32824                 0.033390            False             False
-      rank8            0.5         -12.094556                 65576                 0.024787            False             False
-     rank16            0.5         -12.094556                130384                 0.023558            False             False
-   refresh2            0.5         -12.094556              10069172                 0.150635            False             False
-     frozen            0.5         -12.094556              10069172                 0.132902            False             False
+       diag            0.5         -12.094556                  8164                 0.515325             True             False
+     a_only            0.5         -12.094556               9998116                 0.237868            False             False
+     c_only            0.5         -12.094556                 71064                 0.020446            False              True
+fullA_diagC            0.5         -12.094556               9998860                 0.143108            False             False
+diagA_fullC            0.5         -12.094556                 78476                 0.020821            False             False
+      rank4            0.5         -12.094556                 32824                 0.032371            False             False
+      rank8            0.5         -12.094556                 65576                 0.024334            False             False
+     rank16            0.5         -12.094556                130384                 0.022856            False             False
+   refresh2            0.5         -12.094556              10069172                 0.151540            False             False
+     frozen            0.5         -12.094556              10069172                 0.131664            False             False
 
