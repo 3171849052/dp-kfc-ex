@@ -1,0 +1,11 @@
+........................................................................ [ 90%]
+........                                                                 [100%]
+=============================== warnings summary ===============================
+exp21/test_exp21.py::test_real_mnist_five_methods
+exp21/test_exp21.py::test_rng_and_protocol
+  /media/data/data/lt/DP-KFC/exp21/methods.py:30: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+80 passed, 2 warnings in 7.19s
+

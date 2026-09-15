@@ -1,0 +1,17 @@
+{
+  "bk": {
+    "final_parameter_max_abs_error": 7.450580596923828e-09
+  },
+  "bk_gd": {
+    "final_parameter_max_abs_error": 7.450580596923828e-09
+  },
+  "exact": {
+    "final_parameter_max_abs_error": 0.0
+  },
+  "fast2": {
+    "final_parameter_max_abs_error": 1.4901161193847656e-08
+  },
+  "ghost2": {
+    "final_parameter_max_abs_error": 1.4901161193847656e-08
+  }
+}

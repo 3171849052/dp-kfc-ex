@@ -1,0 +1,16 @@
+/media/data/data/lt/DP-KFC/exp21/methods.py:30: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+
+exact seed=42 epoch=1: 0.055875 s/batch, 0.2773 accuracy
+fast2 seed=42 epoch=1: 0.060099 s/batch, 0.2773 accuracy
+ghost2 seed=42 epoch=1: 0.054700 s/batch, 0.2773 accuracy
+bk seed=42 epoch=1: 0.037177 s/batch, 0.2773 accuracy
+bk_gd seed=42 epoch=1: 0.053130 s/batch, 0.2773 accuracy
+        seconds_per_batch  private_samples_per_second  peak_cuda_allocated_bytes
+method                                                                          
+bk               0.037177                 6886.003384                134882304.0
+bk_gd            0.053130                 4818.325787                134855680.0
+exact            0.055875                 4581.640138                849871360.0
+fast2            0.060099                 4259.658411                701144064.0
+ghost2           0.054700                 4680.045671                134882304.0
+
