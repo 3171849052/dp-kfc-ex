@@ -1,0 +1,9 @@
+fisher_q0.25_seed42 PASS: 4 finite DP steps, 2 evaluations
+fisher_q0.5_seed42 PASS: 4 finite DP steps, 2 evaluations
+hessian_q0.25_seed42 PASS: 4 finite DP steps, 2 evaluations
+hessian_q0.5_seed42 PASS: 4 finite DP steps, 2 evaluations
+hessian_q0_seed42 PASS: 4 finite DP steps, 2 evaluations
+nested_q0.25_seed42 PASS: 4 finite DP steps, 2 evaluations
+nested_q0.5_seed42 PASS: 4 finite DP steps, 2 evaluations
+PASS: seven-case summary, seed=42 only
+

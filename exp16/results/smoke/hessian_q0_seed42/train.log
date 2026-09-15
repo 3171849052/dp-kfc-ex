@@ -1,0 +1,2 @@
+mode=hessian q=0 seed=42 epoch=1 accuracy=0.0938 epsilon=0.712335
+mode=hessian q=0 seed=42 epoch=2 accuracy=0.1250 epsilon=0.996392

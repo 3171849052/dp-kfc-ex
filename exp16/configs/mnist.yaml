@@ -1,0 +1,18 @@
+# Reuse standalone utilities; override training protocol to match exp14.
+base: configs/standalone/mnist_dp_kfc.yaml
+data:
+  drop_last: true
+synthetic:
+  samples: 2560
+  batch_size: 256
+  refresh_every_epochs: 1
+powers: [0.0, 0.25, 0.5]
+modes: [hessian, fisher, nested]
+seeds: [42]
+lbfgs:
+  memory: 100
+  initial_scale: 1.0
+  factor_damping: 0.03162277660168379 # sqrt(existing kfac.damping=0.001)
+  activation_decay: 0.9
+  pair_decay: 0.9
+  synthetic_lookahead_lr: 0.5
