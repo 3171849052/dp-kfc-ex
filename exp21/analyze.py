@@ -41,6 +41,32 @@ def analyze(smoke=False):
         if not a.index.equals(b.index):
             raise RuntimeError('Unpaired measurement rows')
         lines.append(f'- {candidate} vs {reference}: {(b/a).mean():.3f}x')
+    lines += ['', '## GD profiling', '',
+        'CUDA event phases below are milliseconds per batch; wall time also includes data loading/transfer and Python work outside the event phases.', '',
+        '| method | first pass ms | norm ms | reconstruction ms | wall ms | cache MiB | first-pass parameter grad count |',
+        '|---|---:|---:|---:|---:|---:|---:|']
+    per_batch = frame.copy()
+    phases = ['first_pass_seconds', 'norm_seconds', 'bk_reconstruction_seconds',
+              'second_pass_seconds', 'aggregate_transform_seconds', 'noise_step_seconds']
+    per_batch[phases] = per_batch[phases].div(per_batch.batches, axis=0)
+    grouped = per_batch.groupby('method').mean(numeric_only=True)
+    for method, row in grouped.iterrows():
+        lines.append(f'| {method} | {row.first_pass_seconds*1000:.3f} | {row.norm_seconds*1000:.3f} | {row.bk_reconstruction_seconds*1000:.3f} | {row.seconds_per_batch*1000:.3f} | {row.bk_cache_bytes/2**20:.3f} | {row.first_pass_parameter_grad_count:.0f} |')
+    bk, gd = grouped.loc['bk'], grouped.loc['bk_gd']
+    first_change = gd.first_pass_seconds/bk.first_pass_seconds-1
+    total_change = gd.seconds_per_batch/bk.seconds_per_batch-1
+    lines += ['', f'BK+GD vs BK: first-pass change {first_change:+.1%}; total wall time change {total_change:+.1%}.',
+        f'Absolute phase differences (GD minus BK): first pass {(gd.first_pass_seconds-bk.first_pass_seconds)*1000:+.3f} ms/batch, norm {(gd.norm_seconds-bk.norm_seconds)*1000:+.3f}, reconstruction {(gd.bk_reconstruction_seconds-bk.bk_reconstruction_seconds)*1000:+.3f}.',
+        f'Wall time outside the sum of measured CUDA phases: BK {(bk.seconds_per_batch-bk[phases].sum())*1000:.3f} ms/batch; GD {(gd.seconds_per_batch-gd[phases].sum())*1000:.3f} ms/batch. This residual includes unprofiled work and host/launch gaps, not a pure CPU-time measurement.',
+        'The timing regions are identical across BK and GD. A first-pass improvement does not imply an end-to-end improvement in a three-batch diagnostic run.', '']
+    if total_change > 0:
+        event_delta = gd[phases].sum()-bk[phases].sum()
+        wall_delta = gd.seconds_per_batch-bk.seconds_per_batch
+        lines += [f'In this run GD is slower by {wall_delta*1000:.3f} ms/batch: {event_delta*1000:+.3f} ms is the change in the sum of CUDA phases and {(wall_delta-event_delta)*1000:+.3f} ms is the residual change. These measurements localize the difference by phase, but do not establish a causal CPU/GPU scheduling explanation.', '']
+    gd_rows = frame[frame.method.eq('bk_gd')]
+    assert (gd_rows.first_pass_parameter_grad_count == 0).all()
+    assert (gd_rows.backward_calls == 1).all() and (~gd_rows.input_gradient_computed).all()
+    assert gd.bk_cache_bytes <= bk.bk_cache_bytes
     lines += ['', '## Correctness and memory', '',
         'Gradient errors above come from a separate real MNIST batch of 256 against naive sample backward; they are not timing-path estimates. FP32 convolution tolerances: rtol=5e-4, atol=3e-5 for gradients.', '']
     if smoke:
@@ -63,7 +89,12 @@ def analyze(smoke=False):
         allocations = json.loads(row.batch_end_allocated_bytes)
         # Saved norm/factor/loss diagnostics grow linearly, by ~2 KiB per batch.
         lines.append(f'- {row.method}, seed {row.seed}, epoch {row.epoch}: batch-end allocated MiB = '+', '.join(f'{v/2**20:.3f}' for v in allocations)+f'; strategy {row.layer_strategies}.')
-    lines += ['', 'All recorded BK caches are empty after each step. Reserved memory includes CUDA allocator caching and disposable warmup; allocated memory is the training-phase peak. Cache/temporary-gradient byte fields count tensor payloads (views may overlap), not allocator peak.', '',
+    lines += ['', '## Transformer integration', '']
+    for path in sorted((root/'integration').glob('*.json')):
+        result = json.loads(path.read_text())
+        label = path.stem
+        lines.append(f'- {label}: fallback layers={result["fallback_layer_count"]}, backward calls={result["backward_calls"]}, second backward={result["requires_second_backward"]}, anchor={result["gd_anchor_module"]}.')
+    lines += ['', 'All recorded BK caches are empty after each step. Reserved memory includes CUDA allocator caching and disposable warmup; allocated memory is the training-phase peak. BK cache bytes count actual distinct retained tensor storage (views deduplicated); temporary-gradient bytes count gradient payloads, not allocator peak.', '',
         'Small smoke measurements are diagnostic and do not establish formal speed or utility claims. No formal jobs were started by the smoke workflow.', '']
     (root/'report.md').write_text('\n'.join(lines))
     print(summary[['seconds_per_batch','private_samples_per_second','peak_cuda_allocated_bytes']].to_string())

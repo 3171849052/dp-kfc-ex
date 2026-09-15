@@ -1,0 +1,65 @@
+{
+  "first_pass_seconds": 0.0,
+  "norm_seconds": 0.0,
+  "second_pass_seconds": 0.0,
+  "bk_reconstruction_seconds": 0.0,
+  "aggregate_transform_seconds": 0.0,
+  "noise_step_seconds": 0.0,
+  "fallback_layers": 2,
+  "fallback_layer_count": 2,
+  "fallback_layer_names": [
+    "",
+    "blocks.1"
+  ],
+  "fallback_parameter_names": [
+    "pos_embed",
+    "blocks.1.in_proj_weight",
+    "blocks.1.in_proj_bias",
+    "blocks.1.out_proj.weight",
+    "blocks.1.out_proj.bias"
+  ],
+  "requires_second_backward": true,
+  "preconditioned_layers": [
+    "head",
+    "patch_embed"
+  ],
+  "identity_geometry_layers": [
+    "",
+    "blocks.0",
+    "blocks.1",
+    "blocks.1.out_proj",
+    "blocks.2",
+    "blocks.3",
+    "norm"
+  ],
+  "gd_anchor_module": null,
+  "gd_anchor_modules": [],
+  "gd_applied": false,
+  "input_gradient_computed": false,
+  "bk_cache_bytes": 0,
+  "temporary_per_sample_grad_bytes": 4824,
+  "bk_ghost_layers": [],
+  "bk_fast_layers": [],
+  "ghost_layer_count": 0,
+  "fast_layer_count": 0,
+  "layer_strategies": {
+    "": "whole_step_fgc",
+    "blocks.0": "whole_step_fgc",
+    "blocks.1": "whole_step_fgc",
+    "blocks.1.out_proj": "whole_step_fgc",
+    "blocks.2": "whole_step_fgc",
+    "blocks.3": "whole_step_fgc",
+    "norm": "whole_step_fgc",
+    "head": "whole_step_fgc",
+    "patch_embed": "whole_step_fgc"
+  },
+  "backward_calls": 2,
+  "first_pass_parameter_grad_count": 0,
+  "first_pass_reverse_vectors": 2,
+  "timings": {
+    "first_pass_seconds": 0.0022541439533233644,
+    "norm_seconds": 0.0007485439777374268,
+    "second_pass_seconds": 0.0017121280431747436,
+    "aggregate_transform_seconds": 0.00023241600394248964
+  }
+}

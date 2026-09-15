@@ -2,9 +2,11 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from transformers.pytorch_utils import Conv1D as HFConv1D
+from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
-LINEAR_LAYOUTS = set()
-RMS_LAYOUTS = {nn.RMSNorm: 'eps'}
+LINEAR_LAYOUTS = {HFConv1D}
+RMS_LAYOUTS = {nn.RMSNorm: 'eps', LlamaRMSNorm: 'variance_epsilon'}
 
 
 def register_conv1d(cls):
@@ -39,12 +41,23 @@ def nbytes(t):
     return t.numel()*t.element_size()
 
 
+def retained_bytes(records):
+    """Actual distinct storage retained by records, including view bases."""
+    storages = {}
+    for record in records:
+        for tensor in (record.x, record.z, record.b):
+            if tensor is not None:
+                storage = tensor.untyped_storage()
+                storages[(tensor.device, storage.data_ptr())] = storage.nbytes()
+    return sum(storages.values())
+
+
 class Record:
     def __init__(self, name, module, activation, backprop, operator, trainable):
         self.name, self.module = name, module
         self.kind = kind(module)
         self.params = {n: p for n, p in module.named_parameters(recurse=False) if id(p) in trainable}
-        self.x, self.b = activation, backprop
+        self.x, self.b = None, backprop
         self.z = None
         if self.kind == 'linear':
             if isinstance(module, nn.Conv2d):
@@ -56,7 +69,8 @@ class Record:
                 self.b = backprop.reshape(len(backprop), -1, backprop.shape[-1])
             if module.bias is not None:
                 a = torch.cat((a, torch.ones_like(a[..., :1])), -1)
-            self.z = a if operator is None else operator.transform_activation(name, a.transpose(1, 2)).transpose(1, 2)
+            self.z = (operator.transform_activation(name, a.transpose(1, 2)).transpose(1, 2)
+                      if operator is not None and name in operator.data else a)
         elif self.kind == 'norm':
             dims = tuple(range(-module.weight.ndim, 0))
             if isinstance(module, nn.LayerNorm):
@@ -68,6 +82,8 @@ class Record:
                 if eps is None:
                     eps = torch.finfo(activation.dtype).eps
                 self.z = activation*torch.rsqrt(activation.square().mean(dims, keepdim=True)+eps)
+        else:
+            self.x = activation
 
     def bytes(self):
         return sum(nbytes(t) for t in (self.x, self.b, self.z) if t is not None)

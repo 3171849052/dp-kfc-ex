@@ -1,0 +1,82 @@
+{
+  "model": "bert",
+  "method": "bk_gd",
+  "gradient_max_abs_error": 5.960464477539063e-08,
+  "first_pass_seconds": 0.0,
+  "norm_seconds": 0.0,
+  "second_pass_seconds": 0.0,
+  "bk_reconstruction_seconds": 0.0,
+  "aggregate_transform_seconds": 0.0,
+  "noise_step_seconds": 0.0,
+  "fallback_layers": 0,
+  "fallback_layer_count": 0,
+  "fallback_layer_names": [],
+  "fallback_parameter_names": [],
+  "requires_second_backward": false,
+  "preconditioned_layers": [
+    "bert.encoder.layer.0.attention.output.dense",
+    "bert.encoder.layer.0.attention.self.key",
+    "bert.encoder.layer.0.attention.self.query",
+    "bert.encoder.layer.0.attention.self.value",
+    "bert.encoder.layer.0.intermediate.dense",
+    "bert.encoder.layer.0.output.dense",
+    "bert.pooler.dense",
+    "classifier"
+  ],
+  "identity_geometry_layers": [
+    "bert.embeddings.word_embeddings",
+    "bert.embeddings.position_embeddings",
+    "bert.embeddings.token_type_embeddings",
+    "bert.embeddings.LayerNorm",
+    "bert.encoder.layer.0.attention.output.LayerNorm",
+    "bert.encoder.layer.0.output.LayerNorm"
+  ],
+  "gd_anchor_module": "bert.embeddings.word_embeddings",
+  "gd_anchor_modules": [
+    "bert.embeddings.word_embeddings",
+    "bert.embeddings.token_type_embeddings",
+    "bert.embeddings.position_embeddings"
+  ],
+  "gd_applied": true,
+  "input_gradient_computed": false,
+  "bk_cache_bytes": 8552,
+  "temporary_per_sample_grad_bytes": 224,
+  "backward_calls": 1,
+  "first_pass_parameter_grad_count": 0,
+  "layer_strategies": {
+    "classifier": "ghost",
+    "bert.pooler.dense": "ghost",
+    "bert.encoder.layer.0.output.LayerNorm": "fast",
+    "bert.encoder.layer.0.output.dense": "ghost",
+    "bert.encoder.layer.0.intermediate.dense": "ghost",
+    "bert.encoder.layer.0.attention.output.LayerNorm": "fast",
+    "bert.encoder.layer.0.attention.output.dense": "ghost",
+    "bert.encoder.layer.0.attention.self.value": "ghost",
+    "bert.encoder.layer.0.attention.self.key": "ghost",
+    "bert.encoder.layer.0.attention.self.query": "ghost",
+    "bert.embeddings.LayerNorm": "fast",
+    "bert.embeddings.position_embeddings": "fast_sparse",
+    "bert.embeddings.word_embeddings": "fast_sparse",
+    "bert.embeddings.token_type_embeddings": "fast_sparse"
+  },
+  "bk_ghost_layers": [
+    "classifier",
+    "bert.pooler.dense",
+    "bert.encoder.layer.0.output.dense",
+    "bert.encoder.layer.0.intermediate.dense",
+    "bert.encoder.layer.0.attention.output.dense",
+    "bert.encoder.layer.0.attention.self.value",
+    "bert.encoder.layer.0.attention.self.key",
+    "bert.encoder.layer.0.attention.self.query"
+  ],
+  "bk_fast_layers": [
+    "bert.encoder.layer.0.output.LayerNorm",
+    "bert.encoder.layer.0.attention.output.LayerNorm",
+    "bert.embeddings.LayerNorm",
+    "bert.embeddings.position_embeddings",
+    "bert.embeddings.word_embeddings",
+    "bert.embeddings.token_type_embeddings"
+  ],
+  "ghost_layer_count": 8,
+  "fast_layer_count": 6
+}

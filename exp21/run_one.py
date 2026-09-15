@@ -47,7 +47,7 @@ def warmup(method, train, device):
         cache = synthetic_cache(90021, 1, device, 1, 256)
         op, _ = build_from_cache(net, cfg.POWER, cache, 90021, 1)
         x, y = next(iter(private_loader(Subset(train, range(256)), 90021)))
-        clipper = Clipper(net, op, method)
+        clipper = Clipper(net, op, method, max_grad_norm=cfg.MAX_GRAD_NORM)
         clipper.aggregate(x.to(device), y.to(device))
         clipper.remove()
         torch.cuda.synchronize(device)
@@ -82,7 +82,7 @@ def run(method, seed, smoke, output):
         del cache
         build_seconds = timestamp(device)-start
         build_memory = phase_end(device, 'build', build_start)
-        clipper = Clipper(model, op, method)
+        clipper = Clipper(model, op, method, max_grad_norm=cfg.MAX_GRAD_NORM)
         prof = EventProfiler()
         stats = {k: 0. for k in PHASES}
         peak_keys = ('bk_cache_bytes', 'temporary_per_sample_grad_bytes')
@@ -94,7 +94,7 @@ def run(method, seed, smoke, output):
             x, y = x.to(device), y.to(device)
             loss, norms, factors, _, phases = clipper.aggregate(x, y, prof)
             with timed(prof, 'noise_step_seconds', device):
-                noise_and_step(model, optimizer, sigma, len(x), noise_rng)
+                clipper.step(optimizer, sigma, len(x), noise_rng)
             if sigma:
                 accountant.step(noise_multiplier=sigma, sample_rate=256/len(train))
             losses.append(loss.detach())
@@ -112,8 +112,10 @@ def run(method, seed, smoke, output):
         model.zero_grad(set_to_none=True)
         stats.update({k: phases[k] for k in ('ghost_layer_count', 'fast_layer_count',
             'fallback_layer_count', 'fallback_layers', 'requires_second_backward', 'backward_calls',
-            'first_pass_parameter_grad_count')})
-        for k in ('layer_strategies', 'bk_ghost_layers', 'bk_fast_layers', 'fallback_layer_names'):
+            'first_pass_parameter_grad_count', 'gd_applied', 'input_gradient_computed')})
+        stats['gd_anchor_module'] = phases['gd_anchor_module']
+        for k in ('layer_strategies', 'bk_ghost_layers', 'bk_fast_layers', 'fallback_layer_names',
+                  'fallback_parameter_names', 'preconditioned_layers', 'identity_geometry_layers', 'gd_anchor_modules'):
             stats[k] = json.dumps(phases[k])
         stats.update(cache_empty_after_step=True, batch_end_allocated_bytes=json.dumps(allocations))
         if smoke:

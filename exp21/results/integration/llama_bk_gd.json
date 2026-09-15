@@ -1,0 +1,74 @@
+{
+  "model": "llama",
+  "method": "bk_gd",
+  "gradient_max_abs_error": 5.960464477539063e-08,
+  "first_pass_seconds": 0.0,
+  "norm_seconds": 0.0,
+  "second_pass_seconds": 0.0,
+  "bk_reconstruction_seconds": 0.0,
+  "aggregate_transform_seconds": 0.0,
+  "noise_step_seconds": 0.0,
+  "fallback_layers": 0,
+  "fallback_layer_count": 0,
+  "fallback_layer_names": [],
+  "fallback_parameter_names": [],
+  "requires_second_backward": false,
+  "preconditioned_layers": [
+    "model.layers.0.mlp.down_proj",
+    "model.layers.0.mlp.gate_proj",
+    "model.layers.0.mlp.up_proj",
+    "model.layers.0.self_attn.k_proj",
+    "model.layers.0.self_attn.o_proj",
+    "model.layers.0.self_attn.q_proj",
+    "model.layers.0.self_attn.v_proj"
+  ],
+  "identity_geometry_layers": [
+    "model.embed_tokens",
+    "model.layers.0.input_layernorm",
+    "model.layers.0.post_attention_layernorm",
+    "model.norm",
+    "lm_head"
+  ],
+  "gd_anchor_module": "model.embed_tokens",
+  "gd_anchor_modules": [
+    "model.embed_tokens"
+  ],
+  "gd_applied": true,
+  "input_gradient_computed": false,
+  "bk_cache_bytes": 10016,
+  "temporary_per_sample_grad_bytes": 312,
+  "backward_calls": 1,
+  "first_pass_parameter_grad_count": 0,
+  "layer_strategies": {
+    "model.embed_tokens": "fast_sparse_tied",
+    "lm_head": "ghost_tied",
+    "model.norm": "fast",
+    "model.layers.0.mlp.down_proj": "ghost",
+    "model.layers.0.mlp.up_proj": "ghost",
+    "model.layers.0.mlp.gate_proj": "ghost",
+    "model.layers.0.post_attention_layernorm": "fast",
+    "model.layers.0.self_attn.o_proj": "ghost",
+    "model.layers.0.self_attn.v_proj": "ghost",
+    "model.layers.0.self_attn.k_proj": "ghost",
+    "model.layers.0.self_attn.q_proj": "ghost",
+    "model.layers.0.input_layernorm": "fast"
+  },
+  "bk_ghost_layers": [
+    "lm_head",
+    "model.layers.0.mlp.down_proj",
+    "model.layers.0.mlp.up_proj",
+    "model.layers.0.mlp.gate_proj",
+    "model.layers.0.self_attn.o_proj",
+    "model.layers.0.self_attn.v_proj",
+    "model.layers.0.self_attn.k_proj",
+    "model.layers.0.self_attn.q_proj"
+  ],
+  "bk_fast_layers": [
+    "model.embed_tokens",
+    "model.norm",
+    "model.layers.0.post_attention_layernorm",
+    "model.layers.0.input_layernorm"
+  ],
+  "ghost_layer_count": 8,
+  "fast_layer_count": 4
+}

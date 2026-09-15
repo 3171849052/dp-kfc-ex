@@ -1,0 +1,80 @@
+{
+  "BATCH_SIZE": 256,
+  "DAMPING": 0.001,
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 1,
+  "FORMAL_RUN_COUNT": 25,
+  "LEARNING_RATE": 0.5,
+  "MAX_GRAD_NORM": 1.0,
+  "METHODS": [
+    "exact",
+    "fast2",
+    "ghost2",
+    "bk",
+    "bk_gd"
+  ],
+  "METHOD_ORDER": {
+    "42": [
+      "exact",
+      "fast2",
+      "ghost2",
+      "bk",
+      "bk_gd"
+    ],
+    "7": [
+      "fast2",
+      "ghost2",
+      "bk",
+      "bk_gd",
+      "exact"
+    ],
+    "123": [
+      "ghost2",
+      "bk",
+      "bk_gd",
+      "exact",
+      "fast2"
+    ],
+    "2024": [
+      "bk",
+      "bk_gd",
+      "exact",
+      "fast2",
+      "ghost2"
+    ],
+    "3407": [
+      "bk_gd",
+      "exact",
+      "fast2",
+      "ghost2",
+      "bk"
+    ]
+  },
+  "MOMENTUM": 0,
+  "POWER": 0.25,
+  "SEEDS": [
+    42,
+    7,
+    123,
+    2024,
+    3407
+  ],
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "WEIGHT_DECAY": 0,
+  "smoke": false,
+  "method": "exact",
+  "seed": 42,
+  "epochs": 5,
+  "total_steps": 1170,
+  "noise_multiplier": 1.068115234375,
+  "synthetic_batches": 10,
+  "accounting": "Exp20 RDP shuffled fixed-batch convention; not a new privacy proof",
+  "rng": {
+    "initialization": "seed",
+    "shuffle": "seed",
+    "noise": "seed+40000",
+    "synthetic": "seed+10000+epoch"
+  }
+}

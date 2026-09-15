@@ -4,6 +4,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
 sys.path[:0] = [str(ROOT), str(ROOT/'src')]
+import os
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
+os.environ['HF_HOME'] = str(ROOT/'exp21/.cache/hf')
 import copy
 import json
 import weakref
@@ -30,7 +34,7 @@ def loss(output, target):
     return (output-target).square().reshape(len(output), -1).sum(1)/2
 
 
-def golden(model, x, y, op=None, loss_fn=loss):
+def golden(model, x, y, op=None, loss_fn=loss, max_grad_norm=1.):
     sums = {n: torch.zeros_like(p) for n, p in model.named_parameters() if p.requires_grad}
     norms, factors = [], []
     for xx, yy in zip(x, y):
@@ -38,7 +42,7 @@ def golden(model, x, y, op=None, loss_fn=loss):
         loss_fn(model(xx[None]), yy[None]).sum().backward()
         transform_aggregate(model, op)
         norm = sum(p.grad.square().sum() for p in model.parameters() if p.requires_grad).sqrt()
-        factor = (1/(norm+1e-6)).clamp(max=1)
+        factor = (max_grad_norm/(norm+1e-6)).clamp(max=1)
         norms.append(norm)
         factors.append(factor)
         for n, p in model.named_parameters():
@@ -190,7 +194,7 @@ def test_cache_release_and_failure_restore():
     refs = []
     original = hooks.reconstruct
     def capture(c):
-        refs.extend(weakref.ref(t) for r in hooks.records for t in (r.x, r.b, r.z))
+        refs.extend(weakref.ref(t) for r in hooks.records for t in (r.x, r.b, r.z) if t is not None)
         original(c)
     hooks.reconstruct = capture
     hooks.aggregate(x, torch.randn(3, 5, device='cuda'), 'bk_gd', loss_fn=loss)
@@ -340,6 +344,13 @@ def test_extra_trainable_parameter_rejected():
     model.extra = nn.Parameter(torch.ones(4))
     with pytest.raises(NotImplementedError, match='Unsupported trainable parameters'):
         BookKeeping(model)
+
+
+from exp21.test_transformer_cases import (
+    test_corrected_nonidentity_geometry, test_partial_geometry_and_nonunit_bound,
+    test_cnn_builder_matches_exp20, test_output_anchor_and_minimal_cache,
+    test_tied_analytic_cross_term, test_tiny_transformer_integration,
+    test_tinyvit_whole_step_fallback, test_dangerous_not_silent_fallback)
 
 
 if __name__ == '__main__':

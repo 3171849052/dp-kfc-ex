@@ -1,0 +1,66 @@
+{
+  "model": "gpt2",
+  "method": "bk",
+  "gradient_max_abs_error": 1.862645149230957e-08,
+  "first_pass_seconds": 0.0,
+  "norm_seconds": 0.0,
+  "second_pass_seconds": 0.0,
+  "bk_reconstruction_seconds": 0.0,
+  "aggregate_transform_seconds": 0.0,
+  "noise_step_seconds": 0.0,
+  "fallback_layers": 0,
+  "fallback_layer_count": 0,
+  "fallback_layer_names": [],
+  "fallback_parameter_names": [],
+  "requires_second_backward": false,
+  "preconditioned_layers": [
+    "transformer.h.0.attn.c_attn",
+    "transformer.h.0.attn.c_proj",
+    "transformer.h.0.mlp.c_fc",
+    "transformer.h.0.mlp.c_proj"
+  ],
+  "identity_geometry_layers": [
+    "transformer.wte",
+    "transformer.wpe",
+    "transformer.h.0.ln_1",
+    "transformer.h.0.ln_2",
+    "transformer.ln_f",
+    "lm_head"
+  ],
+  "gd_anchor_module": null,
+  "gd_anchor_modules": [],
+  "gd_applied": false,
+  "input_gradient_computed": false,
+  "bk_cache_bytes": 10176,
+  "temporary_per_sample_grad_bytes": 312,
+  "backward_calls": 1,
+  "first_pass_parameter_grad_count": 16,
+  "layer_strategies": {
+    "transformer.wte": "fast_sparse_tied",
+    "lm_head": "ghost_tied",
+    "transformer.ln_f": "fast",
+    "transformer.h.0.mlp.c_proj": "ghost",
+    "transformer.h.0.mlp.c_fc": "ghost",
+    "transformer.h.0.ln_2": "fast",
+    "transformer.h.0.attn.c_proj": "ghost",
+    "transformer.h.0.attn.c_attn": "ghost",
+    "transformer.h.0.ln_1": "fast",
+    "transformer.wpe": "fast_sparse"
+  },
+  "bk_ghost_layers": [
+    "lm_head",
+    "transformer.h.0.mlp.c_proj",
+    "transformer.h.0.mlp.c_fc",
+    "transformer.h.0.attn.c_proj",
+    "transformer.h.0.attn.c_attn"
+  ],
+  "bk_fast_layers": [
+    "transformer.wte",
+    "transformer.ln_f",
+    "transformer.h.0.ln_2",
+    "transformer.h.0.ln_1",
+    "transformer.wpe"
+  ],
+  "ghost_layer_count": 5,
+  "fast_layer_count": 5
+}

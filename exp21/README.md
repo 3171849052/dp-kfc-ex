@@ -1,88 +1,156 @@
-# Exp21: Hybrid Book-Keeping + Ghost Differentiation
+# Exp21 — Transformer Hybrid BK / Ghost Differentiation / FGC fallback
 
-所有实现、测试、日志、输出均在 `exp21/`；只读复用 Exp19/20 的 operator、噪声/SGD、profiling 与 MNIST protocol。正式 25-job 实验未启动。
+在原 Exp21 CNN BK 数学核心上增量修复。所有修改和输出均在 `exp21/`；Exp19/20 只读复用，不修改历史结果。此次只运行测试与 smoke，没有启动正式 25-job 实验；已有 `results/runs/` 数据不作改动。
 
-## 运行
+## 运行与固定协议
 
-在仓库根目录执行：
+从仓库根目录运行：
 
 ```bash
 conda run -n curve python -B exp21/test_exp21.py
 conda run -n curve bash exp21/run_all.sh --smoke
 conda run -n curve python -B exp21/analyze.py --smoke
-# 正式实验：5 methods × 5 seeds，每个 job 独立 subprocess
+# 正式实验命令（本次不执行）
 conda run -n curve bash exp21/run_all.sh
 ```
 
-正式配置：MNIST / 当前 SimpleCNN；batch=256，5 epochs；seeds=(42,7,123,2024,3407)，power=.25，damping=.001，C=1，epsilon=1，delta=1e-5；SGD lr=.5，momentum=0，weight_decay=0。每 epoch 10×256 pink-noise synthetic samples，只做 forward 建 A。按 seed 轮换 method 顺序。每个 subprocess 用相同 batch size 的独立 disposable warmup，保存/恢复 RNG。
+正式 MNIST / 当前 SimpleCNN 协议不变：batch=256，5 epochs，seeds=(42,7,123,2024,3407)，power=.25，damping=.001，C=1，epsilon=1，delta=1e-5；SGD lr=.5、momentum=0、weight_decay=0。每 epoch 使用 10×256 个 pink-noise synthetic samples，只 forward 构建 A。五方法为 exact、fast2、ghost2、bk、bk_gd，每个 method/seed fresh subprocess，并轮换 method 顺序。
 
-Smoke：seed=42，前 768 个训练样本 shuffle 后 3 batches，1 epoch，1×256 synthetic samples，noise=0，测试集前 256 个样本。完整数据继续读取已有 `exp1/data`，不下载、不修改。
+初始化为 CPU seed；shuffle 用独立 generator(seed)；噪声 generator(seed+40000)；synthetic 在当前 CUDA device 的 fork_rng(seed+10000+epoch) 中生成。沿用 Exp20 shuffled fixed-batch RDP accounting 约定，总计 1170 private steps；不提出新的 privacy proof。测试确认有 bias 的 SimpleCNN operator 与 Exp20 逐元素完全相同。
 
-初始化用 CPU seed；shuffle 用独立 CPU generator(seed)；噪声 generator(seed+40000)；synthetic 使用仅当前 CUDA device 的 fork_rng(seed+10000+epoch)。沿用 Exp20 shuffled fixed-batch RDP accounting 约定；此实验不提供新的 privacy proof。正式总计 1170 private steps。
+Smoke：seed=42，前 768 个 MNIST 训练样本 shuffle 后 3 batches，1 epoch，1×256 synthetic samples，noise=0，前 256 个测试样本作 accuracy sanity check。读取已有 `exp1/data`，不下载。每方法独立的 disposable warmup 保持 RNG 隔离。短 smoke 仅用于诊断，不支持正式速度或 utility 结论。
 
-## 文件
-
-- `config.py`：固定协议。
-- `handlers.py`：Linear/Conv2d、稀疏 Embedding、LayerNorm/RMSNorm、Conv1D layout，以及 Ghost/Fast/BK 公式。
-- `bk.py`：activation/backprop capture、GD anchor、identity-based shared parameter 合并、缓存生命周期、两遍对照路径。
-- `methods.py`：Opacus explicit baseline 与统一 Clipper。
-- `profiling.py`：复用 Exp20 deferred CUDA events。
-- `run_one.py` / `run_sweep.py` / `run_all.sh`：独立进程实验入口。
-- `test_exp21.py`：独立 naive per-example backward 金标准和 CUDA/MNIST 集成测试。
-- `analyze.py`：汇总、配对 speedup、smoke 更新误差检查。
-- `results/correctness.json`：真实 256 样本 MNIST 金标准误差。
-- `results/smoke/runs/*`：smoke metrics、config、最终模型/norm/factor state。
-- `results/summary.csv`、`method_summary.csv`、`report.md`：最后一次分析输出；运行正式分析时会更新这三个 Exp21 汇总文件。
-
-## 五条路径
-
-| method | norm | aggregate | backward 数 |
-|---|---|---|---:|
-| exact | Exp19 风格 Opacus explicit per-example gradient，逐样本 A transform | clip 后求和 | 1 |
-| fast2 | 各层临时形成 per-example preconditioned gradient | weighted backward，再 aggregate A transform | 2 |
-| ghost2 | tiled spatial/sequence Gram identity | weighted backward，再 aggregate A transform | 2 |
-| bk | 各层 auto Ghost/Fast | 缓存直接 BK reconstruction | 1 |
-| bk_gd | 同 bk，参数在第一遍 requires_grad=False | 同 bk | 1 |
-
-`exact` 是当前带 bias 的 Linear/Conv2d A-only 显式基线，服务正式 SimpleCNN 对照。Transformer primitives 直接使用 `BookKeeping`，以独立逐样本 backward 为 oracle，并测试两遍路径；非 Linear/Conv 的 norm/Embedding 参数在这些 primitive tests 中使用 identity geometry。Exp20 synthetic A builder 的正式适用范围仍为 SimpleCNN；此任务未引入完整 Transformer curvature builder 或训练实验。
-
-Linear 将 `[B,...,d]` 展平到 `[B,T,d]`；Conv2d 使用 unfold。带 bias 时拼接 1，然后 `Z=A_aug @ P`（P 包含 Exp20 scale matching）。Fast norm 临时构造 `B.transpose(1,2) @ Z`，norm 后释放。Ghost 通过 64×64 的 position tiles 累加 `(B_j B_k^T) * (Z_j Z_k^T)`，不形成完整 `[B,T,T]` 或 per-example parameter gradient。
-
-Auto 判据为 `2*T*T <= d_in_aug*d_out`；SimpleCNN：conv1/conv2 选 Fast，fc1/fc2 选 Ghost。最终梯度直接 `sum_i c_i B_i^T Z_i`；BK 不再执行 `G @ P`。clipping 因子沿用 `min(1,1/(norm+1e-6))`。噪声在 aggregate 后加入，随后除以 batch size，再 SGD。
-
-Embedding 将每个样本的 token id 与 backprop 构造 sparse COO，并 coalesce（内部按 token 累加），因此重复 token 的 cross term 正确。BK 最终使用 index_add_ 写入一个普通 `[V,d]` aggregate；不构造 one-hot 或 `[B,V,d]`。支持 padding_idx；明确拒绝 max_norm 和 scale_grad_by_freq。LayerNorm/RMSNorm 直接对 position 求和得到小型 per-example affine gradients，用 Fast norm 和 BK sum。
-
-### GD 与 shared parameters
-
-GD 在 forward 前关闭所有 trainable parameter 的 requires_grad。浮点输入使用新的 gradient anchor；integer token id 不求导，Embedding 的输出设置为 activation anchor。输出 tensor 的 backward hook 保存 backprop；用缓存重构参数梯度后恢复参数 requires_grad。测试通过参数级 hooks 验证第一遍没有普通参数 gradient 计算，而不是事后清除 `.grad`。
-
-共享参数按 Parameter identity 检测，包括同一模块重复调用。涉及共享的 record 按样本合并所有贡献再计算 norm，包含 cross term；Embedding 贡献保持 sparse，必要时与该样本的 dense projection gradient 合并，不创建 batch×vocab dense 缓存。
-
-第一版 shared/tied 多模块参数要求 `operator=None`（identity geometry）。带不同 augmented A operator 的共享参数没有唯一的参数空间变换，显式拒绝，不静默选择某个 module 的 operator。非共享 Linear/Conv 测试覆盖非 identity A，且正式 MNIST 使用真实 scale-matched A。此范围限制不会触发或影响 SimpleCNN。
-
-### 显式 adapters 与 unsupported
-
-标准 nn.Linear、nn.Conv2d（groups=1、zero padding）、nn.Embedding、nn.LayerNorm、nn.RMSNorm 直接支持。其他 RMSNorm-like 和 HF Conv1D 使用显式注册，无名称猜测或静默 fallback：
+## 路径与接口
 
 ```python
-from transformers.pytorch_utils import Conv1D
-from exp21.handlers import register_conv1d, register_rmsnorm
-register_conv1d(Conv1D)                 # weight: [input, output]
-register_rmsnorm(MyRMSNorm, 'eps')     # x * rsqrt(mean(x²)+eps) * weight
+from exp21.methods import HybridBKClipper, Clipper, build_from_cache
+
+operator, stats = build_from_cache(model, .25, calibration_batches, seed=42, epoch=1,
+                                  layer_names=selected_affine_names)  # 可省略 layer_names
+clipper = HybridBKClipper(model, operator, method='bk_gd', max_grad_norm=.37)
+loss_sum, norms, factors, layer_squares, stats = clipper.aggregate(x, target,
+                                                               loss_fn=per_example_loss)
+clipper.step(optimizer, sigma, len(x), noise_generator)
+clipper.remove()
 ```
 
-测试包含实际安装的 HuggingFace Conv1D。RMS adapter 约定 FP32 公式如上，不涵盖额外 offset、gating 或特殊 mixed precision 变体。两遍对照针对确定性、样本独立模型；没有实现 dropout RNG replay、BatchNorm 或自定义跨样本算子。
+输入是带 batch 维的 tensor；`loss_fn(model(x), target)` 必须返回 `[B]`，默认 cross entropy。HF 模型可以直接接受 token ids，并在 loss_fn 中读取 output.logits。当前执行范围为 FP32、样本独立的模型；不支持跨样本 loss/算子、gradient checkpointing、任意输入 pytree 或 autocast。
 
-没有注册真正的 FGC fallback module：所有支持的层均可 BK reconstruction；不支持的 trainable module/parameter 明确报错。结果 `fallback_layers=0`、`fallback_layer_count=0`、`fallback_layer_names=[]`；BK 的 `requires_second_backward=false`。Fast norm 的层不是 fallback。fast2/ghost2 的 `requires_second_backward=true` 表示其设计本身需要第二遍。
+`max_grad_norm` 必须为正。所有路径使用 `min(1,C/(norm+1e-6))`；`clipper.step` 使用同一个 C 生成标准差 `sigma*C` 的噪声，然后除以 batch size 再 SGD，避免 clipping/noise 的 C 分离。
 
-## 验证和计时
+| 请求路径 | 无 fallback 时 norm | aggregate | reverse 调用 |
+|---|---|---|---:|
+| exact | Opacus explicit per-example gradient + A transform | clip 后求和 | 1 |
+| fast2 | 临时 layer-wise per-example preconditioned gradient | weighted backward 后 A transform | 2 |
+| ghost2 | tiled Gram；norm affine/Embedding 使用专用局部算法 | weighted backward 后 A transform | 2 |
+| bk | hybrid Ghost/Fast | 直接 BK reconstruction | 1 |
+| bk_gd | 同 BK，使用 output anchors | 直接 BK reconstruction | 1 |
 
-先执行测试，再 smoke。Primitive FP32 norm/clip/gradient 使用 rtol=1e-4；真实 CNN 因 batch convolution / Gram 求和顺序不同使用 rtol=5e-4、gradient atol=3e-5、norm atol=1e-4。真实 MNIST reference 为 256 次独立 sample backward，不依赖 hooks 的梯度公式。结果中 relative L2 error 约 4e-7～8e-7，详见 `correctness.json`。
+exact 保留 Opacus baseline，服务正式 SimpleCNN；直接 BK 支持范围不等于 Opacus sampler 范围。遇到明确注册的 fallback，**所有请求方法（包括 exact/bk_gd）都转为 whole-step FGC**，metadata 反映真实执行。两遍路径 replay 首遍 CPU/当前 CUDA RNG，使 dropout 等随机 forward 与第一遍匹配，并恢复外部 RNG 进度。
 
-测试还覆盖强制 Ghost/Fast、重复 token、共享/tied/reused module、无噪声 SGD、GD 参数 hook 不触发、弱引用缓存释放、错误后恢复、Ghost 禁止调用 per-example materializer、6 个连续 full-size CNN steps 的 allocated 显存稳定、RNG 隔离和计时区间不主动 synchronize。
+## 修正后的 A-only geometry
 
-CUDA events 在 phase 结束后同步并解析；timed context 内无 synchronize。`first_pass_seconds` 不含独立 `norm_seconds`；BK 的 `second_pass_seconds` 精确为 0。timing 分解是每 epoch 的累计值；`seconds_per_batch` 来自完整 private train wall time，包含数据加载/传输和 Python 开销，因此不等于 event 分解之和除以 batches。
+`geometry.py` 复用 Exp20 AOperator 的 damped matrix function 和 scale matching，修正 activation covariance：
 
-`peak_cuda_*_bytes` 是 private training phase 的 allocator peaks；build peak 另列。reserved 包含同进程 warmup 的 allocator cache。`bk_cache_bytes` 是缓存 tensor payload 总和（view 可能共享 storage），`temporary_per_sample_grad_bytes` 是 Fast/explicit/shared 路径单阶段 per-sample gradient payload 高水位，非 allocator peak；不包含 Gram workspace。Fast norm 的 aggregate reconstruction workspace 与 retained ordinary gradients 已体现在 CUDA allocated peak 中。
+- 有 bias：使用 `[a,1]`，P 为 `(d+1)×(d+1)`。
+- 无 bias：仅使用 a，P 为 `d×d`，不伪造 coordinate。
+- Linear 的 `[B,...,d]` 展平所有 batch/position 行后构建 A。
+- Conv2d 使用 unfold，维度为 `in_channels*kernel_h*kernel_w`，按有无 bias 决定 augmentation。
+- 实际 HF `Conv1D` 按 `[input,output]` weight layout 构建 input covariance，output dimension 用 weight.shape[1]。
 
-输出每层策略、缓存释放状态及每个 batch 结束 allocated bytes。正式保存 norm/clip/loss diagnostics 每 batch 约增长 2.5 KiB，属于有界的 epoch diagnostics；六步不保存 diagnostics 的独立测试验证 BK 缓存不增长。accuracy 仅作 sanity check；3-batch smoke 的时间和 speedup 不作正式性能或 utility 结论。
+operator 可以只覆盖一部分 affine 层。只有名字出现在 operator.data 的层使用 A transform，其余层使用 identity，**全部 trainable parameters** 都纳入 global clipping norm。输出 `preconditioned_layers` 和 `identity_geometry_layers`。
+
+默认 builder 选择非共享的 Linear/Conv2d/HF Conv1D。共享参数所在模块默认不构建 A，并在 `builder_identity_shared_layers` 中明确记录；可用 layer_names 指定更小的覆盖集。Embedding/LayerNorm/RMSNorm 使用 identity geometry。校准没有实际执行的指定层明确报错；packed MHA 的 out_proj 由 functional 运算调用，不能作为普通 affine forward hook 校准，TinyViT 测试显式只对 patch_embed/head 建 A。
+
+对于共享参数，不定义互相冲突的 augmented module operators：共享组件要求 identity geometry，**其他层仍可非 identity A**。显式把共享组件加入 operator.data 会报错。预条件层内部部分冻结也明确报错；未覆盖的普通 BK 层允许 affine 参数冻结子集。
+
+## 直接 BK 支持与缓存
+
+直接支持 nn.Linear、nn.Conv2d（groups=1、zero padding）、nn.Embedding、nn.LayerNorm、nn.RMSNorm，以及实际 HF Conv1D/LlamaRMSNorm。其他兼容类型通过显式注册，不按名称猜测：
+
+```python
+from exp21.handlers import register_conv1d, register_rmsnorm
+register_conv1d(MyConv1D)                # [input,output] 权重
+register_rmsnorm(MyRMSNorm, 'eps')      # 标准 x*rsqrt(mean(x²)+eps)*weight
+```
+
+Linear/Conv：`Z=A_aug @ P`（P 已含 scale matching）。Fast norm 临时形成 `B^T Z` 并释放；Ghost norm 通过 64×64 position tiles 累加 Gram identity，不构造完整 `[B,T,T]` 或 per-example parameter gradient。Auto 判据为 `2*T² <= d_in_aug*d_out`。SimpleCNN：两层 Conv 选 Fast，两层 Linear 选 Ghost。
+
+最终 BK aggregate 为 `sum_i c_i B_i^T Z_i`，已是预条件后的结果，不再次乘 P。形成 z 后 Record 只保留 z+b，x=None；Norm 仅保留归一化后的 z+b；Embedding 仅保留 ids+b。记录的 `bk_cache_bytes` 按实际 retained storage 去重，包含必要 view 的底层 storage，不重复计数 broadcast views。每步结束清空全部 records/pending；测试验证 raw activation 不再长期持有和连续六个完整 CNN batch 无缓存显存增长。
+
+Embedding 每个样本按 token id coalesce sparse COO，正确累加重复 token 与 padding_idx；不生成 one-hot 或 `[B,V,d]`。最终只向普通 `[V,d]` aggregate 做 index_add。LayerNorm/RMSNorm 对 position 求和得到小型 affine per-example gradients，用 Fast local norm 和 BK aggregate。
+
+### 高效 tied Embedding / LM head
+
+支持同一 Parameter 对象在一次 Embedding 调用与一次 Linear output projection 调用之间共享；head bias 可以独立训练。head 始终使用 tiled Ghost norm，即使请求 forced Fast，也以 `ghost_tied` 明确记录，避免形成 batch×vocab×hidden。
+
+norm 使用：
+
+```
+||G_embed + G_head||²
+= ||G_embed||² + ||G_head||² + 2 <G_embed, G_head>
+```
+
+Embedding 用 sparse token rows；只计算 head 中这些 token 的 rows 与 sparse values 的内积，不形成单样本完整 `[V,d]` dense gradient。最终两路各自 BK aggregate 后加到同一 Parameter。对实际 GPT-2/LLaMA tied LM head 的完整模型测试已覆盖。
+
+HF Conv1D 的 Parameter layout 是 `[input,output]`，与 Embedding 的 `[vocab,hidden]` 直接 identity tie 通常不兼容。实现支持实际形状兼容的同对象 HF tie（测试为 square layout），不将 transpose-view 伪装成 Parameter identity。常见语言模型的 lm_head 是 Linear。
+
+保留原 generic shared/reused Linear tests 的逐样本合并 reference 路径，包含全部 cross terms，适合小型共享层。超过一次 embedding/head 调用或多 owner 的 tied Embedding pattern 明确拒绝，需将相应外层模块显式注册为 whole-step FGC；不会悄悄进入大 vocab 逐样本 dense BK 路径。
+
+## 真正的 output-anchor Ghost Differentiation
+
+GD 在 forward 前关闭真实 trainable parameters 的 requires_grad，并 detach 原始输入。forward hook 遇到没有 grad graph 的 supported output 时，将其设为 requires_grad=True；从该 output 得到 backprop，供该层 BK reconstruction 使用。
+
+因此第一层 Conv/Linear 不反传无用 input gradient；token ids 永不求导。多个独立分支各自有 output anchor，例如 GPT-2 word/position embeddings。`gd_anchor_module` 为首个 anchor，`gd_anchor_modules` 列出全部，`gd_applied` 表示实际是否执行 GD。
+
+HF BERT/GPT-2 的 position embeddings 原本以 `[1,T]`/`[T]` 输入后 broadcast。通过按实际 HF 类型识别的 adapter，在相加前扩展 embedding output 到 batch 维，并在这个 output 捕获逐样本 backprop；否则会错误地提前合并样本。没有名称猜测。测试验证参数 hooks 首遍完全不触发、first_pass_parameter_grad_count=0、原始 x.grad 不产生，而最终重构梯度与 oracle 一致。
+
+## Whole-step Fast-Clipping fallback
+
+`routing.py` 初始化扫描每个 trainable Parameter，并分为：
+
+1. BK-supported：上述 adapters 和已有小型 generic shared 路径。
+2. FGC-fallback：明确注册的 sample-independent 模块。
+3. unsupported-dangerous / unsupported：明确报错。
+
+内置 fallback：nn.MultiheadAttention 的全部 packed/functional 参数；仓库 TinyViT 的直接 Parameter（pos_embed）。TinyViT 的 patch_embed、norm、FFN 等仍会被扫描，但只要存在一个 fallback，整个 step 转为标准两遍路径：
+
+1. 一次 batched forward + batched VJP (`autograd.grad(..., is_grads_batched=True)`) 得到所有参数的 per-example gradients；应用 partial A，得到 global norm/clip；释放 per-example gradients。
+2. RNG replay 后 weighted forward/backward，再执行 aggregate A transform。
+
+这个版本的 FGC 保留完整 per-example 参数梯度，内存 O(B*参数量)，是 packed/custom module 的正确性 fallback，不用于替代大 vocab 的直接 BK 路径。reverse 调用实际为一次 batched VJP + 一次 backward，`backward_calls=2`；reverse vectors 数为 B。fallback 不启用 GD（gd_applied=False）；首遍 autograd.grad 不填充普通 p.grad，但这不表示执行了 GD。
+
+扩展需显式注册，并保证 sample independence 和无 forward state mutation：
+
+```python
+from exp21.routing import register_fallback
+register_fallback(MyPackedModule)  # 整个 subtree 的参数
+register_fallback(MyModel, direct_parameters_only=True)  # 仅外层直接参数，子模块继续扫描
+```
+
+BatchNorm、Embedding max_norm/scale_grad_by_freq 明确拒绝；未知 trainable module 或额外参数不静默忽略。fallback 使用 PyTorch math attention，不自动尝试其他 backend。未实际贡献梯度的 trainable 参数也明确报错。
+
+metadata 包含 fallback_layer_names/count、fallback_parameter_names、requires_second_backward、backward_calls、第一遍参数 grad 数、layer norm 策略、partial geometry、anchors、cache/temporary bytes。Fast local norm 不是 fallback。SimpleCNN 的 BK/GD 仍然 fallback=0、second backward=false、second_pass_seconds=0。
+
+## 验证结果与文件
+
+测试入口包括原测试和 `test_transformer_cases.py`，当前 **117 项通过**。原容差不降低：primitive norm/clip/gradient rtol=1e-4；真实 256 样本 MNIST 的 convolution/Gram 求和路径 rtol=5e-4、gradient atol=3e-5。oracle 继续是独立逐样本 backward。
+
+新增覆盖：bias=False Linear/Conv + 非 identity A；实际 HF Conv1D + A；partial A；五方法 C=.37 + 有噪声 SGD；output anchors/input grad 缺失；raw cache 释放；解析 tied cross-term 禁止 dense per-example head materialization；非 identity partial A 的 tiny BERT/GPT-2/LLaMA；identity/partial A 的 TinyViT FGC；危险模块拒绝。tiny HF 仅通过 config 随机初始化，offline 环境，无 pretrained 下载；dropout=0，短序列、小 batch、eager attention。
+
+BERT/GPT-2/LLaMA 的 bk/bk_gd integration 均 **直接 BK、无 fallback、单 reverse**；TinyViT 明确 **whole-step FGC、两次 reverse**，覆盖 pos_embed 和全部 MHA 参数。结果 JSON 写入 `results/integration/`。
+
+主要文件：
+
+- `geometry.py`：修正 A builder；`handlers.py`：层公式与最小缓存。
+- `routing.py` / `fallback.py`：完整参数扫描与真正两遍 fallback。
+- `bk.py` / `methods.py`：hybrid norm、GD、tied cross-term、统一 clipping/noise C。
+- `profiling.py` / `run_one.py` / `run_sweep.py` / `run_all.sh`：原协议与计时。
+- `test_exp21.py` / `test_transformer_cases.py`、`pytest.log`：验证。
+- `smoke.log`、`results/smoke/`：fresh-process smoke。
+- `results/correctness.json`：真实 MNIST 对 naive oracle 的误差。
+- `results/summary.csv`、`method_summary.csv`、`report.md`：最新分析。
+
+CUDA events 在 phase 边界同步后解析，timed region 内不主动 synchronize。first pass、norm、second pass、BK reconstruction、aggregate transform、noise step 分开记录；CSV 中 phase seconds 为 epoch 累计，report 转为每 batch。private wall time 包含数据加载/传输和 Python 开销；不通过改变计时范围强制制造 GD 加速。report 给出 GD 相对 BK 的首遍/总时间变化、norm/重构差异与未归入 CUDA phases 的 wall residual；后者不是纯 CPU 时间。
+
+allocated peak 是 private training phase 的峰值；build peak 另列；reserved 含 disposable warmup 的 allocator cache。temporary_per_sample_grad_bytes 表示梯度 payload 高水位，非 allocator peak，不含 Gram workspace。norm/clip/loss diagnostics 每 batch 保存约 2.5 KiB，epoch 结束释放，与 BK cache 泄漏区分。
