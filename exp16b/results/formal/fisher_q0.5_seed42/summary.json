@@ -1,0 +1,25 @@
+{
+  "q": 0.5,
+  "mode": "fisher",
+  "seed": 42,
+  "smoke": false,
+  "test_accuracy": 0.9512,
+  "epsilon_spent": 0.995693195331761,
+  "steps": 1170,
+  "diagnostics": {
+    "conv1/A_damped_condition": 26.448840856788355,
+    "conv1/G_damped_condition": 2.500228418557621,
+    "conv2/A_damped_condition": 7627.28339851589,
+    "conv2/G_damped_condition": 2.0538289075285183,
+    "fc1/A_damped_condition": 1105765.7208828202,
+    "fc1/G_damped_condition": 164.66340133919982,
+    "fc2/A_damped_condition": 578365.276286427,
+    "fc2/G_damped_condition": 289.35948145126923
+  },
+  "accounting_convention": "fixed-batch shuffled; drop_last=True; RDP q=batch_size/train_size, steps=epochs*floor(train_size/batch_size)",
+  "drop_last": true,
+  "sample_rate": 0.004266666666666667,
+  "noise_multiplier": 1.068115234375,
+  "total_steps": 1170,
+  "synthetic_batches": 10
+}
