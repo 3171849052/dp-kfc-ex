@@ -1,0 +1,5 @@
+identity DP-SGD epoch=1 steps=234 epsilon=0.786113
+identity DP-SGD epoch=2 steps=468 epsilon=0.838508
+identity DP-SGD epoch=3 steps=702 epsilon=0.890903
+identity DP-SGD epoch=4 steps=936 epsilon=0.943298
+identity DP-SGD epoch=5 steps=1170 epsilon=0.995693
