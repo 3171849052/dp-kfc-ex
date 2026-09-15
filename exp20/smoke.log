@@ -1,0 +1,9 @@
+0.0 seed=42 epoch=1 accuracy=0.2070 build=0.107s train=0.079s
+0.125 seed=42 epoch=1 accuracy=0.2109 build=0.117s train=0.052s
+0.25 seed=42 epoch=1 accuracy=0.2148 build=0.116s train=0.051s
+0.375 seed=42 epoch=1 accuracy=0.1953 build=0.117s train=0.053s
+0.5 seed=42 epoch=1 accuracy=0.1875 build=0.120s train=0.078s
+0.625 seed=42 epoch=1 accuracy=0.1836 build=0.117s train=0.051s
+0.75 seed=42 epoch=1 accuracy=0.1875 build=0.121s train=0.077s
+1.0 seed=42 epoch=1 accuracy=0.1875 build=0.120s train=0.076s
+All 8 powers validated; scale matching passed. Analysis saved: /media/data/data/lt/DP-KFC/exp20/results/smoke

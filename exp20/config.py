@@ -1,0 +1,15 @@
+"""Fixed Exp19 protocol, one paired seed and eight activation powers."""
+POWERS = (0., .125, .25, .375, .5, .625, .75, 1.)
+METHODS = POWERS
+SEEDS = (42,)
+EPOCHS = 5
+BATCH_SIZE = 256
+LEARNING_RATE = .5
+MOMENTUM = 0
+WEIGHT_DECAY = 0
+EPSILON = 1
+DELTA = 1e-5
+MAX_GRAD_NORM = 1.
+DAMPING = 1e-3
+SYNTHETIC_BATCHES = 10
+SYNTHETIC_BATCH_SIZE = 256
