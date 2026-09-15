@@ -12,3 +12,7 @@ MAX_GRAD_NORM = 1.
 DAMPING = 1e-3
 SYNTHETIC_BATCHES = 10
 SYNTHETIC_BATCH_SIZE = 256
+
+ORDER = {seed: tuple(METHODS[i] for i in indices) for seed, indices in {
+    42: (0, 1, 2, 3), 7: (3, 2, 1, 0), 123: (1, 3, 0, 2),
+    2024: (2, 0, 3, 1), 3407: (0, 2, 1, 3)}.items()}

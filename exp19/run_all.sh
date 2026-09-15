@@ -18,7 +18,8 @@ else
     exec > >(tee exp19/formal.log) 2>&1
 fi
 for seed in "${seeds[@]}"; do
-    for method in M0_original M1_full_ghost M2_a_ghost_p05 M3_a_ghost_p025; do
+    order=$(python -c 'import sys; from exp19.config import ORDER; print(" ".join(ORDER[int(sys.argv[1])]))' "$seed")
+    for method in $order; do
         python exp19/run_one.py --method "$method" --seed "$seed" "${args[@]}"
     done
 done

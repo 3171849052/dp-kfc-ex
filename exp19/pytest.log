@@ -1,8 +1,10 @@
-...................                                                      [100%]
+............................                                             [100%]
 =============================== warnings summary ===============================
 exp19/test_exp19.py::test_exact_ghost_norm_clip_aggregate_update
 exp19/test_exp19.py::test_real_mnist_batch[M0_original]
-  /media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+exp19/test_exp19.py::test_event_timer_has_no_internal_synchronization
+exp19/test_exp19.py::test_disposable_action_warmup[M0_original]
+  /media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
     loss.backward()
 
 exp19/test_exp19.py::test_real_mnist_batch[M0_original]
@@ -10,5 +12,5 @@ exp19/test_exp19.py::test_real_mnist_batch[M0_original]
     return next(self.gen)
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-19 passed, 3 warnings in 12.48s
+28 passed, 5 warnings in 11.07s
 

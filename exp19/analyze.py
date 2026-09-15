@@ -33,10 +33,18 @@ def analyze(output, smoke):
             frames.append(f)
             layers.append(pd.read_csv(directory/'layer_norm_diagnostics.csv'))
             configs.append(json.loads((directory/'config.json').read_text()))
+    if smoke:
+        import torch
+        exact, ghost = [torch.load(output/'runs'/f'{method}_42'/'smoke_state.pt', weights_only=True) for method in METHODS[:2]]
+        for key in ('norms', 'factors'):
+            torch.testing.assert_close(exact[key], ghost[key], rtol=3e-4, atol=2e-5)
+        for name in exact['model']:
+            torch.testing.assert_close(exact['model'][name], ghost['model'][name], rtol=3e-4, atol=2e-5)
+        print('Smoke M0/M1 norms, clipping factors and one-step model update agree.', flush=True)
     df = pd.concat(frames, ignore_index=True)
     df.to_csv(output/'metrics.csv', index=False)
     pd.concat(layers, ignore_index=True).to_csv(output/'layer_norm_diagnostics.csv', index=False)
-    (output/'config.json').write_text(json.dumps(dict(smoke=smoke, runs=configs,
+    (output/'config.json').write_text(json.dumps(dict(smoke=smoke, runs=configs, method_order=configs[0]["method_order"],
         accuracy_auc='Trapezoid integral over observed epochs 1..5; one-epoch smoke = 0',
         bootstrap='20000 paired seed resamples, percentile 95% CI; sample std ddof=1',
         total_peak='maximum of build/train phase peaks; evaluation excluded'), indent=2)+'\n')
@@ -154,7 +162,7 @@ def analyze(output, smoke):
     lines += ['', 'M2/M3 eliminate all synthetic reverse vectors and curvature backward calls. '
               'Actual build savings are reported above and include A accumulation/eigendecomposition.', '',
               'Accuracy AUC integrates observed epoch 1–5 accuracies. Memory peaks exclude evaluation; reserved memory includes allocator caching within each fresh process. '
-              'Private timing includes the common research diagnostics. Internal Exact/Ghost phases are explanatory, not cross-backend rankings. '
+              'Private timing excludes diagnostic CPU transfer and postprocessing. diagnostic_postprocess_seconds is excluded from algorithm time (build + actual DP training). Internal breakdown uses deferred CUDA Events with no instrumentation synchronization inside batches. Each fresh subprocess uses disposable 256-sample action-path warmup and deterministic balanced method order. Allocated is the primary memory comparison; reserved is an allocator behavior diagnostic. Internal Exact/Ghost phases are explanatory, not cross-backend rankings. '
               'M3−M2 identifies power plus the required RMS matching jointly. Identity C is undamped identity. '
               'RDP accounting follows the repository shuffled fixed-batch convention; research CSVs are not privacy-protected releases.']
     (output/'report.md').write_text('\n'.join(lines)+'\n')

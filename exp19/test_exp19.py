@@ -230,3 +230,151 @@ def test_synthetic_rng_isolation():
     assert torch.equal(cpu, torch.random.get_rng_state())
     assert all(torch.equal(a,b) for a,b in zip(cuda, torch.cuda.get_rng_state_all()))
     assert torch.equal(noise, gen.get_state())
+
+
+def test_event_timer_has_no_internal_synchronization(monkeypatch):
+    from exp19.profiling import EventProfiler, timed, timestamp
+    model = tiny()
+    x = torch.randn(8, 4, device='cuda')
+    op, _ = m.build_from_cache(model, METHODS[1], [x], 42, 1)
+    profiler = EventProfiler()
+    sync = torch.cuda.synchronize
+    def forbidden(*a, **k):
+        pytest.fail('Internal instrumentation synchronized CUDA')
+    with monkeypatch.context() as patch:
+        patch.setattr(torch.cuda, 'synchronize', forbidden)
+        hooks = m.GhostNorm(model, op)
+        m.ghost_aggregate(model, hooks, x, torch.arange(8, device='cuda')%3, profiler)
+        hooks.remove()
+        wrapper = m.GradSampleModule(model, loss_reduction='sum')
+        m.exact_aggregate(wrapper, op, x, torch.arange(8, device='cuda')%3, profiler)
+        wrapper.to_standard_module()
+        m.build_from_cache(model, METHODS[2], [x], 42, 1, profiler)
+    sync()
+    result = profiler.resolve()
+    assert all(v >= 0 for v in result.values()) and not profiler.events
+    calls = []
+    def record(*a, **k):
+        calls.append(1)
+        return sync(*a, **k)
+    monkeypatch.setattr(torch.cuda, 'synchronize', record)
+    timestamp('cuda')
+    with timed(profiler, 'work', 'cuda'):
+        x.square()
+    assert len(calls) == 1
+    timestamp('cuda')
+    profiler.resolve()
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize('method', METHODS)
+def test_disposable_action_warmup(method, monkeypatch):
+    from exp19 import run_one as run
+    from opacus.accountants import RDPAccountant
+    train, _ = load_data()
+    cpu = torch.random.get_rng_state().clone()
+    cuda = [state.clone() for state in torch.cuda.get_rng_state_all()]
+    noise = torch.Generator(device='cuda').manual_seed(40042)
+    noise_state = noise.get_state().clone()
+    references = []
+    calls = []
+    for name in ('initialize', 'GhostNorm', 'GradSampleModule'):
+        original = getattr(run, name)
+        def tracked(*args, _original=original, _name=name, **kwargs):
+            value = _original(*args, **kwargs)
+            references.append(weakref.ref(value))
+            calls.append(_name)
+            return value
+        monkeypatch.setattr(run, name, tracked)
+    original_build = run.build_from_cache
+    def build(*a, **k):
+        operator, stats = original_build(*a, **k)
+        references.append(weakref.ref(operator))
+        tensors = list(operator.data.values()) if method in METHODS[2:] else [t for pair in operator.data.values() for t in pair]
+        references.extend(weakref.ref(t) for t in tensors)
+        assert stats['builder_samples'] == 256
+        return operator, stats
+    monkeypatch.setattr(run, 'build_from_cache', build)
+    def forbidden(*a, **k):
+        pytest.fail('Warmup executed a step')
+    monkeypatch.setattr(torch.optim.SGD, 'step', forbidden)
+    monkeypatch.setattr(RDPAccountant, 'step', forbidden)
+    assert run.disposable_warmup(method, train, torch.device('cuda:0')) is None
+    assert all(ref() is None for ref in references)
+    assert ('GradSampleModule' in calls) == (method == METHODS[0])
+    assert ('GhostNorm' in calls) == (method != METHODS[0])
+    assert torch.equal(cpu, torch.random.get_rng_state())
+    assert all(torch.equal(a,b) for a,b in zip(cuda, torch.cuda.get_rng_state_all()))
+    assert torch.equal(noise_state, noise.get_state())
+
+
+def test_balanced_order():
+    from exp19.config import ORDER, SEEDS
+    assert tuple(ORDER) == SEEDS
+    assert all(len(v) == 4 and set(v) == set(METHODS) for v in ORDER.values())
+    assert all(len({v.index(method) for v in ORDER.values()}) > 1 for method in METHODS)
+
+
+def test_activation_only_forward_regression():
+    from exp12.curvature import forward, activation_sum
+    model = initialize(42, 'cuda')
+    x = torch.randn(4, 1, 28, 28, device='cuda')
+    outputs = []
+    def check(module, inputs, output):
+        assert not torch.is_grad_enabled()
+        assert not inputs[0].requires_grad
+        assert not output.requires_grad
+        outputs.append(weakref.ref(output))
+    handles = [module.register_forward_hook(check) for module in layers(model).values()]
+    acts = m.activation_forward_only(model, x)
+    for h in handles:
+        h.remove()
+    assert all(ref() is None for ref in outputs)
+    assert all(not module._forward_hooks for module in layers(model).values())
+    with torch.no_grad():
+        _, old, _ = forward(model, x)
+    assert set(acts) == set(old)
+    for name, module in layers(model).items():
+        a, count = activation_sum(acts[name], module)
+        b, old_count = activation_sum(old[name], module)
+        assert count == old_count
+        torch.testing.assert_close(a, b, rtol=0, atol=0)
+
+
+def test_a_moments_no_item_per_layer(monkeypatch):
+    factors = {str(i): {'A': torch.eye(i+2, device='cuda'), 'output_dimension': 3} for i in range(4)}
+    def forbidden(*a, **k):
+        pytest.fail('AOperator called Tensor.item')
+    monkeypatch.setattr(torch.Tensor, 'item', forbidden)
+    for power in (.5, .25):
+        op = m.AOperator(factors, power)
+        assert all(isinstance(v, float) for v in op.moments.values())
+        assert op.scale**2*op.moments['m_raw'] == pytest.approx(op.moments['m_reference'])
+
+
+def test_production_diagnostics_after_train_timer(monkeypatch, tmp_path):
+    from exp19 import run_one as run
+    phase = {'name': None}
+    original_start, original_end = run.phase_start, run.phase_end
+    starts = []
+    def start(device):
+        phase['name'] = 'build' if not starts else 'train'
+        starts.append(phase['name'])
+        return original_start(device)
+    def end(device, name, allocation):
+        phase['name'] = None
+        return original_end(device, name, allocation)
+    monkeypatch.setattr(run, 'phase_start', start)
+    monkeypatch.setattr(run, 'phase_end', end)
+    original_cpu = torch.Tensor.cpu
+    transfers = []
+    def cpu(tensor, *a, **k):
+        assert phase['name'] != 'train'
+        transfers.append(phase['name'])
+        return original_cpu(tensor, *a, **k)
+    monkeypatch.setattr(torch.Tensor, 'cpu', cpu)
+    run.run(METHODS[1], 42, True, tmp_path)
+    import pandas as pd
+    row = pd.read_csv(tmp_path/'runs'/f'{METHODS[1]}_42'/'metrics.csv').iloc[0]
+    assert transfers and row.diagnostic_postprocess_seconds > 0
+    assert row.algorithm_epoch_seconds == pytest.approx(row.preconditioner_build_seconds+row.private_train_seconds)
