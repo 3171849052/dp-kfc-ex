@@ -2,99 +2,230 @@
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=42 epoch=1 accuracy=0.8983 build=0.473s train=10.300s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=42 epoch=1 accuracy=0.8983 build=0.186s train=7.887s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=42 epoch=2 accuracy=0.9284 build=0.192s train=10.298s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=42 epoch=2 accuracy=0.9284 build=0.163s train=7.545s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=42 epoch=3 accuracy=0.9403 build=0.191s train=10.296s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=42 epoch=3 accuracy=0.9403 build=0.164s train=7.541s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=42 epoch=4 accuracy=0.9509 build=0.184s train=10.253s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=42 epoch=4 accuracy=0.9509 build=0.164s train=7.548s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=42 epoch=5 accuracy=0.9491 build=0.184s train=10.266s
+M0_original seed=42 epoch=5 accuracy=0.9491 build=0.167s train=7.548s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-M1_full_ghost seed=42 epoch=1 accuracy=0.8983 build=0.489s train=11.304s
-M1_full_ghost seed=42 epoch=2 accuracy=0.9284 build=0.191s train=11.234s
-M1_full_ghost seed=42 epoch=3 accuracy=0.9403 build=0.192s train=11.264s
-M1_full_ghost seed=42 epoch=4 accuracy=0.9510 build=0.189s train=11.193s
-M1_full_ghost seed=42 epoch=5 accuracy=0.9491 build=0.192s train=11.257s
+M1_full_ghost seed=42 epoch=1 accuracy=0.8983 build=0.188s train=9.219s
+M1_full_ghost seed=42 epoch=2 accuracy=0.9284 build=0.165s train=8.620s
+M1_full_ghost seed=42 epoch=3 accuracy=0.9403 build=0.165s train=8.622s
+M1_full_ghost seed=42 epoch=4 accuracy=0.9510 build=0.165s train=8.609s
+M1_full_ghost seed=42 epoch=5 accuracy=0.9491 build=0.165s train=8.591s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-M2_a_ghost_p05 seed=42 epoch=1 accuracy=0.9137 build=0.536s train=11.856s
-M2_a_ghost_p05 seed=42 epoch=2 accuracy=0.9408 build=0.176s train=11.083s
-M2_a_ghost_p05 seed=42 epoch=3 accuracy=0.9507 build=0.174s train=11.135s
-M2_a_ghost_p05 seed=42 epoch=4 accuracy=0.9580 build=0.177s train=11.144s
-M2_a_ghost_p05 seed=42 epoch=5 accuracy=0.9599 build=0.176s train=11.136s
+M2_a_ghost_p05 seed=42 epoch=1 accuracy=0.9137 build=0.168s train=8.948s
+M2_a_ghost_p05 seed=42 epoch=2 accuracy=0.9408 build=0.154s train=8.626s
+M2_a_ghost_p05 seed=42 epoch=3 accuracy=0.9507 build=0.154s train=8.638s
+M2_a_ghost_p05 seed=42 epoch=4 accuracy=0.9580 build=0.154s train=8.644s
+M2_a_ghost_p05 seed=42 epoch=5 accuracy=0.9599 build=0.153s train=8.584s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-M3_a_ghost_p025 seed=42 epoch=1 accuracy=0.9055 build=0.589s train=11.849s
-M3_a_ghost_p025 seed=42 epoch=2 accuracy=0.9336 build=0.194s train=11.270s
-M3_a_ghost_p025 seed=42 epoch=3 accuracy=0.9487 build=0.176s train=10.946s
-M3_a_ghost_p025 seed=42 epoch=4 accuracy=0.9558 build=0.167s train=10.973s
-M3_a_ghost_p025 seed=42 epoch=5 accuracy=0.9587 build=0.175s train=10.862s
+M3_a_ghost_p025 seed=42 epoch=1 accuracy=0.9055 build=0.152s train=8.447s
+M3_a_ghost_p025 seed=42 epoch=2 accuracy=0.9336 build=0.154s train=8.413s
+M3_a_ghost_p025 seed=42 epoch=3 accuracy=0.9487 build=0.154s train=8.408s
+M3_a_ghost_p025 seed=42 epoch=4 accuracy=0.9558 build=0.154s train=8.400s
+M3_a_ghost_p025 seed=42 epoch=5 accuracy=0.9587 build=0.154s train=8.375s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M3_a_ghost_p025 seed=7 epoch=1 accuracy=0.9123 build=0.169s train=8.867s
+M3_a_ghost_p025 seed=7 epoch=2 accuracy=0.9404 build=0.153s train=8.633s
+M3_a_ghost_p025 seed=7 epoch=3 accuracy=0.9512 build=0.153s train=8.626s
+M3_a_ghost_p025 seed=7 epoch=4 accuracy=0.9608 build=0.154s train=8.622s
+M3_a_ghost_p025 seed=7 epoch=5 accuracy=0.9626 build=0.153s train=8.596s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M2_a_ghost_p05 seed=7 epoch=1 accuracy=0.9270 build=0.168s train=8.651s
+M2_a_ghost_p05 seed=7 epoch=2 accuracy=0.9454 build=0.153s train=8.592s
+M2_a_ghost_p05 seed=7 epoch=3 accuracy=0.9522 build=0.154s train=8.589s
+M2_a_ghost_p05 seed=7 epoch=4 accuracy=0.9600 build=0.154s train=8.569s
+M2_a_ghost_p05 seed=7 epoch=5 accuracy=0.9624 build=0.153s train=8.524s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M1_full_ghost seed=7 epoch=1 accuracy=0.9132 build=0.190s train=8.882s
+M1_full_ghost seed=7 epoch=2 accuracy=0.9383 build=0.165s train=8.279s
+M1_full_ghost seed=7 epoch=3 accuracy=0.9399 build=0.165s train=8.298s
+M1_full_ghost seed=7 epoch=4 accuracy=0.9499 build=0.165s train=8.284s
+M1_full_ghost seed=7 epoch=5 accuracy=0.9509 build=0.165s train=8.229s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=7 epoch=1 accuracy=0.9132 build=0.630s train=10.581s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=7 epoch=1 accuracy=0.9132 build=0.165s train=7.579s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=7 epoch=2 accuracy=0.9383 build=0.184s train=10.421s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=7 epoch=2 accuracy=0.9383 build=0.169s train=7.577s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=7 epoch=3 accuracy=0.9398 build=0.186s train=10.402s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=7 epoch=3 accuracy=0.9398 build=0.169s train=7.569s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=7 epoch=4 accuracy=0.9499 build=0.190s train=10.382s
-/media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+M0_original seed=7 epoch=4 accuracy=0.9499 build=0.170s train=7.571s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
-M0_original seed=7 epoch=5 accuracy=0.9509 build=0.193s train=10.386s
+M0_original seed=7 epoch=5 accuracy=0.9509 build=0.167s train=7.544s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-M1_full_ghost seed=7 epoch=1 accuracy=0.9132 build=0.635s train=11.744s
-M1_full_ghost seed=7 epoch=2 accuracy=0.9383 build=0.192s train=11.152s
-M1_full_ghost seed=7 epoch=3 accuracy=0.9399 build=0.182s train=11.177s
-M1_full_ghost seed=7 epoch=4 accuracy=0.9499 build=0.186s train=11.104s
-M1_full_ghost seed=7 epoch=5 accuracy=0.9509 build=0.184s train=11.287s
+M1_full_ghost seed=123 epoch=1 accuracy=0.9077 build=0.164s train=8.357s
+M1_full_ghost seed=123 epoch=2 accuracy=0.9348 build=0.165s train=8.265s
+M1_full_ghost seed=123 epoch=3 accuracy=0.9410 build=0.165s train=8.326s
+M1_full_ghost seed=123 epoch=4 accuracy=0.9457 build=0.166s train=8.256s
+M1_full_ghost seed=123 epoch=5 accuracy=0.9497 build=0.165s train=8.274s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-M2_a_ghost_p05 seed=7 epoch=1 accuracy=0.9270 build=0.395s train=10.934s
-M2_a_ghost_p05 seed=7 epoch=2 accuracy=0.9454 build=0.167s train=10.969s
-M2_a_ghost_p05 seed=7 epoch=3 accuracy=0.9522 build=0.175s train=10.905s
-M2_a_ghost_p05 seed=7 epoch=4 accuracy=0.9600 build=0.171s train=10.896s
-M2_a_ghost_p05 seed=7 epoch=5 accuracy=0.9624 build=0.176s train=10.864s
+M3_a_ghost_p025 seed=123 epoch=1 accuracy=0.9139 build=0.168s train=9.010s
+M3_a_ghost_p025 seed=123 epoch=2 accuracy=0.9418 build=0.154s train=8.533s
+M3_a_ghost_p025 seed=123 epoch=3 accuracy=0.9512 build=0.154s train=8.494s
+M3_a_ghost_p025 seed=123 epoch=4 accuracy=0.9592 build=0.154s train=8.471s
+M3_a_ghost_p025 seed=123 epoch=5 accuracy=0.9608 build=0.153s train=8.530s
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
 /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
   return next(self.gen)
-Traceback (most recent call last):
-  File "/media/data/data/lt/DP-KFC/exp19/run_one.py", line 158, in <module>
-    main()
-  File "/media/data/data/lt/DP-KFC/exp19/run_one.py", line 154, in main
-    run(args.method, args.seed, args.smoke, output)
-  File "/media/data/data/lt/DP-KFC/exp19/run_one.py", line 65, in run
-    with timed(stats, 'synthetic_generation_seconds', device):
-  File "/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py", line 144, in __exit__
-    next(self.gen)
-  File "/media/data/data/lt/DP-KFC/exp19/profiling.py", line 35, in timed
-    profiler.events.append((name, start, end))
-    ^^^^^^^^^^^^^^^
-AttributeError: 'dict' object has no attribute 'events'
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=123 epoch=1 accuracy=0.9077 build=0.188s train=7.999s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=123 epoch=2 accuracy=0.9348 build=0.165s train=7.473s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=123 epoch=3 accuracy=0.9408 build=0.165s train=7.479s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=123 epoch=4 accuracy=0.9458 build=0.165s train=7.475s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=123 epoch=5 accuracy=0.9497 build=0.169s train=7.467s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M2_a_ghost_p05 seed=123 epoch=1 accuracy=0.9201 build=0.170s train=9.104s
+M2_a_ghost_p05 seed=123 epoch=2 accuracy=0.9450 build=0.154s train=8.646s
+M2_a_ghost_p05 seed=123 epoch=3 accuracy=0.9499 build=0.154s train=8.658s
+M2_a_ghost_p05 seed=123 epoch=4 accuracy=0.9550 build=0.154s train=8.628s
+M2_a_ghost_p05 seed=123 epoch=5 accuracy=0.9603 build=0.154s train=8.635s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M2_a_ghost_p05 seed=2024 epoch=1 accuracy=0.9244 build=0.157s train=9.660s
+M2_a_ghost_p05 seed=2024 epoch=2 accuracy=0.9473 build=0.154s train=8.257s
+M2_a_ghost_p05 seed=2024 epoch=3 accuracy=0.9541 build=0.154s train=8.838s
+M2_a_ghost_p05 seed=2024 epoch=4 accuracy=0.9594 build=0.175s train=8.316s
+M2_a_ghost_p05 seed=2024 epoch=5 accuracy=0.9631 build=0.154s train=8.219s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=2024 epoch=1 accuracy=0.9186 build=0.191s train=8.199s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=2024 epoch=2 accuracy=0.9399 build=0.166s train=7.446s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=2024 epoch=3 accuracy=0.9452 build=0.165s train=7.506s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=2024 epoch=4 accuracy=0.9480 build=0.166s train=10.042s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=2024 epoch=5 accuracy=0.9478 build=0.166s train=7.432s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M3_a_ghost_p025 seed=2024 epoch=1 accuracy=0.9092 build=0.177s train=10.821s
+M3_a_ghost_p025 seed=2024 epoch=2 accuracy=0.9411 build=0.156s train=8.656s
+M3_a_ghost_p025 seed=2024 epoch=3 accuracy=0.9510 build=0.155s train=8.624s
+M3_a_ghost_p025 seed=2024 epoch=4 accuracy=0.9552 build=0.153s train=8.622s
+M3_a_ghost_p025 seed=2024 epoch=5 accuracy=0.9628 build=0.153s train=8.629s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M1_full_ghost seed=2024 epoch=1 accuracy=0.9187 build=0.175s train=9.113s
+M1_full_ghost seed=2024 epoch=2 accuracy=0.9399 build=0.168s train=8.942s
+M1_full_ghost seed=2024 epoch=3 accuracy=0.9452 build=0.194s train=9.279s
+M1_full_ghost seed=2024 epoch=4 accuracy=0.9479 build=0.167s train=9.211s
+M1_full_ghost seed=2024 epoch=5 accuracy=0.9477 build=0.168s train=8.762s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=3407 epoch=1 accuracy=0.8977 build=0.165s train=7.287s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=3407 epoch=2 accuracy=0.9321 build=0.167s train=7.272s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=3407 epoch=3 accuracy=0.9389 build=0.165s train=7.282s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=3407 epoch=4 accuracy=0.9418 build=0.164s train=7.282s
+/media/data/data/lt/DP-KFC/exp19/methods.py:135: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  loss.backward()
+M0_original seed=3407 epoch=5 accuracy=0.9481 build=0.165s train=7.268s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M2_a_ghost_p05 seed=3407 epoch=1 accuracy=0.9156 build=0.188s train=9.822s
+M2_a_ghost_p05 seed=3407 epoch=2 accuracy=0.9429 build=0.155s train=8.719s
+M2_a_ghost_p05 seed=3407 epoch=3 accuracy=0.9501 build=0.154s train=8.736s
+M2_a_ghost_p05 seed=3407 epoch=4 accuracy=0.9535 build=0.154s train=8.745s
+M2_a_ghost_p05 seed=3407 epoch=5 accuracy=0.9583 build=0.154s train=8.737s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M1_full_ghost seed=3407 epoch=1 accuracy=0.8977 build=0.168s train=8.609s
+M1_full_ghost seed=3407 epoch=2 accuracy=0.9321 build=0.165s train=11.216s
+M1_full_ghost seed=3407 epoch=3 accuracy=0.9391 build=0.165s train=8.639s
+M1_full_ghost seed=3407 epoch=4 accuracy=0.9419 build=0.165s train=8.611s
+M1_full_ghost seed=3407 epoch=5 accuracy=0.9479 build=0.166s train=8.590s
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+M3_a_ghost_p025 seed=3407 epoch=1 accuracy=0.9060 build=0.153s train=8.609s
+M3_a_ghost_p025 seed=3407 epoch=2 accuracy=0.9378 build=0.153s train=8.525s
+M3_a_ghost_p025 seed=3407 epoch=3 accuracy=0.9468 build=0.153s train=8.550s
+M3_a_ghost_p025 seed=3407 epoch=4 accuracy=0.9522 build=0.153s train=8.491s
+M3_a_ghost_p025 seed=3407 epoch=5 accuracy=0.9577 build=0.153s train=8.581s
+Analysis saved: /media/data/data/lt/DP-KFC/exp19/results

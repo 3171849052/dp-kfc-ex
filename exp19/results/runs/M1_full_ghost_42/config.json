@@ -13,6 +13,38 @@
     "M3_a_ghost_p025"
   ],
   "MOMENTUM": 0,
+  "ORDER": {
+    "42": [
+      "M0_original",
+      "M1_full_ghost",
+      "M2_a_ghost_p05",
+      "M3_a_ghost_p025"
+    ],
+    "7": [
+      "M3_a_ghost_p025",
+      "M2_a_ghost_p05",
+      "M1_full_ghost",
+      "M0_original"
+    ],
+    "123": [
+      "M1_full_ghost",
+      "M3_a_ghost_p025",
+      "M0_original",
+      "M2_a_ghost_p05"
+    ],
+    "2024": [
+      "M2_a_ghost_p05",
+      "M0_original",
+      "M3_a_ghost_p025",
+      "M1_full_ghost"
+    ],
+    "3407": [
+      "M0_original",
+      "M2_a_ghost_p05",
+      "M1_full_ghost",
+      "M3_a_ghost_p025"
+    ]
+  },
   "SEEDS": [
     42,
     7,
@@ -31,6 +63,39 @@
   "synthetic_batches": 10,
   "total_steps": 1170,
   "drop_last": true,
+  "method_order": {
+    "42": [
+      "M0_original",
+      "M1_full_ghost",
+      "M2_a_ghost_p05",
+      "M3_a_ghost_p025"
+    ],
+    "7": [
+      "M3_a_ghost_p025",
+      "M2_a_ghost_p05",
+      "M1_full_ghost",
+      "M0_original"
+    ],
+    "123": [
+      "M1_full_ghost",
+      "M3_a_ghost_p025",
+      "M0_original",
+      "M2_a_ghost_p05"
+    ],
+    "2024": [
+      "M2_a_ghost_p05",
+      "M0_original",
+      "M3_a_ghost_p025",
+      "M1_full_ghost"
+    ],
+    "3407": [
+      "M0_original",
+      "M2_a_ghost_p05",
+      "M1_full_ghost",
+      "M3_a_ghost_p025"
+    ]
+  },
+  "action_path_warmup": true,
   "accounting": "RDP, repository shuffled fixed-batch convention",
   "rng": {
     "initialization": "seed",
