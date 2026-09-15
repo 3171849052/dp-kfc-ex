@@ -1,0 +1,14 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+diag seed=42 epoch=1 accuracy=0.5000 build=0.34s train=0.08s VJP=1 vectors=4
+a_only seed=42 epoch=1 accuracy=0.5000 build=0.21s train=0.02s VJP=1 vectors=4
+c_only seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=1 vectors=4
+fullA_diagC seed=42 epoch=1 accuracy=0.5000 build=0.12s train=0.01s VJP=1 vectors=4
+diagA_fullC seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=1 vectors=4
+rank4 seed=42 epoch=1 accuracy=0.5000 build=0.02s train=0.01s VJP=2 vectors=8
+rank8 seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=2 vectors=8
+rank16 seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=2 vectors=8
+refresh2 seed=42 epoch=1 accuracy=0.5000 build=0.14s train=0.01s VJP=1 vectors=4
+frozen seed=42 epoch=1 accuracy=0.5000 build=0.12s train=0.01s VJP=1 vectors=4
+Results: /media/data/data/lt/DP-KFC/exp18/results/smoke
+

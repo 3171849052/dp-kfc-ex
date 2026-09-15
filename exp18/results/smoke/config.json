@@ -1,0 +1,58 @@
+{
+  "batch_size": 4,
+  "beta": 0.25,
+  "damping": 0.001,
+  "delta": 1e-05,
+  "epochs": 1,
+  "epsilon": 1.0,
+  "learning_rate": 0.5,
+  "max_grad_norm": 1.0,
+  "methods": [
+    "diag",
+    "a_only",
+    "c_only",
+    "fullA_diagC",
+    "diagA_fullC",
+    "rank4",
+    "rank8",
+    "rank16",
+    "refresh2",
+    "frozen"
+  ],
+  "momentum": 0,
+  "oversampling": 4,
+  "seeds": [
+    42
+  ],
+  "synthetic_batches": 1,
+  "synthetic_batch_size": 4,
+  "weight_decay": 0,
+  "smoke": true,
+  "noise_multiplier": 0.0,
+  "accountant_steps": 0,
+  "dataset": "MNIST",
+  "model": "dp_kfac.models.SimpleCNN",
+  "shuffle": true,
+  "drop_last": true,
+  "optimizer": "SGD",
+  "accounting": "Exp14b shuffled fixed-batch RDP convention",
+  "synthetic_seed": "42 + 10000 + (zero_based_epoch + 1)",
+  "label_seed": "42 + 20000 + (zero_based_epoch + 1)",
+  "sketch_seed": "42 + 30000 + (zero_based_epoch + 1)",
+  "noise_seed": 40042,
+  "shuffle_seed": 42,
+  "scale_reference_beta": 0.5,
+  "scale_matching": "sqrt(m_ref/m_raw), using only each compressed structure; identity side moment = dimension",
+  "algorithm_time": "build + private training; evaluation recorded separately",
+  "state_bytes": "action tensor payload + float64 global scale/tail powers; excludes Python metadata",
+  "refresh2_epochs": [
+    0,
+    2,
+    4
+  ],
+  "frozen_epochs": [
+    0
+  ],
+  "deterministic": true,
+  "tf32": false
+}
