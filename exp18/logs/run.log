@@ -1,0 +1,65 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+/home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+  return next(self.gen)
+diag seed=42 epoch=1 accuracy=0.5000 build=0.23s train=0.05s VJP=1 vectors=4
+a_only seed=42 epoch=1 accuracy=0.5000 build=0.18s train=0.01s VJP=0 vectors=0
+c_only seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=1 vectors=4
+fullA_diagC seed=42 epoch=1 accuracy=0.5000 build=0.13s train=0.01s VJP=1 vectors=4
+diagA_fullC seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=1 vectors=4
+rank4 seed=42 epoch=1 accuracy=0.5000 build=0.02s train=0.01s VJP=2 vectors=8
+rank8 seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=2 vectors=8
+rank16 seed=42 epoch=1 accuracy=0.5000 build=0.01s train=0.01s VJP=2 vectors=8
+refresh2 seed=42 epoch=1 accuracy=0.5000 build=0.12s train=0.01s VJP=1 vectors=4
+frozen seed=42 epoch=1 accuracy=0.5000 build=0.12s train=0.01s VJP=1 vectors=4
+diag seed=42 epoch=1 accuracy=0.8815 build=0.06s train=10.25s VJP=10 vectors=2560
+diag seed=42 epoch=2 accuracy=0.9139 build=0.04s train=10.23s VJP=10 vectors=2560
+diag seed=42 epoch=3 accuracy=0.9262 build=0.04s train=10.27s VJP=10 vectors=2560
+diag seed=42 epoch=4 accuracy=0.9360 build=0.04s train=10.27s VJP=10 vectors=2560
+diag seed=42 epoch=5 accuracy=0.9322 build=0.04s train=10.26s VJP=10 vectors=2560
+a_only seed=42 epoch=1 accuracy=0.9055 build=0.17s train=10.18s VJP=0 vectors=0
+a_only seed=42 epoch=2 accuracy=0.9336 build=0.17s train=10.25s VJP=0 vectors=0
+a_only seed=42 epoch=3 accuracy=0.9487 build=0.15s train=10.21s VJP=0 vectors=0
+a_only seed=42 epoch=4 accuracy=0.9558 build=0.15s train=10.27s VJP=0 vectors=0
+a_only seed=42 epoch=5 accuracy=0.9588 build=0.15s train=10.22s VJP=0 vectors=0
+c_only seed=42 epoch=1 accuracy=0.8751 build=0.02s train=10.26s VJP=10 vectors=2560
+c_only seed=42 epoch=2 accuracy=0.9091 build=0.02s train=10.21s VJP=10 vectors=2560
+c_only seed=42 epoch=3 accuracy=0.9189 build=0.02s train=10.25s VJP=10 vectors=2560
+c_only seed=42 epoch=4 accuracy=0.9268 build=0.02s train=10.24s VJP=10 vectors=2560
+c_only seed=42 epoch=5 accuracy=0.9221 build=0.02s train=10.20s VJP=10 vectors=2560
+fullA_diagC seed=42 epoch=1 accuracy=0.9031 build=0.18s train=10.23s VJP=10 vectors=2560
+fullA_diagC seed=42 epoch=2 accuracy=0.9329 build=0.16s train=10.21s VJP=10 vectors=2560
+fullA_diagC seed=42 epoch=3 accuracy=0.9486 build=0.16s train=10.22s VJP=10 vectors=2560
+fullA_diagC seed=42 epoch=4 accuracy=0.9563 build=0.16s train=10.20s VJP=10 vectors=2560
+fullA_diagC seed=42 epoch=5 accuracy=0.9583 build=0.16s train=10.26s VJP=10 vectors=2560
+diagA_fullC seed=42 epoch=1 accuracy=0.8827 build=0.05s train=10.25s VJP=10 vectors=2560
+diagA_fullC seed=42 epoch=2 accuracy=0.9159 build=0.05s train=10.24s VJP=10 vectors=2560
+diagA_fullC seed=42 epoch=3 accuracy=0.9270 build=0.05s train=10.14s VJP=10 vectors=2560
+diagA_fullC seed=42 epoch=4 accuracy=0.9360 build=0.05s train=10.39s VJP=10 vectors=2560
+diagA_fullC seed=42 epoch=5 accuracy=0.9325 build=0.05s train=10.23s VJP=10 vectors=2560
+rank4 seed=42 epoch=1 accuracy=0.8989 build=0.79s train=10.37s VJP=20 vectors=5120
+rank4 seed=42 epoch=2 accuracy=0.9270 build=0.78s train=10.31s VJP=20 vectors=5120
+rank4 seed=42 epoch=3 accuracy=0.9416 build=0.78s train=10.27s VJP=20 vectors=5120
+rank4 seed=42 epoch=4 accuracy=0.9480 build=0.78s train=10.32s VJP=20 vectors=5120
+rank4 seed=42 epoch=5 accuracy=0.9513 build=0.77s train=10.31s VJP=20 vectors=5120
+rank8 seed=42 epoch=1 accuracy=0.8957 build=0.78s train=10.27s VJP=20 vectors=5120
+rank8 seed=42 epoch=2 accuracy=0.9245 build=0.77s train=10.28s VJP=20 vectors=5120
+rank8 seed=42 epoch=3 accuracy=0.9403 build=0.78s train=10.26s VJP=20 vectors=5120
+rank8 seed=42 epoch=4 accuracy=0.9488 build=0.79s train=10.30s VJP=20 vectors=5120
+rank8 seed=42 epoch=5 accuracy=0.9492 build=0.79s train=10.33s VJP=20 vectors=5120
+rank16 seed=42 epoch=1 accuracy=0.8953 build=0.35s train=10.23s VJP=20 vectors=5120
+rank16 seed=42 epoch=2 accuracy=0.9250 build=0.33s train=10.28s VJP=20 vectors=5120
+rank16 seed=42 epoch=3 accuracy=0.9438 build=0.33s train=10.20s VJP=20 vectors=5120
+rank16 seed=42 epoch=4 accuracy=0.9525 build=0.34s train=10.22s VJP=20 vectors=5120
+rank16 seed=42 epoch=5 accuracy=0.9535 build=0.35s train=10.25s VJP=20 vectors=5120
+refresh2 seed=42 epoch=1 accuracy=0.9039 build=0.18s train=10.23s VJP=10 vectors=2560
+refresh2 seed=42 epoch=2 accuracy=0.9225 build=0.00s train=10.20s VJP=0 vectors=0
+refresh2 seed=42 epoch=3 accuracy=0.9404 build=0.19s train=10.19s VJP=10 vectors=2560
+refresh2 seed=42 epoch=4 accuracy=0.9488 build=0.00s train=10.19s VJP=0 vectors=0
+refresh2 seed=42 epoch=5 accuracy=0.9537 build=0.16s train=10.26s VJP=10 vectors=2560
+frozen seed=42 epoch=1 accuracy=0.9039 build=0.18s train=10.25s VJP=10 vectors=2560
+frozen seed=42 epoch=2 accuracy=0.9225 build=0.00s train=10.19s VJP=0 vectors=0
+frozen seed=42 epoch=3 accuracy=0.9326 build=0.00s train=10.23s VJP=0 vectors=0
+frozen seed=42 epoch=4 accuracy=0.9432 build=0.00s train=10.25s VJP=0 vectors=0
+frozen seed=42 epoch=5 accuracy=0.9425 build=0.00s train=10.23s VJP=0 vectors=0
+Results: /media/data/data/lt/DP-KFC/exp18/results

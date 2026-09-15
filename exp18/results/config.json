@@ -43,6 +43,9 @@
   "shuffle_seed": 42,
   "scale_reference_beta": 0.5,
   "scale_matching": "sqrt(m_ref/m_raw), using only each compressed structure; identity side moment = dimension",
+  "single_side_scale_caveat": "Self-contained lightweight operators: identity moment is dimension for both powers; their reference RMS differs from full KFC. A-only versus C-only includes scale-weighting effects, not just factor geometry. No private-norm calibration or full-factor oracle.",
+  "builder_unique_samples": "Samples in the synthetic cache; zero on reuse epochs",
+  "builder_processed_samples": "Sample instances processed: unique for one pass, 2*unique for rank replay; zero on reuse",
   "algorithm_time": "build + private training; evaluation recorded separately",
   "state_bytes": "action tensor payload + float64 global scale/tail powers; excludes Python metadata",
   "refresh2_epochs": [
