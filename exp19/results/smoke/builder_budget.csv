@@ -1,0 +1,5 @@
+method,seed,epoch,curvature_backward_seconds,builder_forward_calls,builder_vjp_calls,builder_reverse_vectors,builder_samples,operator_state_bytes,stored_scalar_count
+M0_original,42,1,0.066147674806416,1,1,256,256,10069164,2517291
+M1_full_ghost,42,1,0.0998996505513787,1,1,256,256,10069164,2517291
+M2_a_ghost_p05,42,1,0.0,1,0,0,256,9998116,2499528
+M3_a_ghost_p025,42,1,0.0,1,0,0,256,9998116,2499528

@@ -1,0 +1,14 @@
+...................                                                      [100%]
+=============================== warnings summary ===============================
+exp19/test_exp19.py::test_exact_ghost_norm_clip_aggregate_update
+exp19/test_exp19.py::test_real_mnist_batch[M0_original]
+  /media/data/data/lt/DP-KFC/exp19/methods.py:130: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+    loss.backward()
+
+exp19/test_exp19.py::test_real_mnist_batch[M0_original]
+  /home/longt29/miniconda3/envs/curve/lib/python3.11/contextlib.py:137: UserWarning: CUDA reports that you have 4 available devices, and you have used fork_rng without explicitly specifying which devices are being used. For safety, we initialize *every* CUDA device by default, which can be quite slow if you have a lot of CUDAs. If you know that you are only making use of a few CUDA devices, set the environment variable CUDA_VISIBLE_DEVICES or the 'devices' keyword argument of fork_rng with the set of devices you are actually using. For example, if you are using CPU only, set device.upper()_VISIBLE_DEVICES= or devices=[]; if you are using device 0 only, set CUDA_VISIBLE_DEVICES=0 or devices=[0].  To initialize all devices and suppress this warning, set the 'devices' keyword argument to `range(torch.cuda.device_count())`.
+    return next(self.gen)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+19 passed, 3 warnings in 12.48s
+
