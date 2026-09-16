@@ -112,27 +112,35 @@ class FullKFACOperator:
     transform_matrix = transform_gradient
 
 
-def _pink_noise(batch_size: int, device: torch.device, alpha: float = SYNTHETIC_ALPHA) -> torch.Tensor:
-    from dp_kfac.optimizer import generate_pink_noise
+def _pink_noise(batch_size: int, device: torch.device, alpha: float,
+                generator: torch.Generator) -> torch.Tensor:
+    """Same pink-noise FFT as the baseline, with an isolated explicit RNG."""
+    white = torch.randn(batch_size, 3, IMG_SIZE, IMG_SIZE, dtype=torch.cfloat,
+                        device=device, generator=generator)
+    frequencies = torch.fft.fftfreq(IMG_SIZE, device=device)
+    fx, fy = torch.meshgrid(frequencies, frequencies, indexing="ij")
+    radius = (fx.square() + fy.square()).sqrt()
+    radius[0, 0] = 1.0
+    scale = radius.pow(-alpha)
+    scale[0, 0] = 0.0
+    pink = torch.fft.ifft2(white * scale[None, None]).real
+    std = pink.flatten(1).std(dim=1).view(-1, 1, 1, 1)
+    return pink / (std + 1e-8) * 0.5
 
-    return generate_pink_noise(batch_size, (3, IMG_SIZE, IMG_SIZE), device, alpha=alpha)
 
-
-def synthetic_cache(
+def synthetic_stream(
     seed: int,
     epoch: int,
     device: torch.device | str,
     batches: int = SYNTHETIC_BATCHES,
     batch_size: int = SYNTHETIC_BATCH_SIZE,
     alpha: float = SYNTHETIC_ALPHA,
-) -> list[torch.Tensor]:
+) -> Iterable[torch.Tensor]:
+    """Generate one batch at a time from one continuous epoch-local RNG."""
     device = torch.device(device)
-    devices = [] if device.type != "cuda" else [device.index if device.index is not None else torch.cuda.current_device()]
-    with torch.random.fork_rng(devices=devices):
-        torch.random.default_generator.manual_seed(seed + 10000 + epoch)
-        if device.type == "cuda":
-            torch.cuda.default_generators[devices[0]].manual_seed(seed + 10000 + epoch)
-        return [_pink_noise(batch_size, device, alpha) for _ in range(batches)]
+    generator = torch.Generator(device=device).manual_seed(seed + 10000 + epoch)
+    for _ in range(batches):
+        yield _pink_noise(batch_size, device, alpha, generator)
 
 
 def synthetic_labels(
@@ -175,7 +183,7 @@ def _selected(model: nn.Module, layer_names: Iterable[str] | None) -> dict[str, 
 @torch.no_grad()
 def build_a_operator(
     model: nn.Module,
-    cache: list[torch.Tensor],
+    batches: Iterable[torch.Tensor],
     power: float = A_POWER,
     damping: float = DAMPING,
     layer_names: Iterable[str] | None = None,
@@ -202,11 +210,16 @@ def build_a_operator(
 
     handles = [module.register_forward_hook(capture(name)) for name, module in modules.items()]
     forward_calls = 0
+    logical_batches = 0
+    samples = 0
     try:
-        for logical_x in cache:
+        for logical_x in batches:
+            logical_batches += 1
+            samples += len(logical_x)
             for start in range(0, len(logical_x), SYNTHETIC_PHYSICAL_BATCH_SIZE):
                 model(logical_x[start:start + SYNTHETIC_PHYSICAL_BATCH_SIZE])
                 forward_calls += 1
+            del logical_x
     finally:
         for handle in handles:
             handle.remove()
@@ -217,10 +230,10 @@ def build_a_operator(
     operator = AOnlyOperator(factors, power, damping)
     stats = {
         "builder_forward_calls": forward_calls,
-        "builder_logical_batches": len(cache),
+        "builder_logical_batches": logical_batches,
         "builder_vjp_calls": 0,
         "builder_reverse_vectors": 0,
-        "builder_samples": sum(len(x) for x in cache),
+        "builder_samples": samples,
         "preconditioned_layers": sorted(modules),
         "operator_state_bytes": operator.operator_state_bytes,
         **operator.moments,
@@ -231,7 +244,7 @@ def build_a_operator(
 
 def build_full_operator(
     model: nn.Module,
-    cache: list[torch.Tensor],
+    batches: Iterable[torch.Tensor],
     seed: int,
     epoch: int,
     damping: float = DAMPING,
@@ -258,6 +271,8 @@ def build_full_operator(
 
     handles = [module.register_forward_hook(capture(name)) for name, module in modules.items()]
     forward_calls = 0
+    logical_batches = 0
+    samples = 0
     vjp_calls = 0
     reverse_vectors = 0
     num_classes = getattr(model, "num_classes", None)
@@ -265,7 +280,9 @@ def build_full_operator(
         num_classes = model.head.out_features
     label_generator = torch.Generator(device=next(model.parameters()).device).manual_seed(seed + 20000 + epoch)
     try:
-        for logical_x in cache:
+        for logical_x in batches:
+            logical_batches += 1
+            samples += len(logical_x)
             labels = synthetic_labels(seed, epoch, logical_x.device, len(logical_x), num_classes or NUM_CLASSES, label_generator)
             for start in range(0, len(logical_x), SYNTHETIC_PHYSICAL_BATCH_SIZE):
                 x = logical_x[start:start + SYNTHETIC_PHYSICAL_BATCH_SIZE]
@@ -284,6 +301,8 @@ def build_full_operator(
                 forward_calls += 1
                 vjp_calls += 1
                 reverse_vectors += len(x)
+                del x, y, logits, a, b
+            del logical_x, labels
     finally:
         for handle in handles:
             handle.remove()
@@ -296,20 +315,20 @@ def build_full_operator(
     operator = FullKFACOperator(factors, damping)
     stats = {
         "builder_forward_calls": forward_calls,
-        "builder_logical_batches": len(cache),
+        "builder_logical_batches": logical_batches,
         "builder_vjp_calls": vjp_calls,
         "builder_reverse_vectors": reverse_vectors,
-        "builder_samples": sum(len(x) for x in cache),
+        "builder_samples": samples,
         "preconditioned_layers": sorted(modules),
         "operator_state_bytes": operator.operator_state_bytes,
     }
     return operator, stats
 
 
-def build_from_cache(
+def build_from_batches(
     model: nn.Module,
     method: str,
-    cache: list[torch.Tensor],
+    batches: Iterable[torch.Tensor],
     seed: int = 0,
     epoch: int = 1,
     damping: float = DAMPING,
@@ -327,9 +346,9 @@ def build_from_cache(
             "operator_state_bytes": 0,
         }
     if method == "dp_kfc_a_bk":
-        return build_a_operator(model, cache, power, damping, layer_names)
+        return build_a_operator(model, batches, power, damping, layer_names)
     if method == "dp_kfc":
-        return build_full_operator(model, cache, seed, epoch, damping, layer_names)
+        return build_full_operator(model, batches, seed, epoch, damping, layer_names)
     raise ValueError(f"method {method!r} has no preconditioner")
 
 

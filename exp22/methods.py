@@ -21,11 +21,11 @@ LossFunction = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 def _group(name: str) -> str:
     if name.endswith(("q_proj", "k_proj", "v_proj")):
         return "attention_qkv"
-    if name.endswith(("out_proj", "attn.proj")):
+    if name.endswith("attn.out_proj"):
         return "attention_out"
-    if name.endswith(("ffn", "mlp.fc1", "mlp.fc2")):
-        return "ffn"
-    if name in ("patch_embed.proj", "head"):
+    if name.endswith(("mlp.fc1", "mlp.fc2")):
+        return "mlp"
+    if name in ("patch_embed", "head"):
         return "patch_head"
     return "identity"
 
@@ -158,7 +158,7 @@ class Clipper:
         if self.pos_embed is not None:
             def token_hook(module, args):
                 args[0].register_hook(lambda grad: position_backprops.append(grad.detach()))
-            handles.append(self.model.pos_drop.register_forward_pre_hook(token_hook))
+            handles.append(self.model.token_hook.register_forward_pre_hook(token_hook))
         return handles
 
     def _one_batch(self, x, y, aggregate, loss_fn: LossFunction | None = None):

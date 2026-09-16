@@ -31,18 +31,25 @@ import torch
 from opacus.accountants import RDPAccountant
 from opacus.accountants.utils import get_noise_multiplier
 from torch.utils.data import DataLoader, Subset
-from torchvision import datasets
-from timm.data import create_transform, resolve_model_data_config
+from torchvision import datasets, transforms
 
 from exp22 import config as cfg
 from exp22.analyze import accuracy_auc
-from exp22.geometry import build_from_cache, synthetic_cache
+from exp22.geometry import build_from_batches, synthetic_stream
 from exp22.methods import Clipper
 from exp22.model import initialize
 
 
-def load_data(model, download: bool = True):
-    transform = create_transform(**resolve_model_data_config(model), is_training=False)
+def data_transform():
+    return transforms.Compose([
+        transforms.Resize((cfg.IMG_SIZE, cfg.IMG_SIZE), interpolation=transforms.InterpolationMode.BICUBIC),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ])
+
+
+def load_data(download: bool = True):
+    transform = data_transform()
     root = HERE / "data"
     return (
         datasets.CIFAR10(root=root, train=True, download=download, transform=transform),
@@ -93,7 +100,7 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
         raise ValueError(method)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = initialize(seed, device)
-    train, test = load_data(model, download=True)
+    train, test = load_data(download=True)
     if smoke:
         train = Subset(train, range(min(len(train), smoke_batches * cfg.LOGICAL_BATCH_SIZE)))
         test = Subset(test, range(min(len(test), cfg.SMOKE_TEST_SAMPLES)))
@@ -124,7 +131,6 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
         if method == "dp_sgd":
-            cache = []
             operator, builder = None, {
                 "builder_forward_calls": 0, "builder_vjp_calls": 0,
                 "builder_logical_batches": 0,
@@ -134,12 +140,11 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
             builder_seconds = 0.0
         else:
             build_start = time.perf_counter()
-            cache = synthetic_cache(seed, epoch, device)
-            operator, builder = build_from_cache(model, method, cache, seed, epoch)
+            probes = synthetic_stream(seed, epoch, device)
+            operator, builder = build_from_batches(model, method, probes, seed, epoch)
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
             builder_seconds = time.perf_counter() - build_start
-        del cache
 
         clipper = Clipper(model, operator, method="bk", max_grad_norm=cfg.MAX_GRAD_NORM)
         private_start = time.perf_counter()
@@ -244,7 +249,9 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
         "method": method, "seed": seed, "smoke": smoke, "epochs": epochs,
         "total_steps": total_steps, "noise_multiplier": sigma,
         "trainable_parameters": sum(p.numel() for p in model.parameters() if p.requires_grad),
-        "data_config": resolve_model_data_config(model),
+        "data_config": {"input_size": [3, cfg.IMG_SIZE, cfg.IMG_SIZE],
+                        "resize": [cfg.IMG_SIZE, cfg.IMG_SIZE], "interpolation": "bicubic",
+                        "mean": [0.5] * 3, "std": [0.5] * 3, "augmentation": None},
         "accounting": "RDP fixed logical-batch convention",
         "rng": {"initialization": "seed", "private_shuffle": "seed",
                 "synthetic_x": "seed+10000+epoch", "synthetic_y": "seed+20000+epoch",

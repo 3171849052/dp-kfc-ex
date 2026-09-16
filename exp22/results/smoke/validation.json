@@ -1,0 +1,70 @@
+{
+  "environment": "curve",
+  "torch": "2.13.0+cu126",
+  "timm": "1.0.29",
+  "cuda_device": "NVIDIA GeForce RTX 3080 Ti",
+  "tests_passed": 39,
+  "tests_failed": 0,
+  "smoke_checks_passed": true,
+  "analysis_passed": true,
+  "formal_started": false,
+  "formal_calibration": {
+    "steps": 1950,
+    "q": 0.00512,
+    "delta": 1e-05,
+    "target_epsilon": 3,
+    "sigma": 0.76416015625,
+    "accounted_epsilon": 2.9949356638346796
+  },
+  "allocator_note": "A-only emitted PyTorch allocator allocation/reclaim retry warnings; all subprocesses exited 0; batch stayed 256.",
+  "runs": [
+    {
+      "method": "dp_sgd",
+      "steps": 2,
+      "samples": 512,
+      "all_parameters_updated": true,
+      "test_accuracy": 0.09765625,
+      "peak_allocated_MiB": 10518.18,
+      "peak_reserved_MiB": 10954.0,
+      "builder": {
+        "builder_forward_calls": 0,
+        "builder_logical_batches": 0,
+        "builder_vjp_calls": 0,
+        "builder_reverse_vectors": 0,
+        "builder_samples": 0
+      }
+    },
+    {
+      "method": "dp_kfc_a_bk",
+      "steps": 2,
+      "samples": 512,
+      "all_parameters_updated": true,
+      "test_accuracy": 0.09765625,
+      "peak_allocated_MiB": 10889.03,
+      "peak_reserved_MiB": 11556.0,
+      "builder": {
+        "builder_forward_calls": 10,
+        "builder_logical_batches": 10,
+        "builder_vjp_calls": 0,
+        "builder_reverse_vectors": 0,
+        "builder_samples": 2560
+      }
+    },
+    {
+      "method": "dp_kfc",
+      "steps": 2,
+      "samples": 512,
+      "all_parameters_updated": true,
+      "test_accuracy": 0.09765625,
+      "peak_allocated_MiB": 10847.68,
+      "peak_reserved_MiB": 11440.0,
+      "builder": {
+        "builder_forward_calls": 10,
+        "builder_logical_batches": 10,
+        "builder_vjp_calls": 10,
+        "builder_reverse_vectors": 2560,
+        "builder_samples": 2560
+      }
+    }
+  ]
+}
