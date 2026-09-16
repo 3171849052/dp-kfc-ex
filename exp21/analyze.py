@@ -8,9 +8,9 @@ import torch
 HERE = Path(__file__).resolve().parent
 
 
-def analyze(smoke=False):
-    root = HERE/'results'
-    source = root/'smoke' if smoke else root
+def analyze(smoke=False, output=None):
+    root = Path(output).resolve() if output else HERE/'results'
+    source = root/'smoke' if smoke and output is None else root
     paths = sorted((source/'runs').glob('*/metrics.csv'))
     if not paths:
         raise RuntimeError(f'No measurements in {source}')
@@ -103,4 +103,6 @@ def analyze(smoke=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--smoke', action='store_true')
-    analyze(parser.parse_args().smoke)
+    parser.add_argument('--output', type=Path)
+    args = parser.parse_args()
+    analyze(args.smoke, args.output)

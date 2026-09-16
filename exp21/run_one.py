@@ -149,10 +149,12 @@ def main():
     parser.add_argument('--method', choices=cfg.METHODS, required=True)
     parser.add_argument('--seed', type=int, choices=cfg.SEEDS, required=True)
     parser.add_argument('--smoke', action='store_true')
+    parser.add_argument('--output', type=Path, help='Explicit run root (contains runs/)')
     args = parser.parse_args()
     torch.set_num_threads(4)
     with runtime('cuda:0'):
-        run(args.method, args.seed, args.smoke, HERE/'results'/'smoke' if args.smoke else HERE/'results')
+        output = args.output.resolve() if args.output else (HERE/'results'/'smoke' if args.smoke else HERE/'results')
+        run(args.method, args.seed, args.smoke, output)
 
 
 if __name__ == '__main__':

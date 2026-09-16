@@ -1,0 +1,8 @@
+        seconds_per_batch  private_samples_per_second  peak_cuda_allocated_bytes
+method                                                                          
+bk               0.037673                 6795.267161                133174272.0
+bk_gd            0.037384                 6847.918499                145189888.0
+exact            0.039043                 6556.950566                849954816.0
+fast2            0.056932                 4496.602052                695966720.0
+ghost2           0.082224                 3113.437053                133174272.0
+

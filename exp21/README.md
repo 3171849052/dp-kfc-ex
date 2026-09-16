@@ -1,6 +1,6 @@
 # Exp21 — Transformer Hybrid BK / Ghost Differentiation / FGC fallback
 
-在原 Exp21 CNN BK 数学核心上增量修复。所有修改和输出均在 `exp21/`；Exp19/20 只读复用，不修改历史结果。此次只运行测试与 smoke，没有启动正式 25-job 实验；已有 `results/runs/` 数据不作改动。
+在原 Exp21 CNN BK 数学核心上增量修复。所有修改和输出均在 `exp21/`；Exp19/20 只读复用，不修改历史结果。测试与 smoke 完成后，按用户追加指令将完整 25-job 实验提交后台启动，不监视。新结果根目录为 `results/formal_transformer_bk_v2/`，已有 `results/runs/` 数据不作改动。日志为 `formal_transformer_bk_v2.log`，启动 PID 写入 `formal_transformer_bk_v2.pid`。
 
 ## 运行与固定协议
 
@@ -10,8 +10,8 @@
 conda run -n curve python -B exp21/test_exp21.py
 conda run -n curve bash exp21/run_all.sh --smoke
 conda run -n curve python -B exp21/analyze.py --smoke
-# 正式实验命令（本次不执行）
-conda run -n curve bash exp21/run_all.sh
+# 正式实验：显式指定一个尚不存在的新目录，避免覆盖旧结果
+conda run -n curve bash exp21/run_all.sh --output exp21/results/formal_transformer_bk_v2
 ```
 
 正式 MNIST / 当前 SimpleCNN 协议不变：batch=256，5 epochs，seeds=(42,7,123,2024,3407)，power=.25，damping=.001，C=1，epsilon=1，delta=1e-5；SGD lr=.5、momentum=0、weight_decay=0。每 epoch 使用 10×256 个 pink-noise synthetic samples，只 forward 构建 A。五方法为 exact、fast2、ghost2、bk、bk_gd，每个 method/seed fresh subprocess，并轮换 method 顺序。
