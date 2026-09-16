@@ -10,6 +10,7 @@ from torch import nn
 
 from .config import (
     A_POWER,
+    IMG_SIZE,
     DAMPING,
     NUM_CLASSES,
     SYNTHETIC_ALPHA,
@@ -114,7 +115,7 @@ class FullKFACOperator:
 def _pink_noise(batch_size: int, device: torch.device, alpha: float = SYNTHETIC_ALPHA) -> torch.Tensor:
     from dp_kfac.optimizer import generate_pink_noise
 
-    return generate_pink_noise(batch_size, (3, 32, 32), device, alpha=alpha)
+    return generate_pink_noise(batch_size, (3, IMG_SIZE, IMG_SIZE), device, alpha=alpha)
 
 
 def synthetic_cache(

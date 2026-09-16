@@ -1,0 +1,36 @@
+{
+  "tests_passed": 29,
+  "environment": "curve",
+  "formal_started": false,
+  "trainable_parameters": 5526346,
+  "smoke_checks_passed": true,
+  "runs": [
+    {
+      "method": "dp_sgd",
+      "epsilon": 2.993987595011192,
+      "noise_multiplier": 1.52099609375,
+      "logical_steps": 2,
+      "all_parameters_updated": true,
+      "peak_allocated_MiB": 595.6,
+      "test_accuracy": 0.13671875
+    },
+    {
+      "method": "dp_kfc_a_bk",
+      "epsilon": 2.993987595011192,
+      "noise_multiplier": 1.52099609375,
+      "logical_steps": 2,
+      "all_parameters_updated": true,
+      "peak_allocated_MiB": 2552.6,
+      "test_accuracy": 0.1328125
+    },
+    {
+      "method": "dp_kfc",
+      "epsilon": 2.993987595011192,
+      "noise_multiplier": 1.52099609375,
+      "logical_steps": 2,
+      "all_parameters_updated": true,
+      "peak_allocated_MiB": 2607.8,
+      "test_accuracy": 0.12890625
+    }
+  ]
+}

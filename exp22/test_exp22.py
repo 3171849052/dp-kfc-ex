@@ -21,6 +21,8 @@ for key, relative in {
     "MPLCONFIGDIR": ".cache/matplotlib",
     "CUDA_CACHE_PATH": ".cache/cuda",
     "TMPDIR": ".cache/tmp",
+    "HF_HOME": ".cache/huggingface",
+    "TORCH_HOME": ".cache/torch",
 }.items():
     path = ROOT / "exp22" / relative
     path.mkdir(parents=True, exist_ok=True)
@@ -39,7 +41,9 @@ from exp22.geometry import (
 from exp22 import config as cfg
 from exp22.analyze import accuracy_auc, analyze
 from exp22.methods import Clipper
-from exp22.model import TinyViT, convert_tinyvit, initialize
+from exp22.model import convert_vit, initialize
+
+torch.set_num_threads(4)
 
 
 def device():
@@ -47,39 +51,49 @@ def device():
 
 
 def small_model(seed=11):
+    from timm.models.vision_transformer import VisionTransformer
     torch.manual_seed(seed)
-    from dp_kfac.models import TinyViT as PackedTinyViT
-
-    return convert_tinyvit(PackedTinyViT(
-        img_size=8, patch_size=4, in_channels=1, embed_dim=8,
-        num_heads=2, num_blocks=1, num_classes=3,
+    return convert_vit(VisionTransformer(
+        img_size=8, patch_size=4, in_chans=1, embed_dim=8,
+        num_heads=2, depth=1, num_classes=3,
     )).to(device())
 
 
 def test_explicit_attention_conversion_preserves_logits():
+    import timm
     torch.manual_seed(17)
-    from dp_kfac.models import TinyViT as PackedTinyViT
-
-    old = PackedTinyViT(img_size=32, patch_size=8, in_channels=3, embed_dim=64,
-                        num_heads=4, num_blocks=2, num_classes=10)
-    new = convert_tinyvit(old)
-    x = torch.randn(3, 3, 32, 32)
-    torch.testing.assert_close(old(x), new(x), rtol=0, atol=1e-6)
+    old = timm.create_model(cfg.MODEL_NAME, pretrained=True).to(device()).eval()
+    new = convert_vit(old).eval()
+    x = torch.randn(2, 3, 224, 224, device=device())
+    with torch.no_grad():
+        torch.testing.assert_close(old(x), new(x), rtol=2e-4, atol=2e-5)
+    torch.testing.assert_close(new.patch_embed.proj.weight, old.patch_embed.proj.weight.flatten(1), rtol=0, atol=0)
+    for original, converted in zip(old.blocks, new.blocks):
+        for index, name in enumerate(("q_proj", "k_proj", "v_proj")):
+            torch.testing.assert_close(getattr(converted.attn.qkv, name).weight,
+                                       original.attn.qkv.weight.chunk(3)[index], rtol=0, atol=0)
+        torch.testing.assert_close(original.mlp.fc1.weight, converted.mlp.fc1.weight, rtol=0, atol=0)
+        torch.testing.assert_close(original.mlp.fc2.weight, converted.mlp.fc2.weight, rtol=0, atol=0)
+    torch.testing.assert_close(old.cls_token, new.cls_token, rtol=0, atol=0)
+    torch.testing.assert_close(old.pos_embed, new.pos_embed, rtol=0, atol=0)
 
 
 def test_exact_linear_coverage_and_identity_layers():
-    model = initialize(42, "cpu")
+    model = initialize(42, device())
     names = {name for name, module in model.named_modules() if isinstance(module, nn.Linear)}
-    assert len(names) == 12
-    expected_fragments = {"patch_embed", "head"}
-    expected_fragments |= {f"blocks.{i}.attn.{part}_proj" for i in range(2) for part in ("q", "k", "v", "out")}
-    expected_fragments |= {f"blocks.{i}.ffn" for i in range(2)}
-    assert names == expected_fragments
-    cache = synthetic_cache(42, 1, "cpu", batches=1, batch_size=2)
+    assert len(names) == 74
+    expected = {"patch_embed.proj", "head"}
+    expected |= {f"blocks.{i}.attn.qkv.{part}_proj" for i in range(12) for part in ("q", "k", "v")}
+    expected |= {f"blocks.{i}.attn.proj" for i in range(12)}
+    expected |= {f"blocks.{i}.mlp.{part}" for i in range(12) for part in ("fc1", "fc2")}
+    assert names == expected
+    assert model.head.out_features == 10
+    assert all(p.requires_grad for p in model.parameters())
+    cache = synthetic_cache(42, 1, device(), batches=1, batch_size=2)
     operator, stats = build_from_cache(model, "dp_kfc_a_bk", cache, 42, 1)
     assert set(operator.data) == names
     assert set(stats["preconditioned_layers"]) == names
-    assert {"pos_embed", "norm", "blocks.0.norm1", "blocks.0.norm2"} <= set(
+    assert {"pos_embed", "cls_token", "norm", "blocks.0.norm1", "blocks.0.norm2"} <= set(
         Clipper(model, operator).identity_geometry_layers
     )
 
@@ -118,17 +132,17 @@ def test_full_builder_records_bt_covariances():
     model = small_model()
     cache = [torch.randn(2, 1, 8, 8, device=device())]
     op, _ = build_from_cache(model, "dp_kfc", cache, 42, 1)
-    module = model.patch_embed
-    a = flatten_linear_input(cache[0].unfold(2, 4, 4).unfold(3, 4, 4).contiguous().view(2, -1, 16), module)
-    torch.testing.assert_close(op.factors["patch_embed"]["A"], a.T @ a / a.shape[0], rtol=1e-5, atol=1e-6)
-    assert op.factors["patch_embed"]["G"].shape == (8, 8)
+    module = model.patch_embed.proj
+    a = flatten_linear_input(torch.nn.functional.unfold(cache[0], 4, stride=4).transpose(1, 2), module)
+    torch.testing.assert_close(op.factors["patch_embed.proj"]["A"], a.T @ a / a.shape[0], rtol=1e-5, atol=1e-6)
+    assert op.factors["patch_embed.proj"]["G"].shape == (8, 8)
 
 
 def test_full_builder_g_and_bias_augmented_covariances_match_independent_hooks():
     model = small_model(33)
     x = torch.randn(2, 1, 8, 8, device=device())
     op, _ = build_from_cache(model, "dp_kfc", [x], 44, 2)
-    names = ("patch_embed", "blocks.0.attn.q_proj", "blocks.0.ffn", "head")
+    names = ("patch_embed.proj", "blocks.0.attn.qkv.q_proj", "blocks.0.mlp.fc1", "head")
     activations, backprops = {}, {}
     handles = []
     modules = dict(model.named_modules())
@@ -289,11 +303,11 @@ def _independent_oracle(model, operator, x, y):
         for name, value in sample_layers.items():
             if name.endswith(("q_proj", "k_proj", "v_proj")):
                 group = "attention_qkv"
-            elif name.endswith("out_proj"):
+            elif name.endswith(("out_proj", "attn.proj")):
                 group = "attention_out"
-            elif name.endswith("ffn"):
+            elif name.endswith(("ffn", "mlp.fc1", "mlp.fc2")):
                 group = "ffn"
-            elif name in ("patch_embed", "head"):
+            elif name in ("patch_embed.proj", "head"):
                 group = "patch_head"
             else:
                 group = "identity"
@@ -540,3 +554,36 @@ def test_multi_seed_analysis_bootstrap_is_finite_and_paired(tmp_path):
     assert np.isfinite(paired_summary["bootstrap_ci95_high"]).all()
     assert (paired_summary["bootstrap_ci95_low"] <= paired_summary["bootstrap_ci95_high"]).all()
     assert paired_summary["bootstrap_seed"].eq(2209).all()
+
+
+def test_pretrained_full_model_bk_matches_single_example_backward():
+    model = initialize(19, device())
+    x = torch.randn(2, 3, cfg.IMG_SIZE, cfg.IMG_SIZE, device=device())
+    y = torch.tensor([2, 8], device=device())
+    expected_norms, expected_factors, expected_gradients, _, _ = _independent_oracle(model, None, x, y)
+    clipper = Clipper(model)
+    _, norms, factors, _, stats = clipper.aggregate_logical(x, y, 2)
+    torch.testing.assert_close(norms, expected_norms, rtol=3e-4, atol=3e-5)
+    torch.testing.assert_close(factors, expected_factors, rtol=3e-4, atol=3e-5)
+    for name, parameter in model.named_parameters():
+        torch.testing.assert_close(parameter.grad, expected_gradients[name], rtol=3e-4, atol=3e-5)
+    assert stats["layer_strategies"]["cls_token"] == "identity_direct"
+    assert stats["fallback_temporary_grad_bytes"] == 0
+
+
+def test_private_shuffle_pairing_and_formal_privacy_budget():
+    from exp22.run_one import private_loader, _sigma
+    from opacus.accountants import RDPAccountant
+
+    dataset = torch.arange(3 * cfg.LOGICAL_BATCH_SIZE)
+    loaders = [private_loader(dataset, 42) for _ in cfg.METHODS]
+    for _ in range(2):
+        orders = [torch.cat(list(loader)) for loader in loaders]
+        assert all(torch.equal(orders[0], order) for order in orders[1:])
+    steps = cfg.EPOCHS * (cfg.TRAIN_SAMPLES // cfg.LOGICAL_BATCH_SIZE)
+    sigma = _sigma(steps, cfg.TRAIN_SAMPLES, False)
+    accountant = RDPAccountant()
+    for _ in range(steps):
+        accountant.step(noise_multiplier=sigma, sample_rate=cfg.LOGICAL_BATCH_SIZE / cfg.TRAIN_SAMPLES)
+    assert sigma > 0
+    assert accountant.get_epsilon(cfg.DELTA) <= cfg.EPSILON

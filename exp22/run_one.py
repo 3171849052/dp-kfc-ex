@@ -18,6 +18,8 @@ for key, relative in {
     "MPLCONFIGDIR": ".cache/matplotlib",
     "CUDA_CACHE_PATH": ".cache/cuda",
     "TMPDIR": ".cache/tmp",
+    "HF_HOME": ".cache/huggingface",
+    "TORCH_HOME": ".cache/torch",
 }.items():
     path = HERE / relative
     path.mkdir(parents=True, exist_ok=True)
@@ -29,7 +31,8 @@ import torch
 from opacus.accountants import RDPAccountant
 from opacus.accountants.utils import get_noise_multiplier
 from torch.utils.data import DataLoader, Subset
-from torchvision import datasets, transforms
+from torchvision import datasets
+from timm.data import create_transform, resolve_model_data_config
 
 from exp22 import config as cfg
 from exp22.analyze import accuracy_auc
@@ -38,11 +41,8 @@ from exp22.methods import Clipper
 from exp22.model import initialize
 
 
-def load_data(download: bool = True):
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
-    ])
+def load_data(model, download: bool = True):
+    transform = create_transform(**resolve_model_data_config(model), is_training=False)
     root = HERE / "data"
     return (
         datasets.CIFAR10(root=root, train=True, download=download, transform=transform),
@@ -75,8 +75,6 @@ def evaluate(model, loader, device):
 
 
 def _sigma(steps: int, sample_count: int, smoke: bool) -> float:
-    if smoke:
-        return 0.0
     return get_noise_multiplier(
         target_epsilon=cfg.EPSILON,
         target_delta=cfg.DELTA,
@@ -94,7 +92,8 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
     if method not in cfg.METHODS:
         raise ValueError(method)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    train, test = load_data(download=True)
+    model = initialize(seed, device)
+    train, test = load_data(model, download=True)
     if smoke:
         train = Subset(train, range(min(len(train), smoke_batches * cfg.LOGICAL_BATCH_SIZE)))
         test = Subset(test, range(min(len(test), cfg.SMOKE_TEST_SAMPLES)))
@@ -104,13 +103,12 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
     total_steps = epochs * logical_steps
     sigma = _sigma(total_steps, cfg.TRAIN_SAMPLES if not smoke else sample_count, smoke)
 
-    model = initialize(seed, device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
         eps=cfg.ADAM_EPS, weight_decay=cfg.WEIGHT_DECAY,
     )
     loader = private_loader(train, seed)
-    test_loader = DataLoader(test, batch_size=cfg.LOGICAL_BATCH_SIZE, shuffle=False, num_workers=0)
+    test_loader = DataLoader(test, batch_size=cfg.PHYSICAL_BATCH_SIZE, shuffle=False, num_workers=0)
     noise_generator = torch.Generator(device=device).manual_seed(seed + 40000)
     accountant = RDPAccountant()
     run_dir = output / "runs" / f"{method}_{seed}"
@@ -221,6 +219,10 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
             "cache_empty_after_step": cache_empty,
             "layer_strategies": layer_strategies,
             "parameters_finite": _finite_model(model),
+            "all_parameters_updated": all(
+                not torch.equal(initial_parameters[name], parameter.detach())
+                for name, parameter in model.named_parameters()
+            ),
             "parameters_updated": any(
                 not torch.equal(initial_parameters[name], parameter.detach())
                 for name, parameter in model.named_parameters()
@@ -241,6 +243,8 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
     configuration.update({
         "method": method, "seed": seed, "smoke": smoke, "epochs": epochs,
         "total_steps": total_steps, "noise_multiplier": sigma,
+        "trainable_parameters": sum(p.numel() for p in model.parameters() if p.requires_grad),
+        "data_config": resolve_model_data_config(model),
         "accounting": "RDP fixed logical-batch convention",
         "rng": {"initialization": "seed", "private_shuffle": "seed",
                 "synthetic_x": "seed+10000+epoch", "synthetic_y": "seed+20000+epoch",

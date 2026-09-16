@@ -21,11 +21,11 @@ LossFunction = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 def _group(name: str) -> str:
     if name.endswith(("q_proj", "k_proj", "v_proj")):
         return "attention_qkv"
-    if name.endswith("out_proj"):
+    if name.endswith(("out_proj", "attn.proj")):
         return "attention_out"
-    if name.endswith("ffn"):
+    if name.endswith(("ffn", "mlp.fc1", "mlp.fc2")):
         return "ffn"
-    if name in ("patch_embed", "head"):
+    if name in ("patch_embed.proj", "head"):
         return "patch_head"
     return "identity"
 
@@ -59,12 +59,15 @@ class Clipper:
         self.linear_modules = dict((n, m) for n, m in model.named_modules() if isinstance(m, nn.Linear))
         self.norm_modules = dict((n, m) for n, m in model.named_modules() if isinstance(m, nn.LayerNorm))
         self.pos_embed = getattr(model, "pos_embed", None)
+        self.cls_token = getattr(model, "cls_token", None)
         self.parameters = [p for p in model.parameters() if p.requires_grad]
         self.parameter_ids = {id(p) for p in self.parameters}
         handled = {id(p) for m in self.linear_modules.values() for p in m.parameters(recurse=False)}
         handled.update(id(p) for m in self.norm_modules.values() for p in m.parameters(recurse=False))
         if self.pos_embed is not None and self.pos_embed.requires_grad:
             handled.add(id(self.pos_embed))
+        if self.cls_token is not None and self.cls_token.requires_grad:
+            handled.add(id(self.cls_token))
         if handled != self.parameter_ids:
             missing = [n for n, p in model.named_parameters() if p.requires_grad and id(p) not in handled]
             raise NotImplementedError(f"unsupported trainable parameters: {missing}")
@@ -76,6 +79,8 @@ class Clipper:
         self.identity_geometry_layers += sorted(self.norm_modules)
         if self.pos_embed is not None and self.pos_embed.requires_grad:
             self.identity_geometry_layers.append("pos_embed")
+        if self.cls_token is not None and self.cls_token.requires_grad:
+            self.identity_geometry_layers.append("cls_token")
         self.identity_geometry_layers.sort()
         self.pending = []
         self.records = []
@@ -91,6 +96,8 @@ class Clipper:
         layer_names = list(self.linear_modules) + list(self.norm_modules)
         if self.pos_embed is not None and self.pos_embed.requires_grad:
             layer_names.append("pos_embed")
+        if self.cls_token is not None and self.cls_token.requires_grad:
+            layer_names.append("cls_token")
         layers = {name: torch.empty(batch_size, device=device, dtype=dtype) for name in layer_names}
         group_names = {_group(layer) for layer in self.linear_modules}
         if len(layer_names) > len(self.linear_modules):
@@ -147,9 +154,11 @@ class Clipper:
             def forward_hook(module, args, output, name=name):
                 activations[name] = args[0].detach()
                 output.register_hook(lambda grad, name=name: backprops.__setitem__(name, grad.detach()))
-                if name == "patch_embed" and self.pos_embed is not None:
-                    output.register_hook(lambda grad: position_backprops.append(grad.detach()))
             handles.append(module.register_forward_hook(forward_hook))
+        if self.pos_embed is not None:
+            def token_hook(module, args):
+                args[0].register_hook(lambda grad: position_backprops.append(grad.detach()))
+            handles.append(self.model.pos_drop.register_forward_pre_hook(token_hook))
         return handles
 
     def _one_batch(self, x, y, aggregate, loss_fn: LossFunction | None = None):
@@ -210,6 +219,10 @@ class Clipper:
                 raise RuntimeError("unexpected pos_embed gradient shape")
             layer_sq["pos_embed"] = pos.reshape(len(x), -1).square().sum(dim=1)
             group_sq["identity"].add_(layer_sq["pos_embed"])
+        if self.cls_token is not None and self.cls_token.requires_grad:
+            cls = position_backprops[0][:, :1]
+            layer_sq["cls_token"] = cls.reshape(len(x), -1).square().sum(dim=1)
+            group_sq["identity"].add_(layer_sq["cls_token"])
         norms = sum(layer_sq.values()).clamp_min(0).sqrt()
         factors = (self.max_grad_norm / (norms + 1e-6)).clamp(max=1).detach()
         for name, module in self.linear_modules.items():
@@ -239,6 +252,11 @@ class Clipper:
             reconstructed = torch.einsum("b,b...->...", factors, position_backprops[0])
             temporary_bytes = max(temporary_bytes, tensor_bytes(reconstructed))
             aggregate[self.pos_embed].add_(reconstructed)
+            del reconstructed
+        if self.cls_token is not None and self.cls_token.requires_grad:
+            reconstructed = torch.einsum("b,btd->td", factors, position_backprops[0][:, :1])
+            aggregate[self.cls_token].add_(reconstructed)
+            temporary_bytes = max(temporary_bytes, tensor_bytes(reconstructed))
             del reconstructed
         activations.clear()
         backprops.clear()
@@ -285,6 +303,8 @@ class Clipper:
             "layer_strategies": {
                 **{name: "bk_ghost" for name in self.linear_modules},
                 **{name: "identity_analytic" for name in self.norm_modules},
+                **({"cls_token": "identity_direct"}
+                   if self.cls_token is not None and self.cls_token.requires_grad else {}),
                 **({"pos_embed": "identity_direct"}
                    if self.pos_embed is not None and self.pos_embed.requires_grad else {}),
             },
