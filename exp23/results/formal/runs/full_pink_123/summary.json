@@ -1,0 +1,16 @@
+{
+  "method": "full_pink",
+  "source": "pink",
+  "seed": 123,
+  "smoke": false,
+  "final_accuracy": 0.95,
+  "best_accuracy": 0.95,
+  "accuracy_auc": 3.7493,
+  "builder_seconds": 1.3171106278896332,
+  "private_train_seconds": 42.741862665861845,
+  "peak_allocated_cuda_bytes": 176211456,
+  "clip_fraction": 0.30380610525608065,
+  "transformed_norm_mean": 933.3508850097656,
+  "transformed_norm_p90": 2438.5112228393555,
+  "transformed_norm_p99": 11899.6236328125
+}

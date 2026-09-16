@@ -1,0 +1,16 @@
+{
+  "method": "full_public_fashion",
+  "source": "fashion",
+  "seed": 42,
+  "smoke": false,
+  "final_accuracy": 0.9486,
+  "best_accuracy": 0.9506,
+  "accuracy_auc": 3.753,
+  "builder_seconds": 2.9475434636697173,
+  "private_train_seconds": 42.46585807017982,
+  "peak_allocated_cuda_bytes": 176211456,
+  "clip_fraction": 0.32766427397727965,
+  "transformed_norm_mean": 646.7129180908203,
+  "transformed_norm_p90": 1619.7454933166505,
+  "transformed_norm_p99": 7793.067333984375
+}

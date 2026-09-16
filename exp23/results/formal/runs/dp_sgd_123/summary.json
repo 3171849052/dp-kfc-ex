@@ -1,0 +1,16 @@
+{
+  "method": "dp_sgd",
+  "source": "none",
+  "seed": 123,
+  "smoke": false,
+  "final_accuracy": 0.9312,
+  "best_accuracy": 0.9312,
+  "accuracy_auc": 3.66215,
+  "builder_seconds": 0.0001438874751329422,
+  "private_train_seconds": 44.7661165073514,
+  "peak_allocated_cuda_bytes": 117459968,
+  "clip_fraction": 0.30380610525608065,
+  "transformed_norm_mean": 26.029817581176758,
+  "transformed_norm_p90": 86.75288619995118,
+  "transformed_norm_p99": 321.5788055419922
+}

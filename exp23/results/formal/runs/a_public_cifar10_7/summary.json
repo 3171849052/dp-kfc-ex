@@ -1,0 +1,16 @@
+{
+  "method": "a_public_cifar10",
+  "source": "cifar10",
+  "seed": 7,
+  "smoke": false,
+  "final_accuracy": 0.9662,
+  "best_accuracy": 0.9662,
+  "accuracy_auc": 3.8251,
+  "builder_seconds": 5.997278328053653,
+  "private_train_seconds": 44.13375102169812,
+  "peak_allocated_cuda_bytes": 176244736,
+  "clip_fraction": 0.24158988744020463,
+  "transformed_norm_mean": 36.75222396850586,
+  "transformed_norm_p90": 66.96345014572144,
+  "transformed_norm_p99": 567.2140930175781
+}

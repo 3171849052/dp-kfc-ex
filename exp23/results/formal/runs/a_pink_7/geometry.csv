@@ -1,0 +1,21 @@
+method,source,seed,epoch,layer,diagnostic_scope,cosA,relative_frobenius_A
+a_pink,pink,7,1,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8609364733304555,0.7914890412630644
+a_pink,pink,7,1,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7707119889850895,0.6989381911924747
+a_pink,pink,7,1,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7301602199245671,0.7626287574704493
+a_pink,pink,7,1,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8071600541785616,0.6240208170331383
+a_pink,pink,7,2,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8610874293149547,0.7914038513844729
+a_pink,pink,7,2,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7770284786720671,0.8175955728355098
+a_pink,pink,7,2,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.6088578381238375,0.9318999256129773
+a_pink,pink,7,2,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8042607213033638,0.9549877962500637
+a_pink,pink,7,3,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.862098498837913,0.7906791048058547
+a_pink,pink,7,3,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8068726128076967,0.8273636711814706
+a_pink,pink,7,3,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.5961501024406555,0.9329865129071909
+a_pink,pink,7,3,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8424742144029649,0.9477094962965983
+a_pink,pink,7,4,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8616743286994751,0.7909821178329273
+a_pink,pink,7,4,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8116837293948008,0.824752495207651
+a_pink,pink,7,4,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.5994443389373406,0.9329590847011915
+a_pink,pink,7,4,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8358521548704244,0.9396456259675074
+a_pink,pink,7,5,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8621205427800225,0.7906616486334868
+a_pink,pink,7,5,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8382509794723405,0.8219058764789519
+a_pink,pink,7,5,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.597871257479037,0.9298336419484136
+a_pink,pink,7,5,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8389124874274814,0.9345710320968323

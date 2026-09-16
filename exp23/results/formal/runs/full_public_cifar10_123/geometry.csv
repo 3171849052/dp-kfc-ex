@@ -1,0 +1,21 @@
+method,source,seed,epoch,layer,diagnostic_scope,cosA,relative_frobenius_A,cosG,relative_frobenius_G,fisher_cosine_proxy
+full_public_cifar10,cifar10,123,1,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9285706289351044,1.602320362955136,0.7346884045330674,0.6957126782973247,0.6822100738685988
+full_public_cifar10,cifar10,123,1,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9272437845540843,1.1811468930431785,0.867633232249934,0.49720574395457817,0.8045075218763216
+full_public_cifar10,cifar10,123,1,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.5362579865178626,1.0146500103212324,0.8092201995542471,0.6069882205517951,0.4339507948625435
+full_public_cifar10,cifar10,123,1,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8218043298727035,0.6920116341207682,0.9951703074496147,0.09826615897987122,0.8178352676228429
+full_public_cifar10,cifar10,123,2,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9282947587271388,1.5808283951831685,0.9033529762744107,1.7680716196258603,0.8385778331560969
+full_public_cifar10,cifar10,123,2,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8874709624577125,1.0130405021117648,0.9573503861754371,4.401132950813212,0.8496206686283779
+full_public_cifar10,cifar10,123,2,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.43724706455556744,0.9226799643730352,0.8536062185143632,5.309299263050685,0.3732368133317836
+full_public_cifar10,cifar10,123,2,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.748506386354433,0.9672545600804875,0.9034198793356161,5.946202674636807,0.6762155492422599
+full_public_cifar10,cifar10,123,3,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9283935301810039,1.5742696635811995,0.9344697067788789,3.5360463690006005,0.867555629923651
+full_public_cifar10,cifar10,123,3,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8483815670875345,0.9395746723113805,0.9412264021167764,6.471506495154388,0.7985191300119927
+full_public_cifar10,cifar10,123,3,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.4524890426525839,0.9176223987933616,0.8354374857126241,7.050660332716589,0.378026308106187
+full_public_cifar10,cifar10,123,3,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7475493643415025,0.953392785171823,0.896979784321095,8.148515917606494,0.6705366675964126
+full_public_cifar10,cifar10,123,4,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9285542824558247,1.5995487099238885,0.9028351688707638,4.115199076222784,0.8383314624066753
+full_public_cifar10,cifar10,123,4,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8454915624154226,0.953682070938059,0.9400401794272052,7.613832267887834,0.7947960400371819
+full_public_cifar10,cifar10,123,4,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.47852858074639687,0.905899756842828,0.7479203674963072,8.01650892391427,0.35790127196933147
+full_public_cifar10,cifar10,123,4,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7458483878680563,0.9319495474841359,0.844114308144852,9.379654832089457,0.6295812959061976
+full_public_cifar10,cifar10,123,5,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9275622563159005,1.5431584095728814,0.9015025277605807,5.327754674066693,0.8361997187240919
+full_public_cifar10,cifar10,123,5,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8412183318398921,0.8986983392450983,0.9418956199568194,8.17806471108248,0.7923398621873766
+full_public_cifar10,cifar10,123,5,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.48074300908788586,0.9063366612385502,0.727199506171411,8.05114220376242,0.3495960788040688
+full_public_cifar10,cifar10,123,5,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7677311954872192,0.9305662819089034,0.8523960818952449,9.804773705636332,0.654411062982058
