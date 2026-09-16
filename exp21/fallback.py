@@ -1,14 +1,7 @@
-"""Whole-step Fast Clipping: one batched VJP, then weighted backward.
-
-This explicit fallback is sample-independent FP32, using PyTorch math attention.
-It retains full per-sample gradients during the first pass, so it is a correctness
-route for packed/custom parameters, not a scalable replacement for BK embeddings.
-"""
+"""Bounded local Fast VJP norm with exact RNG replay for reconstruction."""
 from contextlib import contextmanager
 import torch
-from torch.nn.attention import sdpa_kernel, SDPBackend
-from exp21.profiling import timed, PHASES
-from exp21.handlers import nbytes, LINEAR_LAYOUTS
+from exp21.handlers import nbytes, LINEAR_LAYOUTS, sample_norm_squared
 
 
 def rng_state(device):
@@ -30,7 +23,7 @@ def transform_samples(model, operator, grads):
     if operator is None:
         return
     for name, m in model.named_modules():
-        if name not in operator.data:
+        if name not in operator.data or m.weight not in grads:
             continue
         w = grads[m.weight].transpose(-1, -2) if type(m) in LINEAR_LAYOUTS else grads[m.weight].flatten(2)
         g = torch.cat((w, grads[m.bias].unsqueeze(-1)), -1) if m.bias is not None else w
@@ -43,37 +36,22 @@ def transform_samples(model, operator, grads):
             grads[m.bias] = g[..., -1].contiguous()
 
 
-def whole_step(model, routes, operator, x, y, loss_fn, bound, profiler):
-    from exp21.bk import transform_aggregate
-    stats = {key: 0. for key in PHASES}
-    stats.update(routes.metadata(second=True))
-    stats.update(bk_cache_bytes=0, temporary_per_sample_grad_bytes=0,
-        bk_ghost_layers=[], bk_fast_layers=[], ghost_layer_count=0, fast_layer_count=0,
-        layer_strategies={n: 'whole_step_fgc' for n in routes.identity_geometry_layers+routes.preconditioned_layers},
-        backward_calls=0, first_pass_parameter_grad_count=0, first_pass_reverse_vectors=len(x))
-    model.zero_grad(set_to_none=True)
-    state = rng_state(x.device)
-    with sdpa_kernel(SDPBackend.MATH):
-        with timed(profiler, 'first_pass_seconds', x.device):
-            losses = loss_fn(model(x.detach()), y)
-            if losses.shape != (len(x),):
-                raise ValueError('loss_fn must return one scalar per example')
-            values = torch.autograd.grad(losses, routes.params,
-                grad_outputs=torch.eye(len(x), device=x.device, dtype=losses.dtype), is_grads_batched=True)
-            stats['backward_calls'] += 1
-            stats['first_pass_parameter_grad_count'] = sum(p.grad is not None for p in routes.params)
-        with timed(profiler, 'norm_seconds', x.device), torch.no_grad():
-            grads = dict(zip(routes.params, values))
+def chunked_norms(losses, params, model, operator, chunk_size, stats):
+    total = torch.zeros_like(losses)
+    for start in range(0, len(losses), chunk_size):
+        stop = min(start+chunk_size, len(losses))
+        vectors = losses.new_zeros((stop-start, len(losses)))
+        vectors[:, start:stop] = torch.eye(stop-start, device=losses.device, dtype=losses.dtype)
+        values = torch.autograd.grad(losses, params, grad_outputs=vectors,
+                                    is_grads_batched=True, retain_graph=stop < len(losses))
+        stats['backward_calls'] += 1
+        with torch.no_grad():
+            grads = dict(zip(params, values))
             del values
-            stats['temporary_per_sample_grad_bytes'] = sum(nbytes(g) for g in grads.values())
+            size = sum(nbytes(g) for g in grads.values())
+            stats['fallback_temporary_grad_bytes'] = max(stats['fallback_temporary_grad_bytes'], size)
+            stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], size)
             transform_samples(model, operator, grads)
-            norms = sum(g.flatten(1).square().sum(1) for g in grads.values()).clamp_min(0).sqrt()
-            factors = (bound/(norms+1e-6)).clamp(max=1).detach()
-            del grads
-        with timed(profiler, 'second_pass_seconds', x.device), replay_rng(state, x.device):
-            model.zero_grad(set_to_none=True)
-            (loss_fn(model(x.detach()), y)*factors).sum().backward()
-            stats['backward_calls'] += 1
-        with timed(profiler, 'aggregate_transform_seconds', x.device):
-            transform_aggregate(model, operator)
-    return losses.detach().sum(), norms, factors, {}, stats
+            total[start:stop] = sample_norm_squared(grads)
+            del grads, vectors
+    return total

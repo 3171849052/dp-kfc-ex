@@ -10,23 +10,30 @@ from exp21.profiling import timed, PHASES
 
 
 class Clipper:
-    def __init__(self, model, operator=None, method='bk', strategy='auto', max_grad_norm=1.):
+    def __init__(self, model, operator=None, method='bk', strategy='auto', max_grad_norm=1.,
+                 ghost_tile=64, max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=2,
+                 max_shared_sample_bytes=64*2**20, tied_output_chunk_size=256):
         if method not in ('exact', 'fast2', 'ghost2', 'bk', 'bk_gd') or max_grad_norm <= 0:
             raise ValueError('Invalid method/max_grad_norm')
         self.model, self.operator, self.method = model, operator, method
         self.max_grad_norm = max_grad_norm
         self.execution_method = method
+        options = dict(tile=ghost_tile, max_grad_norm=max_grad_norm,
+                       max_fast_temp_bytes=max_fast_temp_bytes,
+                       fallback_vjp_chunk_size=fallback_vjp_chunk_size,
+                       max_shared_sample_bytes=max_shared_sample_bytes,
+                       tied_output_chunk_size=tied_output_chunk_size)
         if method == 'exact':
             self.routes = Routes(model, operator)
             if self.routes.fallback_layer_names:
-                self.hooks = BookKeeping(model, operator, 'fast', max_grad_norm=max_grad_norm)
+                self.hooks = BookKeeping(model, operator, 'fast', **options)
                 self.execution_method = 'fast2'
             else:
                 self.wrapper = GradSampleModule(model, loss_reduction='sum')
                 self.hooks = None
         else:
             strategy = {'fast2': 'fast', 'ghost2': 'ghost'}.get(method, strategy)
-            self.hooks = BookKeeping(model, operator, strategy, max_grad_norm=max_grad_norm)
+            self.hooks = BookKeeping(model, operator, strategy, **options)
 
     def aggregate(self, x, y, profiler=None, loss_fn=None):
         if self.hooks is not None:
@@ -36,7 +43,9 @@ class Clipper:
         stats = {k: 0. for k in PHASES}
         stats.update(self.routes.metadata())
         stats.update(bk_cache_bytes=0, ghost_layer_count=0, fast_layer_count=0,
-                     bk_ghost_layers=[], bk_fast_layers=[], layer_strategies={}, backward_calls=1)
+                     bk_ghost_layers=[], bk_fast_layers=[], layer_strategies={}, layer_routing={}, backward_calls=1,
+                     first_pass_param_grad_disabled=False, fallback_vjp_chunk_size=0,
+                     fallback_temporary_grad_bytes=0, fallback_parameter_count=0)
         with timed(profiler, 'first_pass_seconds', x.device):
             self.wrapper.zero_grad(set_to_none=True)
             loss = loss_fn(self.wrapper(x), y).sum()
@@ -68,5 +77,5 @@ class Clipper:
 
 
 class HybridBKClipper(Clipper):
-    """Default hybrid BK interface; registered fallback is whole-step FGC."""
+    """Hybrid BK with bounded, parameter-local Fast fallback."""
     pass

@@ -1,16 +1,16 @@
-/media/data/data/lt/DP-KFC/exp21/methods.py:43: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+/media/data/data/lt/DP-KFC/exp21/methods.py:52: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
   loss.backward()
 
-exact seed=42 epoch=1: 0.039043 s/batch, 0.2773 accuracy
-fast2 seed=42 epoch=1: 0.056932 s/batch, 0.2773 accuracy
-ghost2 seed=42 epoch=1: 0.082224 s/batch, 0.2773 accuracy
-bk seed=42 epoch=1: 0.037673 s/batch, 0.2773 accuracy
-bk_gd seed=42 epoch=1: 0.037384 s/batch, 0.2773 accuracy
+exact seed=42 epoch=1: 0.056666 s/batch, 0.2773 accuracy
+fast2 seed=42 epoch=1: 0.057488 s/batch, 0.2773 accuracy
+ghost2 seed=42 epoch=1: 0.060041 s/batch, 0.2773 accuracy
+bk seed=42 epoch=1: 0.056094 s/batch, 0.2773 accuracy
+bk_gd seed=42 epoch=1: 0.054985 s/batch, 0.2773 accuracy
         seconds_per_batch  private_samples_per_second  peak_cuda_allocated_bytes
 method                                                                          
-bk               0.037673                 6795.267161                133174272.0
-bk_gd            0.037384                 6847.918499                145189888.0
-exact            0.039043                 6556.950566                849954816.0
-fast2            0.056932                 4496.602052                695966720.0
-ghost2           0.082224                 3113.437053                133174272.0
+bk               0.056094                 4563.756207                133175296.0
+bk_gd            0.054985                 4655.831272                132345856.0
+exact            0.056666                 4517.672380                849954816.0
+fast2            0.057488                 4453.127110                272517120.0
+ghost2           0.060041                 4263.727718                157698048.0
 

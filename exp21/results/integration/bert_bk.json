@@ -36,43 +36,163 @@
   "gd_applied": false,
   "input_gradient_computed": false,
   "bk_cache_bytes": 8552,
-  "temporary_per_sample_grad_bytes": 224,
+  "temporary_per_sample_grad_bytes": 2080,
   "backward_calls": 1,
   "first_pass_parameter_grad_count": 25,
+  "first_pass_param_grad_disabled": false,
+  "layer_routing": {
+    "classifier": {
+      "strategy": "ghost",
+      "estimated_fast_bytes": 312,
+      "estimated_fast_cost": 440000702,
+      "estimated_ghost_cost": 440000256,
+      "estimated_fast_macs": 78,
+      "estimated_ghost_macs": 32,
+      "routing_reason": "ghost_compute"
+    },
+    "bert.pooler.dense": {
+      "strategy": "ghost",
+      "estimated_fast_bytes": 1248,
+      "estimated_fast_cost": 440002808,
+      "estimated_ghost_cost": 440000400,
+      "estimated_fast_macs": 312,
+      "estimated_ghost_macs": 50,
+      "routing_reason": "ghost_compute"
+    },
+    "bert.encoder.layer.0.output.LayerNorm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 192,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "bert.encoder.layer.0.output.dense": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 2016,
+      "estimated_fast_cost": 440006048,
+      "estimated_ghost_cost": 880008448,
+      "estimated_fast_macs": 2016,
+      "estimated_ghost_macs": 1056,
+      "routing_reason": "fast_compute"
+    },
+    "bert.encoder.layer.0.intermediate.dense": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 2080,
+      "estimated_fast_cost": 440006240,
+      "estimated_ghost_cost": 880008448,
+      "estimated_fast_macs": 2080,
+      "estimated_ghost_macs": 1056,
+      "routing_reason": "fast_compute"
+    },
+    "bert.encoder.layer.0.attention.output.LayerNorm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 192,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "bert.encoder.layer.0.attention.output.dense": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1248,
+      "estimated_fast_cost": 440003744,
+      "estimated_ghost_cost": 880006400,
+      "estimated_fast_macs": 1248,
+      "estimated_ghost_macs": 800,
+      "routing_reason": "fast_compute"
+    },
+    "bert.encoder.layer.0.attention.self.value": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1248,
+      "estimated_fast_cost": 440003744,
+      "estimated_ghost_cost": 880006400,
+      "estimated_fast_macs": 1248,
+      "estimated_ghost_macs": 800,
+      "routing_reason": "fast_compute"
+    },
+    "bert.encoder.layer.0.attention.self.key": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1248,
+      "estimated_fast_cost": 440003744,
+      "estimated_ghost_cost": 880006400,
+      "estimated_fast_macs": 1248,
+      "estimated_ghost_macs": 800,
+      "routing_reason": "fast_compute"
+    },
+    "bert.encoder.layer.0.attention.self.query": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1248,
+      "estimated_fast_cost": 440003744,
+      "estimated_ghost_cost": 880006400,
+      "estimated_fast_macs": 1248,
+      "estimated_ghost_macs": 800,
+      "routing_reason": "fast_compute"
+    },
+    "bert.embeddings.LayerNorm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 192,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "bert.embeddings.position_embeddings": {
+      "strategy": "fast_sparse",
+      "estimated_fast_bytes": 0,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_sparse"
+    },
+    "bert.embeddings.token_type_embeddings": {
+      "strategy": "fast_sparse",
+      "estimated_fast_bytes": 0,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_sparse"
+    },
+    "bert.embeddings.word_embeddings": {
+      "strategy": "fast_sparse",
+      "estimated_fast_bytes": 0,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_sparse"
+    }
+  },
   "layer_strategies": {
     "classifier": "ghost",
     "bert.pooler.dense": "ghost",
     "bert.encoder.layer.0.output.LayerNorm": "fast",
-    "bert.encoder.layer.0.output.dense": "ghost",
-    "bert.encoder.layer.0.intermediate.dense": "ghost",
+    "bert.encoder.layer.0.output.dense": "fast",
+    "bert.encoder.layer.0.intermediate.dense": "fast",
     "bert.encoder.layer.0.attention.output.LayerNorm": "fast",
-    "bert.encoder.layer.0.attention.output.dense": "ghost",
-    "bert.encoder.layer.0.attention.self.value": "ghost",
-    "bert.encoder.layer.0.attention.self.key": "ghost",
-    "bert.encoder.layer.0.attention.self.query": "ghost",
+    "bert.encoder.layer.0.attention.output.dense": "fast",
+    "bert.encoder.layer.0.attention.self.value": "fast",
+    "bert.encoder.layer.0.attention.self.key": "fast",
+    "bert.encoder.layer.0.attention.self.query": "fast",
     "bert.embeddings.LayerNorm": "fast",
     "bert.embeddings.position_embeddings": "fast_sparse",
     "bert.embeddings.token_type_embeddings": "fast_sparse",
     "bert.embeddings.word_embeddings": "fast_sparse"
   },
+  "fallback_vjp_chunk_size": 2,
+  "fallback_temporary_grad_bytes": 0,
+  "fallback_parameter_count": 0,
   "bk_ghost_layers": [
     "classifier",
-    "bert.pooler.dense",
-    "bert.encoder.layer.0.output.dense",
-    "bert.encoder.layer.0.intermediate.dense",
-    "bert.encoder.layer.0.attention.output.dense",
-    "bert.encoder.layer.0.attention.self.value",
-    "bert.encoder.layer.0.attention.self.key",
-    "bert.encoder.layer.0.attention.self.query"
+    "bert.pooler.dense"
   ],
   "bk_fast_layers": [
     "bert.encoder.layer.0.output.LayerNorm",
+    "bert.encoder.layer.0.output.dense",
+    "bert.encoder.layer.0.intermediate.dense",
     "bert.encoder.layer.0.attention.output.LayerNorm",
+    "bert.encoder.layer.0.attention.output.dense",
+    "bert.encoder.layer.0.attention.self.value",
+    "bert.encoder.layer.0.attention.self.key",
+    "bert.encoder.layer.0.attention.self.query",
     "bert.embeddings.LayerNorm",
     "bert.embeddings.position_embeddings",
     "bert.embeddings.token_type_embeddings",
     "bert.embeddings.word_embeddings"
   ],
-  "ghost_layer_count": 8,
-  "fast_layer_count": 6
+  "ghost_layer_count": 2,
+  "fast_layer_count": 12
 }

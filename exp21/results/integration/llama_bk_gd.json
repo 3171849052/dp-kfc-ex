@@ -36,39 +36,146 @@
   "gd_applied": true,
   "input_gradient_computed": false,
   "bk_cache_bytes": 10016,
-  "temporary_per_sample_grad_bytes": 312,
+  "temporary_per_sample_grad_bytes": 1920,
   "backward_calls": 1,
   "first_pass_parameter_grad_count": 0,
+  "first_pass_param_grad_disabled": true,
+  "layer_routing": {
+    "lm_head": {
+      "strategy": "ghost_tied",
+      "estimated_fast_bytes": 2208,
+      "estimated_fast_cost": 440006624,
+      "estimated_ghost_cost": 880008960,
+      "estimated_fast_macs": 2208,
+      "estimated_ghost_macs": 1120,
+      "routing_reason": "ghost_tied",
+      "output_chunk_size": 0
+    },
+    "model.embed_tokens": {
+      "strategy": "fast_sparse_tied",
+      "estimated_fast_bytes": 0,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_sparse"
+    },
+    "model.norm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 96,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "model.layers.0.mlp.down_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1920,
+      "estimated_fast_cost": 440005760,
+      "estimated_ghost_cost": 880008192,
+      "estimated_fast_macs": 1920,
+      "estimated_ghost_macs": 1024,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.mlp.up_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1920,
+      "estimated_fast_cost": 440005760,
+      "estimated_ghost_cost": 880008192,
+      "estimated_fast_macs": 1920,
+      "estimated_ghost_macs": 1024,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.mlp.gate_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1920,
+      "estimated_fast_cost": 440005760,
+      "estimated_ghost_cost": 880008192,
+      "estimated_fast_macs": 1920,
+      "estimated_ghost_macs": 1024,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.post_attention_layernorm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 96,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "model.layers.0.self_attn.o_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1152,
+      "estimated_fast_cost": 440003456,
+      "estimated_ghost_cost": 880006144,
+      "estimated_fast_macs": 1152,
+      "estimated_ghost_macs": 768,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.self_attn.v_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1152,
+      "estimated_fast_cost": 440003456,
+      "estimated_ghost_cost": 880006144,
+      "estimated_fast_macs": 1152,
+      "estimated_ghost_macs": 768,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.self_attn.k_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1152,
+      "estimated_fast_cost": 440003456,
+      "estimated_ghost_cost": 880006144,
+      "estimated_fast_macs": 1152,
+      "estimated_ghost_macs": 768,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.self_attn.q_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1152,
+      "estimated_fast_cost": 440003456,
+      "estimated_ghost_cost": 880006144,
+      "estimated_fast_macs": 1152,
+      "estimated_ghost_macs": 768,
+      "routing_reason": "fast_compute"
+    },
+    "model.layers.0.input_layernorm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 96,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    }
+  },
   "layer_strategies": {
     "model.embed_tokens": "fast_sparse_tied",
     "lm_head": "ghost_tied",
     "model.norm": "fast",
-    "model.layers.0.mlp.down_proj": "ghost",
-    "model.layers.0.mlp.up_proj": "ghost",
-    "model.layers.0.mlp.gate_proj": "ghost",
+    "model.layers.0.mlp.down_proj": "fast",
+    "model.layers.0.mlp.up_proj": "fast",
+    "model.layers.0.mlp.gate_proj": "fast",
     "model.layers.0.post_attention_layernorm": "fast",
-    "model.layers.0.self_attn.o_proj": "ghost",
-    "model.layers.0.self_attn.v_proj": "ghost",
-    "model.layers.0.self_attn.k_proj": "ghost",
-    "model.layers.0.self_attn.q_proj": "ghost",
+    "model.layers.0.self_attn.o_proj": "fast",
+    "model.layers.0.self_attn.v_proj": "fast",
+    "model.layers.0.self_attn.k_proj": "fast",
+    "model.layers.0.self_attn.q_proj": "fast",
     "model.layers.0.input_layernorm": "fast"
   },
+  "fallback_vjp_chunk_size": 2,
+  "fallback_temporary_grad_bytes": 0,
+  "fallback_parameter_count": 0,
   "bk_ghost_layers": [
-    "lm_head",
-    "model.layers.0.mlp.down_proj",
-    "model.layers.0.mlp.up_proj",
-    "model.layers.0.mlp.gate_proj",
-    "model.layers.0.self_attn.o_proj",
-    "model.layers.0.self_attn.v_proj",
-    "model.layers.0.self_attn.k_proj",
-    "model.layers.0.self_attn.q_proj"
+    "lm_head"
   ],
   "bk_fast_layers": [
     "model.embed_tokens",
     "model.norm",
+    "model.layers.0.mlp.down_proj",
+    "model.layers.0.mlp.up_proj",
+    "model.layers.0.mlp.gate_proj",
     "model.layers.0.post_attention_layernorm",
+    "model.layers.0.self_attn.o_proj",
+    "model.layers.0.self_attn.v_proj",
+    "model.layers.0.self_attn.k_proj",
+    "model.layers.0.self_attn.q_proj",
     "model.layers.0.input_layernorm"
   ],
-  "ghost_layer_count": 8,
-  "fast_layer_count": 4
+  "ghost_layer_count": 1,
+  "fast_layer_count": 11
 }

@@ -2,9 +2,10 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from exp21.handlers import Record, nbytes, retained_bytes, LINEAR_LAYOUTS
-from exp21.routing import Routes
-from exp21.fallback import whole_step, rng_state, replay_rng
+from exp21.handlers import Record, nbytes, retained_bytes, LINEAR_LAYOUTS, sample_norm_squared
+from exp21.routing import Routes, norm_route
+from exp21.fallback import chunked_norms, rng_state, replay_rng
+from torch.nn.attention import sdpa_kernel, SDPBackend
 from exp21.profiling import timed, PHASES
 
 
@@ -23,25 +24,86 @@ def merge(target, contributions):
 
 
 class BookKeeping:
-    def __init__(self, model, operator=None, strategy='auto', tile=64, max_grad_norm=1.):
+    def __init__(self, model, operator=None, strategy='auto', tile=64, max_grad_norm=1.,
+                 max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=2,
+                 max_shared_sample_bytes=64*2**20, tied_output_chunk_size=256):
         if strategy not in ('auto', 'ghost', 'fast') or tile < 1 or max_grad_norm <= 0:
             raise ValueError('Invalid norm strategy/tile/max_grad_norm')
         self.model, self.operator, self.strategy, self.tile = model, operator, strategy, tile
+        if min(max_fast_temp_bytes, fallback_vjp_chunk_size, max_shared_sample_bytes, tied_output_chunk_size) < 1:
+            raise ValueError('Memory caps and chunk sizes must be positive')
         self.max_grad_norm = max_grad_norm
+        self.max_fast_temp_bytes = max_fast_temp_bytes
+        self.fallback_vjp_chunk_size = fallback_vjp_chunk_size
+        self.max_shared_sample_bytes = max_shared_sample_bytes
+        self.tied_output_chunk_size = tied_output_chunk_size
         self.routes = Routes(model, operator)
         self.params, self.trainable = self.routes.params, self.routes.trainable
         self.modules = self.routes.modules
         self.pending, self.records, self.handles = [], [], []
         self.enabled, self.gd = False, False
         self.batch_size, self.anchors = 0, []
-        if not self.routes.fallback_layer_names:
-            for name, m in self.modules.items():
-                self.handles.append(m.register_forward_hook(self.capture(name)))
+        self.fallback_ids = {id(p) for n, p in model.named_parameters()
+                             if n in self.routes.fallback_parameter_names}
+        # Shared owners must travel together. Large generic ties use bounded VJP;
+        # the embedding/head pair keeps its analytic route.
+        for pid, owners in self.routes.owners.items():
+            if len(owners) > 1:
+                modules = [self.modules[n] for n in owners]
+                tied = (len(modules) == 2 and any(isinstance(m, nn.Embedding) for m in modules)
+                        and any(isinstance(m, nn.Linear) or type(m) in LINEAR_LAYOUTS for m in modules))
+                p = next(p for p in self.params if id(p) == pid)
+                if not tied and p.numel()*p.element_size() > max_shared_sample_bytes:
+                    self.fallback_ids.add(pid)
+        self.sync_fallback()
+        for name, m in self.modules.items():
+            self.handles.append(m.register_forward_hook(self.capture(name)))
+
+    def sync_fallback(self):
+        # Move complete affine records, preserving A transforms and shared cross terms.
+        changed = True
+        while changed:
+            changed = False
+            for name, module in self.modules.items():
+                ids = {id(p) for p in module.parameters(recurse=False) if id(p) in self.trainable}
+                if ids & self.fallback_ids and not ids <= self.fallback_ids:
+                    self.fallback_ids.update(ids)
+                    changed = True
+        self.fallback_params = [p for p in self.params if id(p) in self.fallback_ids]
+        self.bk_trainable = self.trainable-self.fallback_ids
+        self.routes.fallback_parameter_names = [n for n, p in self.model.named_parameters() if id(p) in self.fallback_ids]
+        for n, m in self.modules.items():
+            if any(id(p) in self.fallback_ids for p in m.parameters(recurse=False)) and n not in self.routes.fallback_layer_names:
+                self.routes.fallback_layer_names.append(n)
+
+    def shared_overflow(self):
+        generic = {}
+        for module in self.modules.values():
+            ps = [p for p in module.parameters(recurse=False) if id(p) in self.bk_trainable]
+            shared = [p for p in ps if self.use_counts.get(id(p), 0) > 1]
+            if not shared:
+                continue
+            analytic = False
+            if len(shared) == 1:
+                owners = [m for m in self.modules.values()
+                          if any(p is shared[0] for p in m.parameters(recurse=False))]
+                analytic = (len(owners) == 2 and self.use_counts[id(shared[0])] == 2
+                            and any(isinstance(m, nn.Embedding) for m in owners)
+                            and any(isinstance(m, nn.Linear) or type(m) in LINEAR_LAYOUTS for m in owners))
+            if not analytic:
+                generic.update((id(p), p) for p in ps)
+        size = sum(p.numel()*p.element_size() for p in generic.values())
+        return set(generic) if size > self.max_shared_sample_bytes else set()
 
     def capture(self, name):
         def hook(module, args, output):
             if not self.enabled:
                 return
+            ids = [id(p) for p in module.parameters(recurse=False) if id(p) in self.bk_trainable]
+            if not ids:
+                return
+            for pid in ids:
+                self.use_counts[pid] = self.use_counts.get(pid, 0)+1
             x = args[0].detach()
             # Typed HF adapters: position embeddings are evaluated once, then
             # broadcast across examples. Hook the expanded output BEFORE addition
@@ -54,10 +116,18 @@ class BookKeeping:
             if self.gd and not output.requires_grad:
                 output.requires_grad_(True)
                 self.anchors.append(name)
+                self.anchor_tensors.append(output)
             # Store x in a disposable slot, not in a graph-lifetime closure.
             activation = [x]
             def backward(b):
-                self.pending.append((name, module, activation.pop(), b.detach()))
+                if not self.enabled:
+                    return
+                if self.streaming and all(self.use_counts[pid] == 1 for pid in ids):
+                    with torch.no_grad():
+                        record = Record(name, module, activation.pop(), b.detach(), self.operator, self.bk_trainable)
+                        self.stream_sq[name] = self.record_norm(record, self.stats)
+                else:
+                    self.pending.append((name, module, activation.pop(), b.detach()))
             output.register_hook(backward)
             return output
         return hook
@@ -66,6 +136,7 @@ class BookKeeping:
         self.pending.clear()
         self.records.clear()
         self.enabled = False
+        self.anchor_tensors = []
 
     def remove(self):
         self.clear()
@@ -73,20 +144,38 @@ class BookKeeping:
             h.remove()
         self.handles.clear()
 
+    def record_norm(self, r, stats):
+        route = norm_route(r, self.strategy, self.max_fast_temp_bytes, self.tile)
+        choice = route['strategy']
+        stats['layer_routing'][r.name] = route
+        stats['layer_strategies'][r.name] = choice
+        if choice == 'fast_sparse':
+            samples, ids, values = r.embedding_rows()
+            stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], nbytes(values))
+            sq = r.b.new_zeros(len(r.b))
+            sq.index_add_(0, samples, values.square().sum(-1))
+            return sq
+        if choice == 'ghost':
+            return r.ghost(self.tile)
+        grads = r.fast()
+        stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], sum(nbytes(g) for g in grads.values()))
+        return sample_norm_squared(grads)
+
     @torch.no_grad()
     def norms(self, stats):
-        self.records = []
+        for name in self.routes.fallback_layer_names:
+            stats['layer_routing'][name] = dict(strategy='fallback',
+                estimated_fast_bytes=min(self.batch_size, self.fallback_vjp_chunk_size)*sum(p.numel()*p.element_size() for p in self.fallback_params),
+                estimated_fast_cost=None, estimated_ghost_cost=None, routing_reason='bounded_fallback')
         self.pending.reverse()
         while self.pending:
-            n, m, x, b = self.pending.pop()
-            self.records.append(Record(n, m, x, b, self.operator, self.trainable))
-            # Release each source immediately after its z is formed, rather than
-            # retaining all source activations until the last layer is converted.
-            del x, b
+            name, module, activation, backprop = self.pending.pop()
+            self.records.append(Record(name, module, activation, backprop, self.operator, self.bk_trainable))
+            del activation, backprop
         stats['bk_cache_bytes'] = retained_bytes(self.records)
         seen = {id(p) for r in self.records for p in r.params.values()}
-        if seen != self.trainable:
-            missing = [n for n, p in self.model.named_parameters() if id(p) in self.trainable-seen]
+        if not self.streaming and seen != self.bk_trainable:
+            missing = [n for n, p in self.model.named_parameters() if id(p) in self.bk_trainable-seen]
             raise RuntimeError(f'Trainable parameters did not produce a supported output backprop: {missing}')
         counts = {}
         for r in self.records:
@@ -94,8 +183,10 @@ class BookKeeping:
                 counts[id(p)] = counts.get(id(p), 0)+1
         shared = [r for r in self.records if any(counts[id(p)] > 1 for p in r.params.values())]
         # Include all parameters of affected records exactly once, with cross terms.
-        total = self.records[0].b.new_zeros(len(self.records[0].b))
-        choices, layer_sq = {}, {}
+        total = self.norm_template.clone()
+        choices, layer_sq = stats['layer_strategies'], dict(self.stream_sq)
+        for sq in layer_sq.values():
+            total.add_(sq)
         # Common LM tie: sparse embedding rows + a dense output projection.
         # Never form even one full per-example vocabulary-by-hidden matrix.
         pairs, paired = [], set()
@@ -113,59 +204,55 @@ class BookKeeping:
                     pairs.append((emb, head))
                     paired.update((emb, head))
         for emb, head in pairs:
-            sq = head.ghost(self.tile)
-            cross_values, embed_values = [], []
-            for i in range(len(total)):
-                g = emb.sample(i)[emb.params['weight']].coalesce()
-                ids, values = g.indices()[0], g.values()
+            route = norm_route(head, 'auto', self.max_fast_temp_bytes, self.tile)
+            width = head.b.shape[-1]
+            row_bytes = len(total)*head.z.shape[-1]*head.b.element_size()
+            chunk = min(self.tied_output_chunk_size, max(1, width//2), self.max_fast_temp_bytes//row_bytes)
+            use_chunk = chunk > 0 and 1.25*route['estimated_fast_macs'] < route['estimated_ghost_macs']
+            choice = 'chunked_fast_tied' if use_chunk else 'ghost_tied'
+            if use_chunk:
+                sq = head.chunked_norm(chunk)
+                stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], row_bytes*chunk)
+            else:
+                sq = head.ghost(self.tile)
+            route.update(strategy=choice, routing_reason=choice, output_chunk_size=chunk if use_chunk else 0)
+            stats['layer_routing'][head.name] = route
+            stats['layer_routing'][emb.name] = dict(strategy='fast_sparse_tied',
+                estimated_fast_bytes=0, estimated_fast_cost=0, estimated_ghost_cost=0,
+                routing_reason='fast_sparse')
+            samples, ids, values = emb.embedding_rows()
+            stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], nbytes(values))
+            sq.index_add_(0, samples, values.square().sum(-1))
+            # Only token rows, bounded in chunks, including the exact tie cross term.
+            for start in range(0, len(ids), self.tied_output_chunk_size):
+                ss, vv = samples[start:start+self.tied_output_chunk_size], ids[start:start+self.tied_output_chunk_size]
                 if type(head.module) in LINEAR_LAYOUTS:
-                    rows = head.z[i, :, ids].T @ head.b[i]
+                    rows = (head.z[ss, :, vv].unsqueeze(-1)*head.b[ss]).sum(1)
                 else:
-                    z = head.z[i, :, :-1] if head.module.bias is not None else head.z[i]
-                    rows = head.b[i, :, ids].T @ z
-                cross_values.append(2*(values*rows).sum())
-                embed_values.append(values.square().sum())
-                stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], nbytes(g)+nbytes(rows))
-            sq = sq+torch.stack(embed_values)+torch.stack(cross_values)
+                    z = head.z[..., :-1] if head.module.bias is not None else head.z
+                    rows = (head.b[ss, :, vv].unsqueeze(-1)*z[ss]).sum(1)
+                sq.index_add_(0, ss, 2*(values[start:start+self.tied_output_chunk_size]*rows).sum(-1))
+                stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], nbytes(rows)+nbytes(values))
+                del rows
             total.add_(sq)
             layer_sq[emb.name+'<->'+head.name] = sq
-            choices[emb.name], choices[head.name] = 'fast_sparse_tied', 'ghost_tied'
+            choices[emb.name], choices[head.name] = 'fast_sparse_tied', choice
         shared = [r for r in shared if r not in paired]
         if any(r.kind == 'embedding' for r in shared):
-            raise NotImplementedError('Repeated/multi-owner tied Embedding needs explicit whole-step FGC registration')
+            raise NotImplementedError('Repeated/multi-owner Embedding requires explicit bounded Fast fallback registration')
         for r in self.records:
             if r in paired:
                 continue
             if r in shared:
                 choices[r.name] = 'fast_shared'
+                route = norm_route(r, 'fast', self.max_fast_temp_bytes, self.tile)
+                route.update(strategy='fast_shared', routing_reason='fast_shared',
+                             estimated_fast_bytes=sum(p.numel()*p.element_size() for p in r.params.values()))
+                stats['layer_routing'][r.name] = route
                 continue
-            if r.kind == 'embedding':
-                values = []
-                for i in range(len(total)):
-                    sparse = r.sample(i)
-                    values.append(sum(square(g) for g in sparse.values()))
-                    stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'],
-                        sum(nbytes(g) for g in sparse.values()))
-                    del sparse
-                sq = torch.stack(values)
-                choice = 'fast_sparse'
-            else:
-                choice = self.strategy
-                complete = len(r.params) == len(list(r.module.parameters(recurse=False)))
-                if r.kind == 'norm' or not complete:
-                    choice = 'fast'
-                elif choice == 'auto':
-                    choice = 'ghost' if 2*r.b.shape[1]**2 <= r.z.shape[-1]*r.b.shape[-1] else 'fast'
-                if choice == 'ghost':
-                    sq = r.ghost(self.tile)
-                else:
-                    grads = r.fast()
-                    stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], sum(nbytes(g) for g in grads.values()))
-                    sq = sum(g.flatten(1).square().sum(1) for g in grads.values())
-                    del grads
+            sq = self.record_norm(r, stats)
             total.add_(sq)
             layer_sq[r.name] = sq
-            choices[r.name] = choice
         if shared:
             vals = []
             for i in range(len(total)):
@@ -183,6 +270,9 @@ class BookKeeping:
         stats['bk_fast_layers'] = [n for n, c in choices.items() if not c.startswith('ghost')]
         stats['ghost_layer_count'] = len(stats['bk_ghost_layers'])
         stats['fast_layer_count'] = len(stats['bk_fast_layers'])
+        if self.streaming:
+            self.records.clear()
+            stats['bk_cache_bytes'] = 0
         return total.clamp_min(0).sqrt(), layer_sq
 
     @torch.no_grad()
@@ -198,70 +288,116 @@ class BookKeeping:
             raise ValueError(method)
         if loss_fn is None:
             loss_fn = lambda output, target: F.cross_entropy(output, target, reduction='none')
-        stats = {key: 0. for key in PHASES}
-        stats.update(self.routes.metadata(second=method in ('fast2', 'ghost2')))
-        stats.update(bk_cache_bytes=0, temporary_per_sample_grad_bytes=0,
-                     backward_calls=0, first_pass_parameter_grad_count=0)
-        if self.routes.fallback_layer_names:
-            return whole_step(self.model, self.routes, self.operator, x, y, loss_fn, self.max_grad_norm, profiler)
         self.clear()
-        self.gd = method == 'bk_gd'
-        self.batch_size, self.anchors = len(x), []
-        state = rng_state(x.device) if method in ('fast2', 'ghost2') else None
+        self.streaming = method in ('fast2', 'ghost2')
+        self.gd = method == 'bk_gd' or self.streaming or bool(self.fallback_params)
+        self.batch_size, self.anchors, self.anchor_tensors = len(x), [], []
+        self.use_counts, self.stream_sq = {}, {}
+        self.norm_template = self.params[0].new_zeros(len(x))
+        stats = {key: 0. for key in PHASES}
+        stats.update(self.routes.metadata(second=self.streaming))
+        stats.update(bk_cache_bytes=0, temporary_per_sample_grad_bytes=0,
+                     backward_calls=0, first_pass_parameter_grad_count=0,
+                     first_pass_param_grad_disabled=self.gd, layer_routing={}, layer_strategies={},
+                     fallback_vjp_chunk_size=self.fallback_vjp_chunk_size,
+                     fallback_temporary_grad_bytes=0,
+                     fallback_parameter_count=sum(p.numel() for p in self.fallback_params))
+        self.stats = stats
+        state = rng_state(x.device)
         input_handle = (x.register_hook(lambda g: stats.update(input_gradient_computed=True))
                         if x.requires_grad else None)
         try:
-            with timed(profiler, 'first_pass_seconds', x.device):
-                self.model.zero_grad(set_to_none=True)
-                if self.gd:
-                    for p in self.params:
-                        p.requires_grad_(False)
-                    x = x.detach()
-                self.enabled = True
-                losses = loss_fn(self.model(x), y)
-                if losses.shape != (len(x),):
-                    raise ValueError('loss_fn must return one scalar per example')
-                losses.sum().backward()
-                stats['backward_calls'] += 1
-                stats['first_pass_parameter_grad_count'] = sum(p.grad is not None for p in self.params)
-                self.enabled = False
-                stats['gd_applied'] = self.gd
-                stats['gd_anchor_modules'] = list(self.anchors)
-                stats['gd_anchor_module'] = self.anchors[0] if self.anchors else None
-                if self.gd:
-                    assert stats['first_pass_parameter_grad_count'] == 0
+            with sdpa_kernel(SDPBackend.MATH):
+                with timed(profiler, 'first_pass_seconds', x.device):
+                    self.model.zero_grad(set_to_none=True)
+                    if self.gd:
+                        for p in self.params:
+                            if id(p) not in self.fallback_ids:
+                                p.requires_grad_(False)
+                        x = x.detach()
+                    self.enabled = True
+                    losses = loss_fn(self.model(x), y)
+                    if losses.shape != (len(x),):
+                        raise ValueError('loss_fn must return one scalar per example')
+                    oversized = self.shared_overflow()
+                    if oversized:
+                        # Rebuild before any sample gradient allocation; the outer
+                        # first-pass timer includes discovery and the replay forward.
+                        self.fallback_ids.update(oversized)
+                        self.sync_fallback()
+                        del losses
+                        self.clear()
+                        self.gd, self.enabled = True, True
+                        self.use_counts, self.stream_sq, self.anchors = {}, {}, []
+                        stats.update(self.routes.metadata(second=self.streaming))
+                        stats.update(first_pass_param_grad_disabled=True,
+                                     fallback_parameter_count=sum(p.numel() for p in self.fallback_params))
+                        for p in self.params:
+                            p.requires_grad_(id(p) in self.fallback_ids)
+                        x = x.detach()
+                        with replay_rng(state, x.device):
+                            losses = loss_fn(self.model(x), y)
+                    if self.fallback_params:
+                        torch.autograd.grad(losses.sum(), self.fallback_params+self.anchor_tensors, retain_graph=True)
+                    elif self.gd:
+                        torch.autograd.grad(losses.sum(), self.anchor_tensors)
+                    else:
+                        losses.sum().backward()
+                    self.anchor_tensors.clear()
+                    if not self.fallback_params:
+                        losses = losses.detach()
+                    stats['backward_calls'] += 1
+                    stats['first_pass_parameter_grad_count'] = sum(p.grad is not None for p in self.params)
+                    self.enabled = False
+                    stats['gd_applied'] = method == 'bk_gd'
+                    stats['gd_anchor_modules'] = list(self.anchors)
+                    stats['gd_anchor_module'] = self.anchors[0] if self.anchors else None
                     for p in self.params:
                         p.requires_grad_(True)
-            with timed(profiler, 'norm_seconds', x.device):
-                norms, layer_sq = self.norms(stats)
-                factors = (self.max_grad_norm/(norms+1e-6)).clamp(max=1).detach()
-            if method in ('bk', 'bk_gd'):
-                with timed(profiler, 'bk_reconstruction_seconds', x.device):
-                    self.reconstruct(factors)
-            else:
-                self.clear()
-                with timed(profiler, 'second_pass_seconds', x.device), replay_rng(state, x.device):
-                    self.model.zero_grad(set_to_none=True)
-                    (loss_fn(self.model(x.detach()), y)*factors).sum().backward()
-                    stats['backward_calls'] += 1
-                with timed(profiler, 'aggregate_transform_seconds', x.device):
-                    transform_aggregate(self.model, self.operator)
-            return losses.detach().sum(), norms, factors, layer_sq, stats
+                    if self.streaming:
+                        # Shared/tied cross terms complete when all reverse hooks
+                        # have arrived; release those records before pass one ends.
+                        stream_result = self.norms(stats)
+                with timed(profiler, 'norm_seconds', x.device):
+                    norms, layer_sq = stream_result if self.streaming else self.norms(stats)
+                    if self.fallback_params:
+                        fallback_sq = chunked_norms(losses, self.fallback_params, self.model,
+                                                    self.operator, self.fallback_vjp_chunk_size, stats)
+                        norms = (norms.square()+fallback_sq).clamp_min(0).sqrt()
+                        layer_sq['fallback'] = fallback_sq
+                        losses = losses.detach()
+                    factors = (self.max_grad_norm/(norms+1e-6)).clamp(max=1).detach()
+                if not self.streaming:
+                    with timed(profiler, 'bk_reconstruction_seconds', x.device):
+                        self.reconstruct(factors)
+                if self.streaming or self.fallback_params:
+                    self.clear()
+                    with timed(profiler, 'second_pass_seconds', x.device), replay_rng(state, x.device):
+                        weighted = (loss_fn(self.model(x.detach()), y)*factors).sum()
+                        targets = self.params if self.streaming else self.fallback_params
+                        grads = torch.autograd.grad(weighted, targets)
+                        for p, g in zip(targets, grads):
+                            p.grad = g
+                        stats['backward_calls'] += 1
+                    with timed(profiler, 'aggregate_transform_seconds', x.device):
+                        transform_aggregate(self.model, self.operator, None if self.streaming else self.fallback_ids)
+                return losses.detach().sum(), norms, factors, layer_sq, stats
         finally:
             if input_handle is not None:
                 input_handle.remove()
             for p in self.params:
                 p.requires_grad_(True)
             self.clear()
+            self.stream_sq.clear()
             self.gd = False
 
 
 @torch.no_grad()
-def transform_aggregate(model, operator):
+def transform_aggregate(model, operator, parameter_ids=None):
     if operator is None:
         return
     for name, m in model.named_modules():
-        if name not in operator.data:
+        if name not in operator.data or (parameter_ids is not None and id(m.weight) not in parameter_ids):
             continue
         from exp21.handlers import LINEAR_LAYOUTS
         w = m.weight.grad.T if type(m) in LINEAR_LAYOUTS else m.weight.grad.flatten(1)

@@ -41,6 +41,13 @@ def nbytes(t):
     return t.numel()*t.element_size()
 
 
+def sample_norm_squared(grads):
+    # Reduce strided weight views directly: flattening an augmented weight view
+    # copies B*O*D elements, and square().sum() creates another full-sized tensor.
+    return sum(torch.linalg.vector_norm(g, dim=tuple(range(1, g.ndim))).square()
+               for g in grads.values())
+
+
 def retained_bytes(records):
     """Actual distinct storage retained by records, including view bases."""
     storages = {}
@@ -137,15 +144,52 @@ class Record:
 
     def ghost(self, tile):
         total = self.b.new_zeros(len(self.b))
-        # Gram identity covers both trainable weight and augmented bias. Frozen
-        # affine subsets use Fast, since P may mix the augmented coordinates.
-        for j in range(0, self.b.shape[1], tile):
-            bj, zj = self.b[:, j:j+tile], self.z[:, j:j+tile]
-            for k in range(0, self.b.shape[1], tile):
-                bg = bj @ self.b[:, k:k+tile].transpose(1, 2)
-                zg = zj @ self.z[:, k:k+tile].transpose(1, 2)
-                total.add_((bg*zg).sum((1, 2)))
+        # Gram identity covers trainable weight and augmented bias coordinates.
+        # Exclude frozen coordinates after A transformation, just as split does.
+        z = self.z
+        if 'weight' not in self.params:
+            z = z[..., -1:]
+        elif self.module.bias is not None and 'bias' not in self.params:
+            z = z[..., :-1]
+        bt, zt = self.b.transpose(1, 2), z.transpose(1, 2)
+        # Even tile >= T must not allocate a full [B,T,T] Gram (except T=1).
+        rows = min(tile, max(1, self.b.shape[1]-1))
+        for j in range(0, self.b.shape[1], rows):
+            bg = self.b[:, j:j+rows] @ bt
+            zg = z[:, j:j+rows] @ zt
+            bg.mul_(zg)
+            total.add_(bg.sum((1, 2)))
+            del bg, zg
         return total.clamp_min(0)
+
+    def embedding_rows(self):
+        """Merge repeated (example, token) rows without dense vocabulary storage."""
+        batch = len(self.b)
+        ids = self.x.reshape(batch, -1)
+        samples = torch.arange(batch, device=ids.device)[:, None].expand_as(ids)
+        keys = (samples*self.module.num_embeddings+ids).reshape(-1)
+        values = self.b.reshape(-1, self.b.shape[-1])
+        if self.module.padding_idx is not None:
+            mask = ids.reshape(-1) != self.module.padding_idx
+            keys, values = keys[mask], values[mask]
+        unique, inverse = torch.unique(keys, return_inverse=True)
+        merged = values.new_zeros((unique.numel(), values.shape[-1]))
+        merged.index_add_(0, inverse, values)
+        return unique//self.module.num_embeddings, unique % self.module.num_embeddings, merged
+
+    def embedding_norm(self):
+        samples, ids, values = self.embedding_rows()
+        total = self.b.new_zeros(len(self.b))
+        total.index_add_(0, samples, values.square().sum(-1))
+        return total
+
+    def chunked_norm(self, chunk):
+        total = self.b.new_zeros(len(self.b))
+        for v in range(0, self.b.shape[-1], chunk):
+            g = self.b[..., v:v+chunk].transpose(1, 2) @ self.z
+            total.add_(g.square().sum((1, 2)))
+            del g
+        return total
 
     def aggregate(self, factors):
         if self.kind == 'linear':
@@ -160,5 +204,11 @@ class Record:
             g = torch.zeros_like(self.module.weight)
             g.index_add_(0, ids, b)
             return {self.params['weight']: g}
-        return {p: torch.einsum('b,bp->p', factors, g.flatten(1)).reshape_as(p)
-                for p, g in self.fast().items()}
+        weighted = self.b*factors.reshape(-1, *([1]*(self.b.ndim-1)))
+        dims = tuple(range(weighted.ndim-self.module.weight.ndim))
+        result = {}
+        if 'weight' in self.params:
+            result[self.params['weight']] = (weighted*self.z).sum(dims)
+        if 'bias' in self.params:
+            result[self.params['bias']] = weighted.sum(dims)
+        return result

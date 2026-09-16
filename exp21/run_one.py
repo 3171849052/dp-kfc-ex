@@ -85,7 +85,7 @@ def run(method, seed, smoke, output):
         clipper = Clipper(model, op, method, max_grad_norm=cfg.MAX_GRAD_NORM)
         prof = EventProfiler()
         stats = {k: 0. for k in PHASES}
-        peak_keys = ('bk_cache_bytes', 'temporary_per_sample_grad_bytes')
+        peak_keys = ('bk_cache_bytes', 'temporary_per_sample_grad_bytes', 'fallback_temporary_grad_bytes')
         stats.update({k: 0 for k in peak_keys})
         losses, norms_all, factors_all, allocations = [], [], [], []
         train_start = phase_start(device)
@@ -112,9 +112,10 @@ def run(method, seed, smoke, output):
         model.zero_grad(set_to_none=True)
         stats.update({k: phases[k] for k in ('ghost_layer_count', 'fast_layer_count',
             'fallback_layer_count', 'fallback_layers', 'requires_second_backward', 'backward_calls',
-            'first_pass_parameter_grad_count', 'gd_applied', 'input_gradient_computed')})
+            'first_pass_parameter_grad_count', 'gd_applied', 'input_gradient_computed',
+            'first_pass_param_grad_disabled', 'fallback_vjp_chunk_size', 'fallback_parameter_count')})
         stats['gd_anchor_module'] = phases['gd_anchor_module']
-        for k in ('layer_strategies', 'bk_ghost_layers', 'bk_fast_layers', 'fallback_layer_names',
+        for k in ('layer_routing', 'layer_strategies', 'bk_ghost_layers', 'bk_fast_layers', 'fallback_layer_names',
                   'fallback_parameter_names', 'preconditioned_layers', 'identity_geometry_layers', 'gd_anchor_modules'):
             stats[k] = json.dumps(phases[k])
         stats.update(cache_empty_after_step=True, batch_end_allocated_bytes=json.dumps(allocations))

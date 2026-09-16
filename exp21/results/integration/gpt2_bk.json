@@ -1,7 +1,7 @@
 {
   "model": "gpt2",
   "method": "bk",
-  "gradient_max_abs_error": 1.862645149230957e-08,
+  "gradient_max_abs_error": 2.2351741790771484e-08,
   "first_pass_seconds": 0.0,
   "norm_seconds": 0.0,
   "second_pass_seconds": 0.0,
@@ -32,35 +32,122 @@
   "gd_applied": false,
   "input_gradient_computed": false,
   "bk_cache_bytes": 10176,
-  "temporary_per_sample_grad_bytes": 312,
+  "temporary_per_sample_grad_bytes": 4992,
   "backward_calls": 1,
   "first_pass_parameter_grad_count": 16,
+  "first_pass_param_grad_disabled": false,
+  "layer_routing": {
+    "lm_head": {
+      "strategy": "ghost_tied",
+      "estimated_fast_bytes": 2208,
+      "estimated_fast_cost": 440006624,
+      "estimated_ghost_cost": 880008960,
+      "estimated_fast_macs": 2208,
+      "estimated_ghost_macs": 1120,
+      "routing_reason": "ghost_tied",
+      "output_chunk_size": 0
+    },
+    "transformer.wte": {
+      "strategy": "fast_sparse_tied",
+      "estimated_fast_bytes": 0,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_sparse"
+    },
+    "transformer.ln_f": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 192,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "transformer.h.0.mlp.c_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 4704,
+      "estimated_fast_cost": 440014112,
+      "estimated_ghost_cost": 880015616,
+      "estimated_fast_macs": 4704,
+      "estimated_ghost_macs": 1952,
+      "routing_reason": "fast_compute"
+    },
+    "transformer.h.0.mlp.c_fc": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 4992,
+      "estimated_fast_cost": 440014976,
+      "estimated_ghost_cost": 880015616,
+      "estimated_fast_macs": 4992,
+      "estimated_ghost_macs": 1952,
+      "routing_reason": "fast_compute"
+    },
+    "transformer.h.0.ln_2": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 192,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "transformer.h.0.attn.c_proj": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1248,
+      "estimated_fast_cost": 440003744,
+      "estimated_ghost_cost": 880006400,
+      "estimated_fast_macs": 1248,
+      "estimated_ghost_macs": 800,
+      "routing_reason": "fast_compute"
+    },
+    "transformer.h.0.attn.c_attn": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 3744,
+      "estimated_fast_cost": 440011232,
+      "estimated_ghost_cost": 880012544,
+      "estimated_fast_macs": 3744,
+      "estimated_ghost_macs": 1568,
+      "routing_reason": "fast_compute"
+    },
+    "transformer.h.0.ln_1": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 192,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "transformer.wpe": {
+      "strategy": "fast_sparse",
+      "estimated_fast_bytes": 0,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_sparse"
+    }
+  },
   "layer_strategies": {
     "transformer.wte": "fast_sparse_tied",
     "lm_head": "ghost_tied",
     "transformer.ln_f": "fast",
-    "transformer.h.0.mlp.c_proj": "ghost",
-    "transformer.h.0.mlp.c_fc": "ghost",
+    "transformer.h.0.mlp.c_proj": "fast",
+    "transformer.h.0.mlp.c_fc": "fast",
     "transformer.h.0.ln_2": "fast",
-    "transformer.h.0.attn.c_proj": "ghost",
-    "transformer.h.0.attn.c_attn": "ghost",
+    "transformer.h.0.attn.c_proj": "fast",
+    "transformer.h.0.attn.c_attn": "fast",
     "transformer.h.0.ln_1": "fast",
     "transformer.wpe": "fast_sparse"
   },
+  "fallback_vjp_chunk_size": 2,
+  "fallback_temporary_grad_bytes": 0,
+  "fallback_parameter_count": 0,
   "bk_ghost_layers": [
-    "lm_head",
-    "transformer.h.0.mlp.c_proj",
-    "transformer.h.0.mlp.c_fc",
-    "transformer.h.0.attn.c_proj",
-    "transformer.h.0.attn.c_attn"
+    "lm_head"
   ],
   "bk_fast_layers": [
     "transformer.wte",
     "transformer.ln_f",
+    "transformer.h.0.mlp.c_proj",
+    "transformer.h.0.mlp.c_fc",
     "transformer.h.0.ln_2",
+    "transformer.h.0.attn.c_proj",
+    "transformer.h.0.attn.c_attn",
     "transformer.h.0.ln_1",
     "transformer.wpe"
   ],
-  "ghost_layer_count": 5,
-  "fast_layer_count": 5
+  "ghost_layer_count": 1,
+  "fast_layer_count": 9
 }

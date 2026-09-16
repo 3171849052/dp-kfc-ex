@@ -32,34 +32,109 @@
     "blocks.3",
     "norm"
   ],
-  "gd_anchor_module": null,
-  "gd_anchor_modules": [],
-  "gd_applied": false,
+  "gd_anchor_module": "patch_embed",
+  "gd_anchor_modules": [
+    "patch_embed"
+  ],
+  "gd_applied": true,
   "input_gradient_computed": false,
-  "bk_cache_bytes": 0,
-  "temporary_per_sample_grad_bytes": 4824,
-  "bk_ghost_layers": [],
-  "bk_fast_layers": [],
-  "ghost_layer_count": 0,
-  "fast_layer_count": 0,
-  "layer_strategies": {
-    "": "whole_step_fgc",
-    "blocks.0": "whole_step_fgc",
-    "blocks.1": "whole_step_fgc",
-    "blocks.1.out_proj": "whole_step_fgc",
-    "blocks.2": "whole_step_fgc",
-    "blocks.3": "whole_step_fgc",
-    "norm": "whole_step_fgc",
-    "head": "whole_step_fgc",
-    "patch_embed": "whole_step_fgc"
-  },
-  "backward_calls": 2,
+  "bk_cache_bytes": 2976,
+  "temporary_per_sample_grad_bytes": 2560,
+  "backward_calls": 3,
   "first_pass_parameter_grad_count": 0,
-  "first_pass_reverse_vectors": 2,
+  "first_pass_param_grad_disabled": true,
+  "layer_routing": {
+    "": {
+      "strategy": "fallback",
+      "estimated_fast_bytes": 2560,
+      "estimated_fast_cost": null,
+      "estimated_ghost_cost": null,
+      "routing_reason": "bounded_fallback"
+    },
+    "blocks.1": {
+      "strategy": "fallback",
+      "estimated_fast_bytes": 2560,
+      "estimated_fast_cost": null,
+      "estimated_ghost_cost": null,
+      "routing_reason": "bounded_fallback"
+    },
+    "head": {
+      "strategy": "ghost",
+      "estimated_fast_bytes": 216,
+      "estimated_fast_cost": 440000486,
+      "estimated_ghost_cost": 440000192,
+      "estimated_fast_macs": 54,
+      "estimated_ghost_macs": 24,
+      "routing_reason": "ghost_compute"
+    },
+    "norm": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 128,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "blocks.3": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 576,
+      "estimated_fast_cost": 440001728,
+      "estimated_ghost_cost": 880004352,
+      "estimated_fast_macs": 576,
+      "estimated_ghost_macs": 544,
+      "routing_reason": "fast_compute"
+    },
+    "blocks.2": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 128,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "blocks.0": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 128,
+      "estimated_fast_cost": 0,
+      "estimated_ghost_cost": 0,
+      "routing_reason": "fast_norm"
+    },
+    "patch_embed": {
+      "strategy": "fast",
+      "estimated_fast_bytes": 1088,
+      "estimated_fast_cost": 440003264,
+      "estimated_ghost_cost": 880006400,
+      "estimated_fast_macs": 1088,
+      "estimated_ghost_macs": 800,
+      "routing_reason": "fast_compute"
+    }
+  },
+  "layer_strategies": {
+    "head": "ghost",
+    "norm": "fast",
+    "blocks.3": "fast",
+    "blocks.2": "fast",
+    "blocks.0": "fast",
+    "patch_embed": "fast"
+  },
+  "fallback_vjp_chunk_size": 2,
+  "fallback_temporary_grad_bytes": 2560,
+  "fallback_parameter_count": 320,
+  "bk_ghost_layers": [
+    "head"
+  ],
+  "bk_fast_layers": [
+    "norm",
+    "blocks.3",
+    "blocks.2",
+    "blocks.0",
+    "patch_embed"
+  ],
+  "ghost_layer_count": 1,
+  "fast_layer_count": 5,
   "timings": {
-    "first_pass_seconds": 0.0022804479598999023,
-    "norm_seconds": 0.0007494080066680908,
-    "second_pass_seconds": 0.001710976004600525,
-    "aggregate_transform_seconds": 0.00024198399484157563
+    "first_pass_seconds": 0.0017131839990615844,
+    "norm_seconds": 0.003041440010070801,
+    "bk_reconstruction_seconds": 0.000577567994594574,
+    "second_pass_seconds": 0.0015985280275344848,
+    "aggregate_transform_seconds": 3.2800000160932544e-05
   }
 }

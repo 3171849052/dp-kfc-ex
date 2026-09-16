@@ -152,7 +152,7 @@ def test_tied_analytic_cross_term(method, layout, monkeypatch):
     bk = BookKeeping(model, strategy='fast', tile=3)
     result = bk.aggregate(x, y, method, loss_fn=loss)
     assert_result(model, result, expected)
-    assert result[-1]['layer_strategies']['head'] == 'ghost_tied'
+    assert result[-1]['layer_strategies']['head'] in ('ghost_tied', 'chunked_fast_tied')
     assert result[-1]['temporary_per_sample_grad_bytes'] < model.emb.weight.numel()*4
     assert not result[-1]['requires_second_backward']
     bk.remove()
@@ -243,8 +243,14 @@ def test_tinyvit_whole_step_fallback(method, geometry, monkeypatch):
     calls = []
     original_grad, original_backward = torch.autograd.grad, torch.Tensor.backward
     def grad(*a, **k):
-        calls.append('batched_vjp')
-        assert k['is_grads_batched']
+        if k.get('is_grads_batched'):
+            calls.append('batched_vjp')
+            assert k['grad_outputs'].shape[0] <= clipper.hooks.fallback_vjp_chunk_size
+            assert {id(p) for p in a[1]} == clipper.hooks.fallback_ids
+        else:
+            calls.append('reverse')
+            if not k.get('retain_graph') and method != 'exact':
+                assert {id(p) for p in a[1]} == clipper.hooks.fallback_ids
         return original_grad(*a, **k)
     def backward(tensor, *a, **k):
         calls.append('weighted_backward')
@@ -255,15 +261,18 @@ def test_tinyvit_whole_step_fallback(method, geometry, monkeypatch):
         patch.setattr(torch.autograd, 'grad', grad)
         patch.setattr(torch.Tensor, 'backward', backward)
         result = clipper.aggregate(x, y, prof, loss_fn)
-    assert calls == ['batched_vjp', 'weighted_backward']
+    assert calls == ['reverse', 'batched_vjp', 'reverse']
     assert_result(model, result, expected)
     torch.cuda.synchronize()
     timings = prof.resolve()
     stats = result[-1]
     assert timings['second_pass_seconds'] > 0
     assert stats['requires_second_backward'] and stats['fallback_layer_count'] > 0
-    assert stats['backward_calls'] == 2 and stats['bk_reconstruction_seconds'] == 0
-    assert stats['gd_applied'] is False and stats['gd_anchor_module'] is None
+    assert stats['backward_calls'] == 3
+    if method != 'exact':
+        assert timings['bk_reconstruction_seconds'] > 0
+    assert stats['gd_applied'] == (method == 'bk_gd')
+    assert stats['first_pass_parameter_grad_count'] == 0
     expected_fallback = {n for n, _ in model.named_parameters() if n == 'pos_embed' or n.startswith('blocks.1.')}
     assert set(stats['fallback_parameter_names']) == expected_fallback
     assert set(stats['fallback_layer_names']) == {'', 'blocks.1'}

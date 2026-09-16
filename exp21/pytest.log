@@ -1,5 +1,6 @@
-........................................................................ [ 61%]
-.............................................                            [100%]
+........................................................................ [ 48%]
+........................................................................ [ 97%]
+...                                                                      [100%]
 =============================== warnings summary ===============================
 ../../../../../home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/_pytest/config/__init__.py:1345
   /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/_pytest/config/__init__.py:1345: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
@@ -8,9 +9,9 @@
 exp21/test_exp21.py::test_real_mnist_five_methods
 exp21/test_exp21.py::test_rng_and_protocol
 exp21/test_exp21.py::test_partial_geometry_and_nonunit_bound[exact]
-  /media/data/data/lt/DP-KFC/exp21/methods.py:43: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
+  /media/data/data/lt/DP-KFC/exp21/methods.py:52: UserWarning: Full backward hook is firing when gradients are computed with respect to module outputs since no inputs require gradients. See https://docs.pytorch.org/docs/main/generated/torch.nn.Module.html#torch.nn.Module.register_full_backward_hook for more details.
     loss.backward()
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-117 passed, 4 warnings in 5.55s
+147 passed, 4 warnings in 11.30s
 
