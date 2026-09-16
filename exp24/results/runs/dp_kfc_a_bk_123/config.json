@@ -1,0 +1,120 @@
+{
+  "ACCUMULATION_STEPS": 1,
+  "ADAM_EPS": 1e-08,
+  "A_POWER": 0.4,
+  "BETAS": [
+    0.9,
+    0.999
+  ],
+  "DAMPING": 0.001,
+  "DATASET": "CIFAR-10",
+  "DELTA": 1e-05,
+  "EMBED_DIM": 192,
+  "EPOCHS": 5,
+  "EPSILON": 8.0,
+  "FORMAL_ACCOUNTANT_STEPS": 975,
+  "FORMAL_LOGICAL_STEPS_PER_EPOCH": 195,
+  "IMG_SIZE": 224,
+  "IN_CHANNELS": 3,
+  "LEARNING_RATE": 0.001,
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "METHODS": [
+    "dp_sgd",
+    "dp_kfc_a_bk",
+    "dp_kfc"
+  ],
+  "METHOD_ORDER": {
+    "42": [
+      "dp_sgd",
+      "dp_kfc_a_bk",
+      "dp_kfc"
+    ],
+    "7": [
+      "dp_kfc_a_bk",
+      "dp_kfc",
+      "dp_sgd"
+    ],
+    "123": [
+      "dp_kfc",
+      "dp_sgd",
+      "dp_kfc_a_bk"
+    ],
+    "2024": [
+      "dp_sgd",
+      "dp_kfc_a_bk",
+      "dp_kfc"
+    ],
+    "3407": [
+      "dp_kfc_a_bk",
+      "dp_kfc",
+      "dp_sgd"
+    ]
+  },
+  "MODEL_NAME": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "NUM_BLOCKS": 12,
+  "NUM_CLASSES": 10,
+  "NUM_HEADS": 3,
+  "PATCH_SIZE": 16,
+  "PHYSICAL_BATCH_SIZE": 256,
+  "SEEDS": [
+    42,
+    7,
+    123,
+    2024,
+    3407
+  ],
+  "SMOKE_EPOCHS": 1,
+  "SMOKE_LOGICAL_BATCHES": 2,
+  "SMOKE_TEST_SAMPLES": 256,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 256,
+  "TRAINABLE_PARAMETER_COUNT": 1930,
+  "TRAIN_SAMPLES": 50000,
+  "WEIGHT_DECAY": 0.01,
+  "method": "dp_kfc_a_bk",
+  "seed": 123,
+  "smoke": false,
+  "epochs": 5,
+  "total_steps": 975,
+  "noise_multiplier": 0.528411865234375,
+  "formal_accountant_steps": 975,
+  "trainable_parameter_names": [
+    "head.bias",
+    "head.weight"
+  ],
+  "trainable_parameter_count": 1930,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "Opacus RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}
