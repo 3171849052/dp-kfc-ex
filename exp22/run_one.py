@@ -129,6 +129,7 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
             cache = []
             operator, builder = None, {
                 "builder_forward_calls": 0, "builder_vjp_calls": 0,
+                "builder_logical_batches": 0,
                 "builder_reverse_vectors": 0, "builder_samples": 0,
                 "preconditioned_layers": [], "operator_state_bytes": 0,
             }
@@ -214,7 +215,7 @@ def run(method: str, seed: int, smoke: bool, output: Path, smoke_batches: int = 
             "physical_batch_size": cfg.PHYSICAL_BATCH_SIZE,
             "accumulation_steps": cfg.ACCUMULATION_STEPS,
             "backward_calls": backward_calls,
-            "optimizer_steps": clipper.optimizer_steps, "noise_draws": clipper.optimizer_steps,
+            "optimizer_steps": clipper.optimizer_steps, "noise_events": clipper.noise_events,
             "bk_cache_bytes": max_cache, "temporary_per_sample_grad_bytes": max_temp,
             "fallback_temporary_grad_bytes": max_fallback_temp,
             "cache_empty_after_step": cache_empty,

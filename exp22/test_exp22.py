@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import sys
 
+import numpy as np
+import pandas as pd
 import pytest
 import torch
 from torch import nn
@@ -34,7 +36,8 @@ from exp22.geometry import (
     synthetic_labels,
     synthetic_label_stream,
 )
-from exp22.analyze import accuracy_auc
+from exp22 import config as cfg
+from exp22.analyze import accuracy_auc, analyze
 from exp22.methods import Clipper
 from exp22.model import TinyViT, convert_tinyvit, initialize
 
@@ -208,15 +211,25 @@ def test_one_logical_batch_has_one_step_noise_and_accountant():
     clipper = Clipper(model)
     clipper.aggregate_logical(x, y, 32)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    sigma = 0.25
     generator = torch.Generator(device=device()).manual_seed(40008)
-    clipper.step(optimizer, 0.25, 256, generator)
+    expected_generator = torch.Generator(device=device()).manual_seed(40008)
+    for parameter in clipper.parameters:
+        torch.randn(
+            parameter.numel(), device=parameter.device, dtype=parameter.dtype,
+            generator=expected_generator,
+        )
+    clipper.step(optimizer, sigma, 256, generator)
     accountant = RDPAccountant()
-    accountant.step(noise_multiplier=0.25, sample_rate=256 / 50_000)
+    accountant.step(noise_multiplier=sigma, sample_rate=256 / 50_000)
     assert clipper.optimizer_steps == 1
     assert clipper.noise_events == 1
     assert clipper.backward_calls == 8
     assert len(accountant.history) == 1
+    assert sum(value[2] for value in accountant.history) == 1
     assert accountant.history[0][1] == pytest.approx(256 / 50_000)
+    assert sigma > 0
+    assert torch.equal(generator.get_state(), expected_generator.get_state())
 
 
 def test_synthetic_label_stream_is_continuous_and_rng_isolated():
@@ -343,3 +356,160 @@ def test_rng_pairing_for_initialization_synthetic_labels_and_noise():
         draws.append([torch.randn(p.numel(), generator=generator) for p in model.parameters()])
     for left, right in zip(draws[0], draws[1]):
         assert torch.equal(left, right)
+
+
+def test_private_bk_path_keeps_model_dtype_and_no_per_example_linear_helper():
+    import exp22.handlers as handlers
+
+    assert not hasattr(handlers, "per_example_linear_gradient")
+    model = nn.Linear(7, 6).float()
+    clipper = Clipper(model)
+    aggregate = clipper._empty_aggregate()
+    assert all(value.dtype == parameter.dtype == torch.float32
+               for parameter, value in aggregate.items())
+
+    torch.manual_seed(2201)
+    z = torch.randn(4, 5, 7)
+    b = torch.randn(4, 5, 6)
+    factors = torch.rand(4)
+    result, temporary_bytes = Clipper._linear_aggregate(z, b, factors)
+    expected = torch.einsum("b,bto,bti->oi", factors, b, z)
+    assert result.dtype == z.dtype == b.dtype == torch.float32
+    torch.testing.assert_close(result, expected, rtol=1e-5, atol=1e-6)
+    assert temporary_bytes >= result.numel() * result.element_size()
+
+
+def test_bk_workspace_bytes_include_gram_and_reconstruction_payload():
+    torch.manual_seed(2202)
+    z = torch.randn(4, 5, 7)
+    b = torch.randn(4, 5, 6)
+    _, gram_temporary_bytes = Clipper._linear_norm_squared(z, b)
+    rows = min(8, max(1, b.shape[1] - 1))
+    b_gram = b[:, :rows] @ b[:, :rows].transpose(1, 2)
+    z_gram = z[:, :rows] @ z[:, :rows].transpose(1, 2)
+    gram_payload = (
+        b_gram.numel() * b_gram.element_size()
+        + z_gram.numel() * z_gram.element_size()
+    )
+    assert gram_temporary_bytes >= gram_payload
+
+    factors = torch.rand(4)
+    aggregate, aggregate_temporary_bytes = Clipper._linear_aggregate(z, b, factors)
+    weighted_b = b * factors[:, None, None]
+    reconstruction_payload = (
+        weighted_b.numel() * weighted_b.element_size()
+        + aggregate.numel() * aggregate.element_size()
+    )
+    assert aggregate_temporary_bytes >= reconstruction_payload
+
+
+def test_logical_aggregate_uses_one_shared_buffer_and_returns_no_aggregate(monkeypatch):
+    torch.manual_seed(2203)
+    model = nn.Linear(4, 3)
+    clipper = Clipper(model)
+    original = clipper._one_batch
+    seen_aggregate_ids = []
+
+    def wrapped(x, y, aggregate, loss_fn=None):
+        seen_aggregate_ids.append(id(aggregate))
+        part = original(x, y, aggregate, loss_fn)
+        assert "aggregate" not in part
+        return part
+
+    monkeypatch.setattr(clipper, "_one_batch", wrapped)
+    x = torch.randn(8, 4)
+    y = torch.randint(3, (8,))
+    clipper.aggregate_logical(x, y, physical_batch_size=2)
+    assert len(seen_aggregate_ids) == 4
+    assert len(set(seen_aggregate_ids)) == 1
+
+
+def test_linear_bk_primitives_match_explicit_oracles_without_materialization():
+    torch.manual_seed(2204)
+    z = torch.randn(3, 4, 5)
+    b = torch.randn(3, 4, 6)
+    factors = torch.rand(3)
+    expected_gradient = torch.einsum("bto,bti->boi", b, z)
+    expected_sq = expected_gradient.square().sum((1, 2))
+    actual_sq, _ = Clipper._linear_norm_squared(z, b)
+    torch.testing.assert_close(actual_sq, expected_sq, rtol=1e-5, atol=1e-6)
+
+    expected_aggregate = torch.einsum("b,bto,bti->oi", factors, b, z)
+    actual_aggregate, _ = Clipper._linear_aggregate(z, b, factors)
+    torch.testing.assert_close(actual_aggregate, expected_aggregate, rtol=1e-5, atol=1e-6)
+
+
+def test_full_builder_reverse_vectors_count_samples_not_vjp_calls():
+    model = small_model(2205)
+    cache = [torch.randn(2, 1, 8, 8, device=device()), torch.randn(2, 1, 8, 8, device=device())]
+    _, stats = build_from_cache(model, "dp_kfc", cache, 2205, 1)
+    assert stats["builder_vjp_calls"] == 2
+    assert stats["builder_reverse_vectors"] == 4
+    assert stats["builder_samples"] == 4
+    assert stats["builder_reverse_vectors"] == stats["builder_samples"]
+    assert stats["builder_vjp_calls"] < stats["builder_reverse_vectors"]
+    assert cfg.SYNTHETIC_BATCHES * cfg.SYNTHETIC_BATCH_SIZE == 2560
+    assert cfg.SYNTHETIC_BATCHES * cfg.SYNTHETIC_BATCH_SIZE // cfg.SYNTHETIC_PHYSICAL_BATCH_SIZE == 80
+
+    _, dp_stats = build_from_cache(model, "dp_sgd", cache, 2205, 1)
+    assert {name: dp_stats[name] for name in (
+        "builder_forward_calls", "builder_logical_batches", "builder_vjp_calls",
+        "builder_reverse_vectors", "builder_samples", "operator_state_bytes",
+    )} == {
+        "builder_forward_calls": 0, "builder_logical_batches": 0,
+        "builder_vjp_calls": 0, "builder_reverse_vectors": 0,
+        "builder_samples": 0, "operator_state_bytes": 0,
+    }
+
+
+def test_layer_strategy_metadata_matches_production_paths():
+    model = small_model(2206)
+    clipper = Clipper(model)
+    x = torch.randn(2, 1, 8, 8, device=device())
+    y = torch.tensor([0, 1], device=device())
+    _, _, _, _, stats = clipper.aggregate(x, y)
+    for name in clipper.linear_modules:
+        assert stats["layer_strategies"][name] == "bk_ghost"
+    for name in clipper.norm_modules:
+        assert stats["layer_strategies"][name] == "identity_analytic"
+    assert stats["layer_strategies"]["pos_embed"] == "identity_direct"
+
+
+def _write_analysis_run(root, method, seed, value):
+    run = root / "runs" / f"{method}_{seed}"
+    run.mkdir(parents=True)
+    pd.DataFrame([{
+        "method": method, "seed": seed, "epoch": 1, "train_loss": value,
+    }]).to_csv(run / "metrics.csv", index=False)
+
+
+def test_single_seed_analysis_uses_nan_for_std_and_ci(tmp_path):
+    for index, method in enumerate(cfg.METHODS):
+        _write_analysis_run(tmp_path, method, 42, float(index + 1))
+    analyze(tmp_path)
+    method_summary = pd.read_csv(tmp_path / "method_summary.csv")
+    paired_summary = pd.read_csv(tmp_path / "paired_summary.csv")
+    assert set(method_summary["n_seeds"]) == {1}
+    assert method_summary["train_loss_sample_std"].isna().all()
+    assert paired_summary["n_seeds"].eq(1).all()
+    assert paired_summary["sample_std"].isna().all()
+    assert paired_summary["bootstrap_ci95_low"].isna().all()
+    assert paired_summary["bootstrap_ci95_high"].isna().all()
+    assert paired_summary["bootstrap_seed"].isna().all()
+
+
+def test_multi_seed_analysis_bootstrap_is_finite_and_paired(tmp_path):
+    for seed in (42, 7, 123):
+        for index, method in enumerate(cfg.METHODS):
+            _write_analysis_run(tmp_path, method, seed, float(seed + index))
+    analyze(tmp_path)
+    method_summary = pd.read_csv(tmp_path / "method_summary.csv")
+    paired_summary = pd.read_csv(tmp_path / "paired_summary.csv")
+    assert set(method_summary["n_seeds"]) == {3}
+    assert np.isfinite(method_summary["train_loss_sample_std"]).all()
+    assert paired_summary["n_seeds"].eq(3).all()
+    assert np.isfinite(paired_summary["sample_std"]).all()
+    assert np.isfinite(paired_summary["bootstrap_ci95_low"]).all()
+    assert np.isfinite(paired_summary["bootstrap_ci95_high"]).all()
+    assert (paired_summary["bootstrap_ci95_low"] <= paired_summary["bootstrap_ci95_high"]).all()
+    assert paired_summary["bootstrap_seed"].eq(2209).all()

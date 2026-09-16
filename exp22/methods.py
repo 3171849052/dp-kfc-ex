@@ -82,7 +82,6 @@ class Clipper:
         self.backward_calls = 0
         self.optimizer_steps = 0
         self.noise_events = 0
-        self.accountant_steps = 0
         self._last_stats = {}
 
     def _empty_aggregate(self):
@@ -134,18 +133,12 @@ class Clipper:
         return total.clamp_min(0), temporary_bytes
 
     @staticmethod
-    def _linear_aggregate(z, b, factors, has_bias):
+    def _linear_aggregate(z, b, factors):
+        """Reconstruct a clipped Linear aggregate without per-example weights."""
         weighted_b = b * factors[:, None, None]
-        if not has_bias:
-            return torch.einsum("bto,bti->oi", weighted_b, z), None
-        weight = torch.einsum("bto,bti->oi", weighted_b, z[..., :-1])
-        bias = b.new_zeros(b.shape[-1])
-        # Keep the bias-coordinate reduction in sample order.  This is still
-        # a direct BK aggregate (a vector, not a per-example weight matrix)
-        # and avoids physical-chunk-dependent low-magnitude Adam updates.
-        for index in range(len(factors)):
-            bias.add_(torch.einsum("to,t->o", b[index] * factors[index], z[index, ..., -1]))
-        return weight, bias
+        clipped = torch.einsum("bto,bti->oi", weighted_b, z)
+        temporary_bytes = tensor_bytes(weighted_b) + tensor_bytes(clipped)
+        return clipped, temporary_bytes
 
     def _capture_hooks(self, activations, backprops, position_backprops):
         handles = []
@@ -221,18 +214,48 @@ class Clipper:
         factors = (self.max_grad_norm / (norms + 1e-6)).clamp(max=1).detach()
         for name, module in self.linear_modules.items():
             z, b = activations[name], backprops[name]
-            weight, bias = self._linear_aggregate(z, b, factors, module.bias is not None)
-            aggregate[module.weight].add_(weight)
-            if bias is not None:
+            clipped, aggregate_temporary_bytes = self._linear_aggregate(z, b, factors)
+            temporary_bytes = max(temporary_bytes, aggregate_temporary_bytes)
+            if module.bias is None:
+                aggregate[module.weight].add_(clipped)
+            else:
+                aggregate[module.weight].add_(clipped[:, :-1])
+                # Keep the bias-coordinate reduction in logical sample order
+                # so changing the physical chunk does not change AdamW's
+                # low-magnitude update.  This is a vector reduction, not a
+                # per-example gradient materialization.
+                bias = b.new_zeros(b.shape[-1])
+                for index in range(len(factors)):
+                    bias.add_(torch.einsum(
+                        "to,t->o",
+                        b[index] * factors[index],
+                        z[index, ..., -1],
+                    ))
+                temporary_bytes = max(
+                    temporary_bytes,
+                    aggregate_temporary_bytes + tensor_bytes(bias),
+                )
                 aggregate[module.bias].add_(bias)
-            del z, b, weight, bias
+                del bias
+            del z, b, clipped
         for name, module in self.norm_modules.items():
             grads = layernorm_per_example_gradient(activations[name], backprops[name], module)
+            norm_workspace_bytes = sum(tensor_bytes(value) for value in grads.values())
+            temporary_bytes = max(temporary_bytes, norm_workspace_bytes)
             for parameter, value in grads.items():
-                aggregate[parameter].add_(torch.einsum("b,b...->...", factors, value))
+                reconstructed = torch.einsum("b,b...->...", factors, value)
+                temporary_bytes = max(
+                    temporary_bytes,
+                    norm_workspace_bytes + tensor_bytes(reconstructed),
+                )
+                aggregate[parameter].add_(reconstructed)
+                del reconstructed
             del grads
         if self.pos_embed is not None and self.pos_embed.requires_grad:
-            aggregate[self.pos_embed].add_(torch.einsum("b,b...->...", factors, position_backprops[0]))
+            reconstructed = torch.einsum("b,b...->...", factors, position_backprops[0])
+            temporary_bytes = max(temporary_bytes, tensor_bytes(reconstructed))
+            aggregate[self.pos_embed].add_(reconstructed)
+            del reconstructed
         activations.clear()
         backprops.clear()
         position_backprops.clear()
@@ -243,7 +266,6 @@ class Clipper:
             "factors": factors,
             "layer_sq": {k: v.detach() for k, v in layer_sq.items()},
             "group_sq": {k: v.detach() for k, v in group_sq.items()},
-            "aggregate": aggregate,
             "bk_cache_bytes": cache_bytes,
             "temporary_per_sample_grad_bytes": temporary_bytes,
             "fallback_temporary_grad_bytes": 0,
@@ -276,7 +298,12 @@ class Clipper:
             "cache_empty_after_step": cache_empty,
             "preconditioned_layers": self.preconditioned_layers,
             "identity_geometry_layers": self.identity_geometry_layers,
-            "layer_strategies": {name: "bk_layer_local" for name in self.linear_modules},
+            "layer_strategies": {
+                **{name: "bk_ghost" for name in self.linear_modules},
+                **{name: "identity_analytic" for name in self.norm_modules},
+                **({"pos_embed": "identity_direct"}
+                   if self.pos_embed is not None and self.pos_embed.requires_grad else {}),
+            },
             "layer_group_sq": group_sq,
             "logical_batch_size": total_size,
             "physical_batch_size": physical_batch_size,

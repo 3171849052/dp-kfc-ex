@@ -258,6 +258,7 @@ def build_full_operator(
     handles = [module.register_forward_hook(capture(name)) for name, module in modules.items()]
     forward_calls = 0
     vjp_calls = 0
+    reverse_vectors = 0
     num_classes = getattr(model, "num_classes", None)
     if num_classes is None and hasattr(model, "head"):
         num_classes = model.head.out_features
@@ -281,6 +282,7 @@ def build_full_operator(
                 backprops.clear()
                 forward_calls += 1
                 vjp_calls += 1
+                reverse_vectors += len(x)
     finally:
         for handle in handles:
             handle.remove()
@@ -295,7 +297,7 @@ def build_full_operator(
         "builder_forward_calls": forward_calls,
         "builder_logical_batches": len(cache),
         "builder_vjp_calls": vjp_calls,
-        "builder_reverse_vectors": vjp_calls,
+        "builder_reverse_vectors": reverse_vectors,
         "builder_samples": sum(len(x) for x in cache),
         "preconditioned_layers": sorted(modules),
         "operator_state_bytes": operator.operator_state_bytes,
@@ -316,6 +318,7 @@ def build_from_cache(
     if method == "dp_sgd":
         return None, {
             "builder_forward_calls": 0,
+            "builder_logical_batches": 0,
             "builder_vjp_calls": 0,
             "builder_reverse_vectors": 0,
             "builder_samples": 0,

@@ -34,8 +34,8 @@ def accuracy_auc(epochs, accuracies):
 
 
 def _bootstrap(values: np.ndarray, rng: np.random.Generator, draws: int = 20_000):
-    if len(values) == 1:
-        return float(values[0]), float(values[0])
+    if len(values) < 2:
+        raise ValueError("paired bootstrap requires at least two values")
     samples = values[rng.integers(0, len(values), size=(draws, len(values)))].mean(axis=1)
     return tuple(np.quantile(samples, [0.025, 0.975]).tolist())
 
@@ -56,7 +56,7 @@ def analyze(output: Path, smoke: bool = False):
         row = {"method": method, "n_seeds": len(frame)}
         for name in numeric:
             row[f"{name}_mean"] = frame[name].mean()
-            row[f"{name}_sample_std"] = frame[name].std(ddof=1) if len(frame) > 1 else 0.0
+            row[f"{name}_sample_std"] = frame[name].std(ddof=1) if len(frame) > 1 else np.nan
         method_rows.append(row)
     pd.DataFrame(method_rows).to_csv(output / "method_summary.csv", index=False)
 
@@ -66,15 +66,22 @@ def analyze(output: Path, smoke: bool = False):
         left = final[final.method == first].set_index("seed")
         right = final[final.method == second].set_index("seed")
         common = sorted(set(left.index) & set(right.index))
+        if not common:
+            continue
         for name in numeric:
             deltas = (left.loc[common, name] - right.loc[common, name]).to_numpy(dtype=float)
-            ci_low, ci_high = _bootstrap(deltas, rng)
+            if len(deltas) >= 2:
+                ci_low, ci_high = _bootstrap(deltas, rng)
+                sample_std = deltas.std(ddof=1)
+                bootstrap_seed = 2209
+            else:
+                ci_low = ci_high = sample_std = bootstrap_seed = np.nan
             paired_rows.append({
                 "method_a": first, "method_b": second, "metric": name,
                 "n_seeds": len(deltas), "mean_delta_a_minus_b": deltas.mean(),
-                "sample_std": deltas.std(ddof=1) if len(deltas) > 1 else 0.0,
+                "sample_std": sample_std,
                 "bootstrap_ci95_low": ci_low, "bootstrap_ci95_high": ci_high,
-                "bootstrap_seed": 2209,
+                "bootstrap_seed": bootstrap_seed,
             })
     pd.DataFrame(paired_rows).to_csv(output / "paired_summary.csv", index=False)
 
