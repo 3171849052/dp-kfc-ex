@@ -97,7 +97,8 @@ class Record:
 
     def split(self, g):
         m = self.module
-        weight = g[..., :-1] if m.bias is not None else g
+        has_bias_coordinate = m.bias is not None and 'bias' in self.params
+        weight = g[..., :-1] if has_bias_coordinate else g
         if type(m) in LINEAR_LAYOUTS:
             weight = weight.transpose(-1, -2)
         result = {}
@@ -107,10 +108,27 @@ class Record:
             result[self.params['bias']] = g[..., -1]
         return result
 
+    def affine_z(self):
+        """Return only the input coordinates belonging to trainable affine params."""
+        if 'weight' not in self.params:
+            return self.z[..., -1:]
+        if self.module.bias is not None and 'bias' not in self.params:
+            return self.z[..., :-1]
+        return self.z
+
+    def affine_workspace(self, chunk=None):
+        """Bytes for the dominant per-example affine GEMM output."""
+        if self.kind != 'linear':
+            return 0
+        width = self.b.shape[-1] if self.params else 0
+        if chunk is not None:
+            width = min(width, chunk)
+        return len(self.b)*width*self.affine_z().shape[-1]*self.b.element_size()
+
     def sample(self, i):
         """One sample only; embedding remains sparse even for huge vocabularies."""
         if self.kind == 'linear':
-            return self.split(self.b[i].T @ self.z[i])
+            return self.split(self.b[i].T @ self.affine_z()[i])
         if self.kind == 'embedding':
             ids, b = self.x[i].reshape(-1), self.b[i].reshape(-1, self.b.shape[-1])
             if self.module.padding_idx is not None:
@@ -130,7 +148,7 @@ class Record:
 
     def fast(self):
         if self.kind == 'linear':
-            return self.split(self.b.transpose(1, 2) @ self.z)
+            return self.split(self.b.transpose(1, 2) @ self.affine_z())
         if self.kind == 'norm':
             dims = tuple(range(1, self.b.ndim-self.module.weight.ndim))
             reduce = lambda t: t.sum(dims) if dims else t
@@ -146,14 +164,9 @@ class Record:
         total = self.b.new_zeros(len(self.b))
         # Gram identity covers trainable weight and augmented bias coordinates.
         # Exclude frozen coordinates after A transformation, just as split does.
-        z = self.z
-        if 'weight' not in self.params:
-            z = z[..., -1:]
-        elif self.module.bias is not None and 'bias' not in self.params:
-            z = z[..., :-1]
+        z = self.affine_z()
         bt, zt = self.b.transpose(1, 2), z.transpose(1, 2)
-        # Even tile >= T must not allocate a full [B,T,T] Gram (except T=1).
-        rows = min(tile, max(1, self.b.shape[1]-1))
+        rows = min(tile, self.b.shape[1])
         for j in range(0, self.b.shape[1], rows):
             bg = self.b[:, j:j+rows] @ bt
             zg = z[:, j:j+rows] @ zt
@@ -184,17 +197,26 @@ class Record:
         return total
 
     def chunked_norm(self, chunk):
+        """Exact affine norm with an output-dimension workspace cap.
+
+        This is shared by ordinary affine layers and tied output heads.  The
+        only dense per-example parameter-gradient-shaped tensor is one output
+        chunk, ``[B, chunk, D]``; vector_norm reduces it before the next chunk.
+        """
+        if self.kind != 'linear':
+            raise ValueError('Chunked norm is only defined for affine records')
         total = self.b.new_zeros(len(self.b))
+        z = self.affine_z()
         for v in range(0, self.b.shape[-1], chunk):
-            g = self.b[..., v:v+chunk].transpose(1, 2) @ self.z
-            total.add_(g.square().sum((1, 2)))
+            g = self.b[..., v:v+chunk].transpose(1, 2) @ z
+            total.add_(torch.linalg.vector_norm(g, dim=(1, 2)).square())
             del g
         return total
 
     def aggregate(self, factors):
         if self.kind == 'linear':
             b = (self.b*factors[:, None, None]).reshape(-1, self.b.shape[-1])
-            return self.split(b.T @ self.z.reshape(-1, self.z.shape[-1]))
+            return self.split(b.T @ self.affine_z().reshape(-1, self.affine_z().shape[-1]))
         if self.kind == 'embedding':
             ids = self.x.reshape(-1)
             b = (self.b*factors.reshape(-1, *([1]*(self.b.ndim-1)))).reshape(-1, self.b.shape[-1])

@@ -11,7 +11,8 @@ from exp21.profiling import timed, PHASES
 
 class Clipper:
     def __init__(self, model, operator=None, method='bk', strategy='auto', max_grad_norm=1.,
-                 ghost_tile=64, max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=2,
+                 ghost_tile=64, max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=32,
+                 fallback_memory_budget_bytes=None,
                  max_shared_sample_bytes=64*2**20, tied_output_chunk_size=256):
         if method not in ('exact', 'fast2', 'ghost2', 'bk', 'bk_gd') or max_grad_norm <= 0:
             raise ValueError('Invalid method/max_grad_norm')
@@ -21,6 +22,7 @@ class Clipper:
         options = dict(tile=ghost_tile, max_grad_norm=max_grad_norm,
                        max_fast_temp_bytes=max_fast_temp_bytes,
                        fallback_vjp_chunk_size=fallback_vjp_chunk_size,
+                       fallback_memory_budget_bytes=fallback_memory_budget_bytes,
                        max_shared_sample_bytes=max_shared_sample_bytes,
                        tied_output_chunk_size=tied_output_chunk_size)
         if method == 'exact':
@@ -45,6 +47,9 @@ class Clipper:
         stats.update(bk_cache_bytes=0, ghost_layer_count=0, fast_layer_count=0,
                      bk_ghost_layers=[], bk_fast_layers=[], layer_strategies={}, layer_routing={}, backward_calls=1,
                      first_pass_param_grad_disabled=False, fallback_vjp_chunk_size=0,
+                     first_pass_includes_streamed_norm=False,
+                     fallback_vjp_max_chunk_size=0, fallback_vjp_effective_chunk_size=0,
+                     fallback_parameter_bytes=0, fallback_memory_budget_bytes=0,
                      fallback_temporary_grad_bytes=0, fallback_parameter_count=0)
         with timed(profiler, 'first_pass_seconds', x.device):
             self.wrapper.zero_grad(set_to_none=True)

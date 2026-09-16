@@ -25,16 +25,22 @@ def merge(target, contributions):
 
 class BookKeeping:
     def __init__(self, model, operator=None, strategy='auto', tile=64, max_grad_norm=1.,
-                 max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=2,
+                 max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=32,
+                 fallback_memory_budget_bytes=None,
                  max_shared_sample_bytes=64*2**20, tied_output_chunk_size=256):
         if strategy not in ('auto', 'ghost', 'fast') or tile < 1 or max_grad_norm <= 0:
             raise ValueError('Invalid norm strategy/tile/max_grad_norm')
         self.model, self.operator, self.strategy, self.tile = model, operator, strategy, tile
         if min(max_fast_temp_bytes, fallback_vjp_chunk_size, max_shared_sample_bytes, tied_output_chunk_size) < 1:
             raise ValueError('Memory caps and chunk sizes must be positive')
+        fallback_memory_budget_bytes = (max_fast_temp_bytes if fallback_memory_budget_bytes is None
+                                        else fallback_memory_budget_bytes)
+        if fallback_memory_budget_bytes < 1:
+            raise ValueError('Memory caps and chunk sizes must be positive')
         self.max_grad_norm = max_grad_norm
         self.max_fast_temp_bytes = max_fast_temp_bytes
         self.fallback_vjp_chunk_size = fallback_vjp_chunk_size
+        self.fallback_memory_budget_bytes = fallback_memory_budget_bytes
         self.max_shared_sample_bytes = max_shared_sample_bytes
         self.tied_output_chunk_size = tied_output_chunk_size
         self.routes = Routes(model, operator)
@@ -43,19 +49,15 @@ class BookKeeping:
         self.pending, self.records, self.handles = [], [], []
         self.enabled, self.gd = False, False
         self.batch_size, self.anchors = 0, []
-        self.fallback_ids = {id(p) for n, p in model.named_parameters()
-                             if n in self.routes.fallback_parameter_names}
-        # Shared owners must travel together. Large generic ties use bounded VJP;
-        # the embedding/head pair keeps its analytic route.
-        for pid, owners in self.routes.owners.items():
-            if len(owners) > 1:
-                modules = [self.modules[n] for n in owners]
-                tied = (len(modules) == 2 and any(isinstance(m, nn.Embedding) for m in modules)
-                        and any(isinstance(m, nn.Linear) or type(m) in LINEAR_LAYOUTS for m in modules))
-                p = next(p for p in self.params if id(p) == pid)
-                if not tied and p.numel()*p.element_size() > max_shared_sample_bytes:
-                    self.fallback_ids.add(pid)
+        # Parameter identity is the routing fact. Names are display metadata
+        # only, since named_parameters() removes aliases by default.
+        self.fallback_ids = set(self.routes.fallback_parameter_ids)
+        self._fallback_names = list(self.routes.fallback_parameter_names)
+        self._fallback_shared_groups(max_shared_sample_bytes)
         self.sync_fallback()
+        self.fallback_parameter_bytes = sum(p.numel()*p.element_size() for p in self.fallback_params)
+        self.fallback_vjp_max_chunk_size = fallback_vjp_chunk_size
+        self.fallback_vjp_effective_chunk_size = 0
         for name, m in self.modules.items():
             self.handles.append(m.register_forward_hook(self.capture(name)))
 
@@ -71,27 +73,75 @@ class BookKeeping:
                     changed = True
         self.fallback_params = [p for p in self.params if id(p) in self.fallback_ids]
         self.bk_trainable = self.trainable-self.fallback_ids
-        self.routes.fallback_parameter_names = [n for n, p in self.model.named_parameters() if id(p) in self.fallback_ids]
+        self.routes.fallback_parameter_ids = set(self.fallback_ids)
+        self.routes.fallback_params = list(self.fallback_params)
+        self.routes.fallback_parameter_names = Routes.parameter_names(self.model, self.fallback_ids)
+        self.fallback_parameter_bytes = sum(p.numel()*p.element_size() for p in self.fallback_params)
         for n, m in self.modules.items():
             if any(id(p) in self.fallback_ids for p in m.parameters(recurse=False)) and n not in self.routes.fallback_layer_names:
                 self.routes.fallback_layer_names.append(n)
 
+    def _fallback_shared_groups(self, limit):
+        """Fall back whole connected shared groups when their merged sample
+        gradient would exceed the reference-path memory bound.
+        """
+        modules = list(self.modules.items())
+        module_params = {
+            name: {id(p): p for p in module.parameters(recurse=False)
+                   if id(p) in self.trainable}
+            for name, module in modules
+        }
+        unseen = set(name for name, _ in modules)
+        while unseen:
+            seed = unseen.pop()
+            group_names, group_ids = {seed}, set(module_params[seed])
+            changed = True
+            while changed:
+                changed = False
+                for name in list(unseen):
+                    if group_ids & set(module_params[name]):
+                        unseen.remove(name)
+                        group_names.add(name)
+                        group_ids.update(module_params[name])
+                        changed = True
+            if len(group_names) < 2:
+                continue
+            group_modules = [self.modules[name] for name in group_names]
+            tied = (len(group_names) == 2 and any(isinstance(m, nn.Embedding) for m in group_modules)
+                    and any(isinstance(m, nn.Linear) or type(m) in LINEAR_LAYOUTS for m in group_modules))
+            group_params = {pid: next(module_params[name][pid] for name in group_names
+                                      if pid in module_params[name]) for pid in group_ids}
+            bytes_ = sum(p.numel()*p.element_size() for p in group_params.values())
+            if bytes_ > limit and not tied:
+                self.fallback_ids.update(group_ids)
+
+    def _set_effective_fallback_chunk(self):
+        if self.fallback_parameter_bytes:
+            memory_limited = max(1, self.fallback_memory_budget_bytes//self.fallback_parameter_bytes)
+            self.fallback_vjp_effective_chunk_size = min(
+                self.batch_size, self.fallback_vjp_max_chunk_size, memory_limited)
+        else:
+            self.fallback_vjp_effective_chunk_size = 0
+
     def shared_overflow(self):
+        shared_ids = {pid for module in self.modules.values()
+                      for pid, p in {id(p): p for p in module.parameters(recurse=False)
+                                     if id(p) in self.bk_trainable}.items()
+                      if self.use_counts.get(pid, 0) > 1}
+        analytic = set()
+        for pid in shared_ids:
+            owners = [m for m in self.modules.values()
+                      if any(id(p) == pid for p in m.parameters(recurse=False))]
+            if (len(owners) == 2 and self.use_counts[pid] == 2
+                    and any(isinstance(m, nn.Embedding) for m in owners)
+                    and any(isinstance(m, nn.Linear) or type(m) in LINEAR_LAYOUTS for m in owners)):
+                analytic.add(pid)
         generic = {}
         for module in self.modules.values():
-            ps = [p for p in module.parameters(recurse=False) if id(p) in self.bk_trainable]
-            shared = [p for p in ps if self.use_counts.get(id(p), 0) > 1]
-            if not shared:
-                continue
-            analytic = False
-            if len(shared) == 1:
-                owners = [m for m in self.modules.values()
-                          if any(p is shared[0] for p in m.parameters(recurse=False))]
-                analytic = (len(owners) == 2 and self.use_counts[id(shared[0])] == 2
-                            and any(isinstance(m, nn.Embedding) for m in owners)
-                            and any(isinstance(m, nn.Linear) or type(m) in LINEAR_LAYOUTS for m in owners))
-            if not analytic:
-                generic.update((id(p), p) for p in ps)
+            ps = {id(p): p for p in module.parameters(recurse=False)
+                  if id(p) in self.bk_trainable}
+            if any(self.use_counts.get(pid, 0) > 1 and pid not in analytic for pid in ps):
+                generic.update(ps)
         size = sum(p.numel()*p.element_size() for p in generic.values())
         return set(generic) if size > self.max_shared_sample_bytes else set()
 
@@ -157,15 +207,23 @@ class BookKeeping:
             return sq
         if choice == 'ghost':
             return r.ghost(self.tile)
+        if choice == 'chunked_fast':
+            chunk = route['output_chunk_size']
+            stats['temporary_per_sample_grad_bytes'] = max(
+                stats['temporary_per_sample_grad_bytes'], r.affine_workspace(chunk))
+            return r.chunked_norm(chunk)
         grads = r.fast()
-        stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], sum(nbytes(g) for g in grads.values()))
+        stats['temporary_per_sample_grad_bytes'] = max(
+            stats['temporary_per_sample_grad_bytes'], sum(nbytes(g) for g in grads.values()))
         return sample_norm_squared(grads)
 
     @torch.no_grad()
     def norms(self, stats):
         for name in self.routes.fallback_layer_names:
             stats['layer_routing'][name] = dict(strategy='fallback',
-                estimated_fast_bytes=min(self.batch_size, self.fallback_vjp_chunk_size)*sum(p.numel()*p.element_size() for p in self.fallback_params),
+                estimated_fast_bytes=self.fallback_vjp_effective_chunk_size*self.fallback_parameter_bytes,
+                estimated_full_fast_bytes=0, estimated_chunked_fast_bytes=0,
+                output_chunk_size=self.fallback_vjp_effective_chunk_size,
                 estimated_fast_cost=None, estimated_ghost_cost=None, routing_reason='bounded_fallback')
         self.pending.reverse()
         while self.pending:
@@ -204,18 +262,31 @@ class BookKeeping:
                     pairs.append((emb, head))
                     paired.update((emb, head))
         for emb, head in pairs:
-            route = norm_route(head, 'auto', self.max_fast_temp_bytes, self.tile)
+            route = norm_route(head, self.strategy, self.max_fast_temp_bytes, self.tile)
             width = head.b.shape[-1]
-            row_bytes = len(total)*head.z.shape[-1]*head.b.element_size()
-            chunk = min(self.tied_output_chunk_size, max(1, width//2), self.max_fast_temp_bytes//row_bytes)
-            use_chunk = chunk > 0 and 1.25*route['estimated_fast_macs'] < route['estimated_ghost_macs']
+            row_bytes = head.affine_workspace(1)
+            chunk = min(self.tied_output_chunk_size, max(1, width//2),
+                        width,
+                        self.max_fast_temp_bytes//row_bytes if row_bytes else 0)
+            chunk_feasible = chunk >= 1
+            use_chunk = chunk_feasible and self.strategy != 'ghost'
+            if self.strategy == 'auto' and use_chunk:
+                use_chunk = (1.25*route['estimated_fast_macs']
+                             < route['estimated_ghost_macs'])
             choice = 'chunked_fast_tied' if use_chunk else 'ghost_tied'
+            if self.strategy == 'fast' and not use_chunk:
+                raise RuntimeError('Forced Fast strategy exceeds the tied head workspace cap')
             if use_chunk:
                 sq = head.chunked_norm(chunk)
-                stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], row_bytes*chunk)
+                stats['temporary_per_sample_grad_bytes'] = max(
+                    stats['temporary_per_sample_grad_bytes'], row_bytes*chunk)
             else:
                 sq = head.ghost(self.tile)
-            route.update(strategy=choice, routing_reason=choice, output_chunk_size=chunk if use_chunk else 0)
+            route.update(strategy=choice,
+                         routing_reason='chunked_fast_compute' if use_chunk else 'ghost_compute',
+                         output_chunk_size=chunk if use_chunk else 0,
+                         candidate_output_chunk_size=chunk if chunk_feasible else 0,
+                         estimated_chunked_fast_bytes=row_bytes*chunk if use_chunk else 0)
             stats['layer_routing'][head.name] = route
             stats['layer_routing'][emb.name] = dict(strategy='fast_sparse_tied',
                 estimated_fast_bytes=0, estimated_fast_cost=0, estimated_ghost_cost=0,
@@ -232,7 +303,10 @@ class BookKeeping:
                     z = head.z[..., :-1] if head.module.bias is not None else head.z
                     rows = (head.b[ss, :, vv].unsqueeze(-1)*z[ss]).sum(1)
                 sq.index_add_(0, ss, 2*(values[start:start+self.tied_output_chunk_size]*rows).sum(-1))
-                stats['temporary_per_sample_grad_bytes'] = max(stats['temporary_per_sample_grad_bytes'], nbytes(rows)+nbytes(values))
+                # ``values`` is the already-bounded sparse embedding-row
+                # buffer; report the dominant affine chunk separately.
+                stats['temporary_per_sample_grad_bytes'] = max(
+                    stats['temporary_per_sample_grad_bytes'], nbytes(rows))
                 del rows
             total.add_(sq)
             layer_sq[emb.name+'<->'+head.name] = sq
@@ -244,10 +318,13 @@ class BookKeeping:
             if r in paired:
                 continue
             if r in shared:
-                choices[r.name] = 'fast_shared'
-                route = norm_route(r, 'fast', self.max_fast_temp_bytes, self.tile)
-                route.update(strategy='fast_shared', routing_reason='fast_shared',
-                             estimated_fast_bytes=sum(p.numel()*p.element_size() for p in r.params.values()))
+                shared_choice = 'ghost_shared' if self.strategy == 'ghost' else 'fast_shared'
+                choices[r.name] = shared_choice
+                route = norm_route(r, 'ghost' if self.strategy == 'ghost' else 'fast',
+                                   self.max_fast_temp_bytes, self.tile)
+                route.update(strategy=shared_choice, routing_reason=shared_choice,
+                             estimated_fast_bytes=sum(p.numel()*p.element_size()
+                                                      for p in r.params.values()))
                 stats['layer_routing'][r.name] = route
                 continue
             sq = self.record_norm(r, stats)
@@ -292,6 +369,7 @@ class BookKeeping:
         self.streaming = method in ('fast2', 'ghost2')
         self.gd = method == 'bk_gd' or self.streaming or bool(self.fallback_params)
         self.batch_size, self.anchors, self.anchor_tensors = len(x), [], []
+        self._set_effective_fallback_chunk()
         self.use_counts, self.stream_sq = {}, {}
         self.norm_template = self.params[0].new_zeros(len(x))
         stats = {key: 0. for key in PHASES}
@@ -299,7 +377,12 @@ class BookKeeping:
         stats.update(bk_cache_bytes=0, temporary_per_sample_grad_bytes=0,
                      backward_calls=0, first_pass_parameter_grad_count=0,
                      first_pass_param_grad_disabled=self.gd, layer_routing={}, layer_strategies={},
+                     first_pass_includes_streamed_norm=self.streaming,
                      fallback_vjp_chunk_size=self.fallback_vjp_chunk_size,
+                     fallback_vjp_max_chunk_size=self.fallback_vjp_max_chunk_size,
+                     fallback_vjp_effective_chunk_size=self.fallback_vjp_effective_chunk_size,
+                     fallback_parameter_bytes=self.fallback_parameter_bytes,
+                     fallback_memory_budget_bytes=self.fallback_memory_budget_bytes,
                      fallback_temporary_grad_bytes=0,
                      fallback_parameter_count=sum(p.numel() for p in self.fallback_params))
         self.stats = stats
@@ -325,13 +408,16 @@ class BookKeeping:
                         # first-pass timer includes discovery and the replay forward.
                         self.fallback_ids.update(oversized)
                         self.sync_fallback()
+                        self._set_effective_fallback_chunk()
                         del losses
                         self.clear()
                         self.gd, self.enabled = True, True
                         self.use_counts, self.stream_sq, self.anchors = {}, {}, []
                         stats.update(self.routes.metadata(second=self.streaming))
                         stats.update(first_pass_param_grad_disabled=True,
-                                     fallback_parameter_count=sum(p.numel() for p in self.fallback_params))
+                                     fallback_parameter_count=sum(p.numel() for p in self.fallback_params),
+                                     fallback_vjp_effective_chunk_size=self.fallback_vjp_effective_chunk_size,
+                                     fallback_parameter_bytes=self.fallback_parameter_bytes)
                         for p in self.params:
                             p.requires_grad_(id(p) in self.fallback_ids)
                         x = x.detach()
@@ -362,7 +448,7 @@ class BookKeeping:
                     norms, layer_sq = stream_result if self.streaming else self.norms(stats)
                     if self.fallback_params:
                         fallback_sq = chunked_norms(losses, self.fallback_params, self.model,
-                                                    self.operator, self.fallback_vjp_chunk_size, stats)
+                                                    self.operator, self.fallback_vjp_effective_chunk_size, stats)
                         norms = (norms.square()+fallback_sq).clamp_min(0).sqrt()
                         layer_sq['fallback'] = fallback_sq
                         losses = losses.detach()

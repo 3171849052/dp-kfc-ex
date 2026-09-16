@@ -1,0 +1,46 @@
+"""Fixed protocol for Exp22."""
+
+from pathlib import Path
+
+METHODS = ("dp_sgd", "dp_kfc_a_bk", "dp_kfc")
+SEEDS = (42, 7, 123, 2024, 3407)
+METHOD_ORDER = {
+    seed: tuple(METHODS[(i + SEEDS.index(seed)) % len(METHODS)] for i in range(len(METHODS)))
+    for seed in SEEDS
+}
+
+DATASET = "CIFAR-10"
+IMG_SIZE = 32
+PATCH_SIZE = 8
+IN_CHANNELS = 3
+EMBED_DIM = 64
+NUM_HEADS = 4
+NUM_BLOCKS = 2
+NUM_CLASSES = 10
+
+EPOCHS = 5
+LEARNING_RATE = 1e-3
+WEIGHT_DECAY = 0.01
+BETAS = (0.9, 0.999)
+ADAM_EPS = 1e-8
+EPSILON = 3.0
+DELTA = 1e-5
+MAX_GRAD_NORM = 1.0
+DAMPING = 1e-3
+A_POWER = 0.4
+
+TRAIN_SAMPLES = 50_000
+LOGICAL_BATCH_SIZE = 256
+PHYSICAL_BATCH_SIZE = 32
+ACCUMULATION_STEPS = 8
+SYNTHETIC_BATCHES = 10
+SYNTHETIC_BATCH_SIZE = 256
+SYNTHETIC_ALPHA = 1.0
+
+SMOKE_EPOCHS = 1
+SMOKE_LOGICAL_BATCHES = 2
+SMOKE_TEST_SAMPLES = 256
+
+ROOT = Path(__file__).resolve().parent
+RESULTS = ROOT / "results"
+

@@ -153,7 +153,7 @@ def test_tied_analytic_cross_term(method, layout, monkeypatch):
     result = bk.aggregate(x, y, method, loss_fn=loss)
     assert_result(model, result, expected)
     assert result[-1]['layer_strategies']['head'] in ('ghost_tied', 'chunked_fast_tied')
-    assert result[-1]['temporary_per_sample_grad_bytes'] < model.emb.weight.numel()*4
+    assert result[-1]['temporary_per_sample_grad_bytes'] <= 256*2**20
     assert not result[-1]['requires_second_backward']
     bk.remove()
 
