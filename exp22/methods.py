@@ -86,11 +86,7 @@ class Clipper:
         self._last_stats = {}
 
     def _empty_aggregate(self):
-        return {
-            parameter: torch.zeros_like(parameter, dtype=torch.float64)
-            if parameter.dtype == torch.float32 else torch.zeros_like(parameter)
-            for parameter in self.parameters
-        }
+        return {parameter: torch.zeros_like(parameter) for parameter in self.parameters}
 
     def _output_buffers(self, batch_size: int, device: torch.device, dtype: torch.dtype):
         layer_names = list(self.linear_modules) + list(self.norm_modules)
@@ -138,9 +134,18 @@ class Clipper:
         return total.clamp_min(0), temporary_bytes
 
     @staticmethod
-    def _linear_aggregate(z, b, factors, dtype):
+    def _linear_aggregate(z, b, factors, has_bias):
         weighted_b = b * factors[:, None, None]
-        return torch.einsum("bto,bti->oi", weighted_b.to(dtype), z.to(dtype))
+        if not has_bias:
+            return torch.einsum("bto,bti->oi", weighted_b, z), None
+        weight = torch.einsum("bto,bti->oi", weighted_b, z[..., :-1])
+        bias = b.new_zeros(b.shape[-1])
+        # Keep the bias-coordinate reduction in sample order.  This is still
+        # a direct BK aggregate (a vector, not a per-example weight matrix)
+        # and avoids physical-chunk-dependent low-magnitude Adam updates.
+        for index in range(len(factors)):
+            bias.add_(torch.einsum("to,t->o", b[index] * factors[index], z[index, ..., -1]))
+        return weight, bias
 
     def _capture_hooks(self, activations, backprops, position_backprops):
         handles = []
@@ -216,24 +221,18 @@ class Clipper:
         factors = (self.max_grad_norm / (norms + 1e-6)).clamp(max=1).detach()
         for name, module in self.linear_modules.items():
             z, b = activations[name], backprops[name]
-            clipped = self._linear_aggregate(z, b, factors, aggregate[module.weight].dtype)
-            aggregate[module.weight].add_(clipped[..., :-1] if module.bias is not None else clipped)
-            if module.bias is not None:
-                aggregate[module.bias].add_(clipped[..., -1])
-            del z, b, clipped
+            weight, bias = self._linear_aggregate(z, b, factors, module.bias is not None)
+            aggregate[module.weight].add_(weight)
+            if bias is not None:
+                aggregate[module.bias].add_(bias)
+            del z, b, weight, bias
         for name, module in self.norm_modules.items():
             grads = layernorm_per_example_gradient(activations[name], backprops[name], module)
             for parameter, value in grads.items():
-                dtype = aggregate[parameter].dtype
-                aggregate[parameter].add_(torch.einsum(
-                    "b,b...->...", factors.to(dtype), value.to(dtype)
-                ))
+                aggregate[parameter].add_(torch.einsum("b,b...->...", factors, value))
             del grads
         if self.pos_embed is not None and self.pos_embed.requires_grad:
-            dtype = aggregate[self.pos_embed].dtype
-            aggregate[self.pos_embed].add_(torch.einsum(
-                "b,b...->...", factors.to(dtype), position_backprops[0].to(dtype)
-            ))
+            aggregate[self.pos_embed].add_(torch.einsum("b,b...->...", factors, position_backprops[0]))
         activations.clear()
         backprops.clear()
         position_backprops.clear()
@@ -268,7 +267,7 @@ class Clipper:
     ):
         self.model.zero_grad(set_to_none=True)
         for p, value in aggregate.items():
-            p.grad = value.to(dtype=p.dtype)
+            p.grad = value
         stats = {
             "backward_calls": chunk_count,
             "bk_cache_bytes": max_cache,
