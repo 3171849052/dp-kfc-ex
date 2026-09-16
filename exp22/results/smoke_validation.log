@@ -1,0 +1,7 @@
+PASS: three CUDA smoke runs, seed 42, one epoch, two logical batches each.
+PASS: dp_kfc: counters, finite/updated parameters, empty cache, strategies, builder metadata; workspace=180480 bytes; accuracy=0.11328125.
+PASS: dp_kfc_a_bk: counters, finite/updated parameters, empty cache, strategies, builder metadata; workspace=180480 bytes; accuracy=0.11328125.
+PASS: dp_sgd: counters, finite/updated parameters, empty cache, strategies, builder metadata; workspace=180480 bytes; accuracy=0.109375.
+PASS: single-seed standard deviations and confidence intervals are NaN.
+PASS: exp20, exp21, src and experiment hyperparameters unchanged; caches untracked.
+NOTE: existing smoke protocol uses sigma=0 and epsilon=inf; nonzero paired-noise updates are covered by unit tests.

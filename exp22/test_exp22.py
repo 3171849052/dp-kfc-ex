@@ -186,7 +186,10 @@ def test_physical_batch_equivalence_including_adamw_update(method):
         clipped_gradients = {n: p.grad.detach().clone() for n, p in model.named_parameters()}
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=.01)
         noise = torch.Generator(device=device()).manual_seed(40031)
-        clipper.step(optimizer, 0., len(x), noise)
+        # Compare the private update with paired DP noise. With zero noise,
+        # AdamW amplifies FP32 reduction differences on near-zero gradients.
+        # The clipped sums above are still compared before adding noise.
+        clipper.step(optimizer, 0.25, len(x), noise)
         results.append((loss, norms, factors, layer_sq, clipped_gradients,
                         {n: p.detach().clone() for n, p in model.named_parameters()}, stats))
     for left, right in zip(results, results[1:]):
@@ -377,6 +380,30 @@ def test_private_bk_path_keeps_model_dtype_and_no_per_example_linear_helper():
     assert result.dtype == z.dtype == b.dtype == torch.float32
     torch.testing.assert_close(result, expected, rtol=1e-5, atol=1e-6)
     assert temporary_bytes >= result.numel() * result.element_size()
+
+
+@pytest.mark.parametrize("tokens", [1, 5])
+def test_linear_bias_reuses_augmented_aggregate_column(monkeypatch, tokens):
+    torch.manual_seed(2208)
+    model = nn.Sequential(nn.Linear(4, 3))
+    clipper = Clipper(model)
+    original = clipper._linear_aggregate
+    reconstructed = []
+
+    def capture(z, b, factors):
+        clipped, workspace = original(z, b, factors)
+        # A sentinel distinguishes reuse from a second bias reconstruction.
+        clipped[:, -1].add_(0.125)
+        reconstructed.append(clipped.clone())
+        return clipped, workspace
+
+    monkeypatch.setattr(clipper, "_linear_aggregate", capture)
+    x = torch.randn(3, tokens, 4)
+    y = torch.zeros(3, dtype=torch.long)
+    clipper.aggregate(x, y, loss_fn=lambda logits, target: logits.square().sum((1, 2)))
+    assert len(reconstructed) == 1
+    torch.testing.assert_close(model[0].weight.grad, reconstructed[0][:, :-1], rtol=0, atol=0)
+    torch.testing.assert_close(model[0].bias.grad, reconstructed[0][:, -1], rtol=0, atol=0)
 
 
 def test_bk_workspace_bytes_include_gram_and_reconstruction_payload():

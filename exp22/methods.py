@@ -220,23 +220,7 @@ class Clipper:
                 aggregate[module.weight].add_(clipped)
             else:
                 aggregate[module.weight].add_(clipped[:, :-1])
-                # Keep the bias-coordinate reduction in logical sample order
-                # so changing the physical chunk does not change AdamW's
-                # low-magnitude update.  This is a vector reduction, not a
-                # per-example gradient materialization.
-                bias = b.new_zeros(b.shape[-1])
-                for index in range(len(factors)):
-                    bias.add_(torch.einsum(
-                        "to,t->o",
-                        b[index] * factors[index],
-                        z[index, ..., -1],
-                    ))
-                temporary_bytes = max(
-                    temporary_bytes,
-                    aggregate_temporary_bytes + tensor_bytes(bias),
-                )
-                aggregate[module.bias].add_(bias)
-                del bias
+                aggregate[module.bias].add_(clipped[:, -1])
             del z, b, clipped
         for name, module in self.norm_modules.items():
             grads = layernorm_per_example_gradient(activations[name], backprops[name], module)
