@@ -116,12 +116,12 @@ HF BERT/GPT-2 的 position embeddings 原本以 `[1,T]`/`[T]` 输入后 broadcas
 内置 fallback：nn.MultiheadAttention 的 packed/functional 参数与 TinyViT 的直接 Parameter（pos_embed）。patch_embed、norm、FFN、head 继续使用 BK。
 
 1. 一次 sum-loss reverse 捕获支持层 backprop，autograd.grad 不填充参数 `.grad`。
-2. 每次最多 K（默认 32，上限）个 example 的 batched VJP，targets **仅 fallback 参数**；K 再由 fallback 参数 payload 与 memory budget 自动收紧，立即归约并释放梯度。加上 BK norm² 后得到同一个全局 clip factor。
+2. 每次最多 K（默认 2）个 example 的 batched VJP，targets **仅 fallback 参数**；立即归约并释放梯度。加上 BK norm² 后得到同一个全局 clip factor。
 3. 支持层直接 BK reconstruction；RNG replay 后 `autograd.grad(weighted_loss, fallback_params)` 只取得 fallback aggregate，再对相关 A 层变换。
 
 fallback 临时参数梯度为 O(K*M_fallback)，不含 forward graph/activation workspace。metadata 的 fallback_parameter_count 是参数元素数；fallback_temporary_grad_bytes 是实际最大 VJP gradient tensor bytes。reverse 调用数为 `2+ceil(B/K)`，逐次如实计数。TinyViT B=2、K=2 时为 3 次；不会为支持层生成 batch×parameter 梯度。
 
-API 直接提供 `ghost_tile=64, max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=32, fallback_memory_budget_bytes=max_fast_temp_bytes, max_shared_sample_bytes=64*2**20, tied_output_chunk_size=256`，没有配置对象。Affine norm router 在 workspace 合法时选择 `full_fast` / `chunked_fast` / `ghost`；`strategy='fast'` 只允许前两者，`strategy='ghost'` 始终使用 Ghost。
+API 直接提供 `ghost_tile=64, max_fast_temp_bytes=256*2**20, fallback_vjp_chunk_size=2, max_shared_sample_bytes=64*2**20, tied_output_chunk_size=256`，没有配置对象。
 
 扩展需显式注册，并保证 sample independence 和无 forward state mutation：
 
@@ -133,13 +133,13 @@ register_fallback(MyModel, direct_parameters_only=True)  # 仅外层直接参数
 
 BatchNorm、Embedding max_norm/scale_grad_by_freq 明确拒绝；未知 trainable module 或额外参数不静默忽略。fallback 使用 PyTorch math attention，不自动尝试其他 backend。未实际贡献梯度的 trainable 参数也明确报错。
 
-metadata 包含 fallback_layer_names/count、fallback_parameter_names/ids、fallback 参数 bytes 与 max/effective chunk、requires_second_backward、backward_calls、第一遍参数 grad 数、streamed norm timer 标记、layer norm 策略、partial geometry、anchors、cache/temporary bytes。Fast local norm 不是 fallback。SimpleCNN 的 BK/GD 仍然 fallback=0、second backward=false、second_pass_seconds=0。
+metadata 包含 fallback_layer_names/count、fallback_parameter_names、requires_second_backward、backward_calls、第一遍参数 grad 数、layer norm 策略、partial geometry、anchors、cache/temporary bytes。Fast local norm 不是 fallback。SimpleCNN 的 BK/GD 仍然 fallback=0、second backward=false、second_pass_seconds=0。
 
 ## 验证结果与文件
 
-测试入口包括原测试和 `test_transformer_cases.py`，当前 **156 项通过**（含 `test_optimized_cases.py`）。原容差不降低：primitive norm/clip/gradient rtol=1e-4；真实 256 样本 MNIST 的 convolution/Gram 求和路径 rtol=5e-4、gradient atol=3e-5。oracle 继续是独立逐样本 backward。
+测试入口包括原测试和 `test_transformer_cases.py`，当前 **147 项通过**（含 `test_optimized_cases.py`）。原容差不降低：primitive norm/clip/gradient rtol=1e-4；真实 256 样本 MNIST 的 convolution/Gram 求和路径 rtol=5e-4、gradient atol=3e-5。oracle 继续是独立逐样本 backward。
 
-新增覆盖：bias=False Linear/Conv + 非 identity A；实际 HF Conv1D + A；partial A；五方法 C=.37 + 有噪声 SGD；output anchors/input grad 缺失；raw cache 释放；解析 tied cross-term 禁止 dense per-example head materialization；非 identity partial A 的 tiny BERT/GPT-2/LLaMA；identity/partial A 的 TinyViT FGC；跨 BK/fallback boundary 的 shared Parameter identity；普通 Linear/Conv/HF Conv1D chunked Fast；fallback budget chunk；短/长 T Ghost workspace；危险模块拒绝。tiny HF 仅通过 config 随机初始化，offline 环境，无 pretrained 下载；dropout=0，短序列、小 batch、eager attention。
+新增覆盖：bias=False Linear/Conv + 非 identity A；实际 HF Conv1D + A；partial A；五方法 C=.37 + 有噪声 SGD；output anchors/input grad 缺失；raw cache 释放；解析 tied cross-term 禁止 dense per-example head materialization；非 identity partial A 的 tiny BERT/GPT-2/LLaMA；identity/partial A 的 TinyViT FGC；危险模块拒绝。tiny HF 仅通过 config 随机初始化，offline 环境，无 pretrained 下载；dropout=0，短序列、小 batch、eager attention。
 
 BERT/GPT-2/LLaMA 的 bk/bk_gd integration 均 **直接 BK、无 fallback、单 reverse**；TinyViT 使用 **Hybrid BK + bounded local fallback**，覆盖 pos_embed 和全部 MHA 参数。结果 JSON 写入 `results/integration/`。
 
@@ -158,4 +158,4 @@ CUDA events 在 phase 边界同步后解析，timed region 内不主动 synchron
 
 allocated peak 是 private training phase 的峰值；build peak 另列；reserved 含 disposable warmup 的 allocator cache。temporary_per_sample_grad_bytes 表示梯度 payload 高水位，非 allocator peak，不含 Gram workspace。norm/clip/loss diagnostics 每 batch 保存约 2.5 KiB，epoch 结束释放，与 BK cache 泄漏区分。
 
-局部 router benchmark：`conda run -n curve python -B exp21/benchmark_router.py`，输出 `results/router_benchmark.csv`。默认 sweep 74 个形状，同时比较 full Fast、chunked Fast、row Ghost、旧双 tile Ghost；另含两个 full Fast 超过 256 MiB 但不 OOM 的形状。当前 router 在原始 MACs 上加入简单等效成本：Fast 加 8 个等效 token 的 sample-matrix 归约成本；Ghost skinny GEMM 使用系数 8；每个 launch group 加 4.4e8 等效 MACs。常数按 RTX 3080 Ti 的局部 sweep 手工校准，换硬件应重新验证；metadata 同时保留原始 MACs。不会自动拟合路由表或启动训练。
+局部 router benchmark：`conda run -n curve python -B exp21/benchmark_router.py`，输出 `results/router_benchmark.csv`。默认 sweep 72 个形状，同时比较旧双 tile、新 row tile、Fast。当前 router 在原始 MACs 上加入简单等效成本：Fast 加 8 个等效 token 的 sample-matrix 归约成本；Ghost skinny GEMM 使用系数 8；每个 launch group 加 4.4e8 等效 MACs。常数按 RTX 3080 Ti 的局部 sweep 手工校准，换硬件应重新验证；metadata 同时保留原始 MACs。不会自动拟合路由表或启动训练。

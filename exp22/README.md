@@ -13,11 +13,10 @@ performed for each logical batch.
 Run the tests and the short three-method smoke protocol with:
 
 ```bash
-conda run -n curve env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. \
-  pytest -q --cache-dir exp22/.pytest_cache exp22/test_exp22.py
+PYTHONDONTWRITEBYTECODE=1 conda run -n curve python -m pytest \
+  exp22/test_exp22.py -q -o cache_dir=exp22/.pytest_cache
 conda run -n curve bash exp22/run_all.sh --smoke
 conda run -n curve env PYTHONPATH=src:. python -B exp22/analyze.py --smoke
 ```
 
 The formal 15-job protocol is intentionally not started by this implementation.
-

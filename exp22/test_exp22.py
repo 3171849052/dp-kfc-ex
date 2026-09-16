@@ -4,11 +4,25 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
+import sys
 
 import pytest
 import torch
 from torch import nn
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT), str(ROOT / "src")]
+for key, relative in {
+    "XDG_CACHE_HOME": ".cache",
+    "MPLCONFIGDIR": ".cache/matplotlib",
+    "CUDA_CACHE_PATH": ".cache/cuda",
+    "TMPDIR": ".cache/tmp",
+}.items():
+    path = ROOT / "exp22" / relative
+    path.mkdir(parents=True, exist_ok=True)
+    os.environ[key] = str(path)
 
 from exp22.geometry import (
     AOnlyOperator,
@@ -18,7 +32,9 @@ from exp22.geometry import (
     matrix_function,
     synthetic_cache,
     synthetic_labels,
+    synthetic_label_stream,
 )
+from exp22.analyze import accuracy_auc
 from exp22.methods import Clipper
 from exp22.model import TinyViT, convert_tinyvit, initialize
 
@@ -105,10 +121,58 @@ def test_full_builder_records_bt_covariances():
     assert op.factors["patch_embed"]["G"].shape == (8, 8)
 
 
-def test_physical_batch_equivalence_including_adamw_update():
+def test_full_builder_g_and_bias_augmented_covariances_match_independent_hooks():
+    model = small_model(33)
+    x = torch.randn(2, 1, 8, 8, device=device())
+    op, _ = build_from_cache(model, "dp_kfc", [x], 44, 2)
+    names = ("patch_embed", "blocks.0.attn.q_proj", "blocks.0.ffn", "head")
+    activations, backprops = {}, {}
+    handles = []
+    modules = dict(model.named_modules())
+    for name in names:
+        def capture(module, args, output, name=name):
+            activations[name] = args[0].detach()
+            output.register_hook(lambda grad, name=name: backprops.__setitem__(name, grad.detach()))
+        handles.append(modules[name].register_forward_hook(capture))
+    labels = synthetic_labels(44, 2, x.device, len(x), 3)
+    model.zero_grad(set_to_none=True)
+    torch.nn.functional.cross_entropy(model(x), labels, reduction="sum").backward()
+    for handle in handles:
+        handle.remove()
+    for name in names:
+        module = modules[name]
+        a = flatten_linear_input(activations[name], module)
+        b = backprops[name].reshape(-1, module.out_features)
+        torch.testing.assert_close(op.factors[name]["A"], a.T @ a / a.shape[0], rtol=1e-5, atol=1e-6)
+        torch.testing.assert_close(op.factors[name]["G"], b.T @ b / b.shape[0], rtol=1e-5, atol=1e-6)
+    model.zero_grad(set_to_none=True)
+
+
+def test_full_builder_uses_one_continuous_label_generator(monkeypatch):
+    import torch.nn.functional as functional
+
+    model = small_model(35)
+    cache = [torch.randn(64, 1, 8, 8, device=device()), torch.randn(64, 1, 8, 8, device=device())]
+    seen = []
+    original = functional.cross_entropy
+
+    def capture(input, target, *args, **kwargs):
+        seen.append(target.detach().cpu())
+        return original(input, target, *args, **kwargs)
+
+    monkeypatch.setattr(functional, "cross_entropy", capture)
+    build_from_cache(model, "dp_kfc", cache, 73, 4)
+    expected = torch.cat(synthetic_label_stream(73, 4, device(), [64, 64], 3)).cpu()
+    actual = torch.cat(seen)
+    assert torch.equal(actual, expected)
+    assert len(seen) == 4
+
+
+@pytest.mark.parametrize("method", ["dp_sgd", "dp_kfc_a_bk", "dp_kfc"])
+def test_physical_batch_equivalence_including_adamw_update(method):
     base = small_model(31)
     cache = [torch.randn(2, 1, 8, 8, device=device())]
-    op, _ = build_from_cache(base, "dp_kfc_a_bk", cache, 31, 1)
+    op = None if method == "dp_sgd" else build_from_cache(base, method, cache, 31, 1)[0]
     x = torch.randn(4, 1, 8, 8, device=device())
     y = torch.tensor([0, 1, 2, 1], device=device())
     results = []
@@ -116,37 +180,153 @@ def test_physical_batch_equivalence_including_adamw_update():
         model = copy.deepcopy(base)
         clipper = Clipper(model, copy.deepcopy(op), max_grad_norm=1.)
         loss, norms, factors, layer_sq, stats = clipper.aggregate_logical(x, y, physical)
+        clipped_gradients = {n: p.grad.detach().clone() for n, p in model.named_parameters()}
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=.01)
         noise = torch.Generator(device=device()).manual_seed(40031)
         clipper.step(optimizer, 0., len(x), noise)
-        results.append((loss, norms, factors, layer_sq, {n: p.detach().clone() for n, p in model.named_parameters()}, stats))
+        results.append((loss, norms, factors, layer_sq, clipped_gradients,
+                        {n: p.detach().clone() for n, p in model.named_parameters()}, stats))
     for left, right in zip(results, results[1:]):
         torch.testing.assert_close(left[0], right[0], rtol=1e-5, atol=1e-6)
         torch.testing.assert_close(left[1], right[1], rtol=2e-5, atol=2e-6)
         torch.testing.assert_close(left[2], right[2], rtol=2e-5, atol=2e-6)
         for name in left[4]:
-            torch.testing.assert_close(left[4][name], right[4][name], rtol=2e-5, atol=2e-6)
-    assert results[0][5]["backward_calls"] == 1
-    assert results[1][5]["backward_calls"] == 2
-    assert results[2][5]["backward_calls"] == 4
+            torch.testing.assert_close(left[4][name], right[4][name], rtol=2e-4, atol=2e-5)
+        for name in left[5]:
+            torch.testing.assert_close(left[5][name], right[5][name], rtol=1e-3, atol=1e-4)
+    assert results[0][6]["backward_calls"] == 1
+    assert results[1][6]["backward_calls"] == 2
+    assert results[2][6]["backward_calls"] == 4
 
 
 def test_one_logical_batch_has_one_step_noise_and_accountant():
-    model = small_model(8)
-    x = torch.randn(4, 1, 8, 8, device=device())
-    y = torch.tensor([0, 1, 2, 0], device=device())
+    from opacus.accountants import RDPAccountant
+
+    model = nn.Linear(4, 3).to(device())
+    x = torch.randn(256, 4, device=device())
+    y = torch.randint(3, (256,), device=device())
     clipper = Clipper(model)
-    clipper.aggregate_logical(x, y, 2)
+    clipper.aggregate_logical(x, y, 32)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     generator = torch.Generator(device=device()).manual_seed(40008)
-    before = generator.get_state().clone()
-    clipper.step(optimizer, 0.0, 4, generator)
-    reference = torch.Generator(device=device()).manual_seed(40008)
-    for p in model.parameters():
-        torch.randn(p.numel(), device=p.device, dtype=p.dtype, generator=reference)
-    assert torch.equal(generator.get_state(), reference.get_state())
+    clipper.step(optimizer, 0.25, 256, generator)
+    accountant = RDPAccountant()
+    accountant.step(noise_multiplier=0.25, sample_rate=256 / 50_000)
     assert clipper.optimizer_steps == 1
-    assert clipper.backward_calls == 2
+    assert clipper.noise_events == 1
+    assert clipper.backward_calls == 8
+    assert len(accountant.history) == 1
+    assert accountant.history[0][1] == pytest.approx(256 / 50_000)
+
+
+def test_synthetic_label_stream_is_continuous_and_rng_isolated():
+    stream = synthetic_label_stream(42, 1, "cpu", [7, 7], 10)
+    reference = torch.Generator().manual_seed(42 + 20000 + 1)
+    expected = torch.randint(10, (14,), generator=reference).split(7)
+    assert all(torch.equal(left, right) for left, right in zip(stream, expected))
+    assert not torch.equal(stream[0], stream[1])
+    cpu_before = torch.random.get_rng_state().clone()
+    synthetic_label_stream(42, 1, "cpu", [256, 256], 10)
+    assert torch.equal(cpu_before, torch.random.get_rng_state())
+
+
+def test_accuracy_auc_matches_exp20_trapezoid_definition():
+    epochs = [1, 2, 3, 5]
+    accuracies = [0.1, 0.3, 0.2, 0.6]
+    assert accuracy_auc(epochs, accuracies) == pytest.approx(
+        1.25
+    )
+    assert accuracy_auc([1], [0.4]) == 0.0
+
+
+def _independent_oracle(model, operator, x, y):
+    """Independent single-example backward oracle; no Clipper helpers."""
+    values = []
+    layer_values = {}
+    group_values = []
+    for index in range(len(x)):
+        reference = copy.deepcopy(model)
+        reference.zero_grad(set_to_none=True)
+        logits = reference(x[index:index + 1])
+        torch.nn.functional.cross_entropy(logits, y[index:index + 1]).backward()
+        transformed = {}
+        sample_layers = {}
+        for name, module in reference.named_modules():
+            if not isinstance(module, nn.Linear):
+                continue
+            gradient = module.weight.grad
+            if module.bias is not None:
+                gradient = torch.cat((gradient, module.bias.grad[:, None]), dim=1)
+            if operator is not None and name in operator.data:
+                gradient = operator.transform_gradient(name, gradient)
+            transformed[f"{name}.weight"] = gradient[:, :-1] if module.bias is not None else gradient
+            if module.bias is not None:
+                transformed[f"{name}.bias"] = gradient[:, -1]
+            sample_layers[name] = gradient.square().sum()
+        for name, parameter in reference.named_parameters():
+            if name not in transformed:
+                transformed[name] = parameter.grad
+                sample_layers[name] = parameter.grad.square().sum()
+        norm = torch.stack([value.square().sum() for value in transformed.values()]).sum().sqrt()
+        factor = (1.0 / (norm + 1e-6)).clamp(max=1.0)
+        groups = {}
+        for name, value in sample_layers.items():
+            if name.endswith(("q_proj", "k_proj", "v_proj")):
+                group = "attention_qkv"
+            elif name.endswith("out_proj"):
+                group = "attention_out"
+            elif name.endswith("ffn"):
+                group = "ffn"
+            elif name in ("patch_embed", "head"):
+                group = "patch_head"
+            else:
+                group = "identity"
+            groups[group] = groups.get(group, 0) + value
+        group_values.append(groups)
+        values.append((norm, factor, {name: factor * gradient for name, gradient in transformed.items()}, sample_layers))
+    aggregate = {}
+    aggregate_layers = {}
+    for _, _, gradients, sample_layers in values:
+        for name, gradient in gradients.items():
+            aggregate[name] = aggregate.get(name, 0) + gradient
+        for name, value in sample_layers.items():
+            aggregate_layers.setdefault(name, []).append(value)
+    aggregate_groups = {}
+    for groups in group_values:
+        for name, value in groups.items():
+            aggregate_groups.setdefault(name, []).append(value)
+    return (
+        torch.stack([value[0] for value in values]),
+        torch.stack([value[1] for value in values]),
+        aggregate,
+        {name: torch.stack(values) for name, values in aggregate_layers.items()},
+        {name: torch.stack(values) for name, values in aggregate_groups.items()},
+    )
+
+
+@pytest.mark.parametrize("method", ["dp_sgd", "dp_kfc_a_bk", "dp_kfc"])
+def test_bk_matches_independent_per_sample_oracle(method):
+    model = small_model(51)
+    x = torch.randn(3, 1, 8, 8, device=device())
+    y = torch.tensor([0, 1, 2], device=device())
+    cache = [torch.randn(2, 1, 8, 8, device=device())]
+    operator = None if method == "dp_sgd" else build_from_cache(model, method, cache, 51, 1)[0]
+    expected_norms, expected_factors, expected_aggregate, expected_layers, expected_groups = _independent_oracle(model, operator, x, y)
+    clipper = Clipper(model, operator, method=method)
+    _, norms, factors, _, stats = clipper.aggregate(x, y)
+    torch.testing.assert_close(norms, expected_norms, rtol=2e-4, atol=2e-5)
+    torch.testing.assert_close(factors, expected_factors, rtol=2e-4, atol=2e-5)
+    for name, parameter in model.named_parameters():
+        torch.testing.assert_close(parameter.grad, expected_aggregate[name], rtol=2e-4, atol=2e-5)
+    _, _, _, actual_layers, actual_stats = clipper.aggregate(x, y)
+    for name, value in expected_layers.items():
+        if name in actual_layers:
+            torch.testing.assert_close(actual_layers[name], value, rtol=2e-4, atol=2e-5)
+    for name, value in expected_groups.items():
+        torch.testing.assert_close(actual_stats["layer_group_sq"][name], value, rtol=2e-4, atol=2e-5)
+    assert stats["bk_cache_bytes"] > 0
+    assert stats["temporary_per_sample_grad_bytes"] < len(x) * sum(p.numel() for p in model.parameters()) * 4
+    assert stats["cache_empty_after_step"]
 
 
 def test_rng_pairing_for_initialization_synthetic_labels_and_noise():
@@ -163,4 +343,3 @@ def test_rng_pairing_for_initialization_synthetic_labels_and_noise():
         draws.append([torch.randn(p.numel(), generator=generator) for p in model.parameters()])
     for left, right in zip(draws[0], draws[1]):
         assert torch.equal(left, right)
-

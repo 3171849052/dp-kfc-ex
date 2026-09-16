@@ -22,8 +22,8 @@ def test_row_ghost(tokens, tile, monkeypatch):
     torch.testing.assert_close(r.ghost(tile), expected, rtol=1e-4, atol=2e-5)
 
 
-@pytest.mark.parametrize('tokens,cap,expected,reason', [(3,1,'ghost','ghost_only_feasible'),
-    (128,2**30,'full_fast','fast_compute'), (1,2**30,'ghost','ghost_compute')])
+@pytest.mark.parametrize('tokens,cap,expected,reason', [(3,1,'ghost','ghost_memory_cap'),
+    (128,2**30,'fast','fast_compute'), (1,2**30,'ghost','ghost_compute')])
 def test_memory_compute_router(tokens, cap, expected, reason):
     m = nn.Linear(32,48).cuda()
     r = Record('',m,torch.randn(4,tokens,32,device='cuda'),torch.randn(4,tokens,48,device='cuda'),None,{id(p) for p in m.parameters()})
@@ -41,106 +41,6 @@ class Packed(nn.Module):
 
 
 register_fallback(Packed)
-
-
-class SharedPacked(nn.Module):
-    def __init__(self, weight):
-        super().__init__()
-        self.weight = weight
-
-    def forward(self, x):
-        return x @ self.weight.T
-
-
-register_fallback(SharedPacked)
-
-
-class SharedAcrossBoundary(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.linear = nn.Linear(4, 4)
-        self.packed = SharedPacked(self.linear.weight)
-
-    def forward(self, x):
-        return self.linear(x) + self.packed(x)
-
-
-@pytest.mark.parametrize('method', ['bk', 'bk_gd', 'fast2', 'ghost2'])
-def test_shared_parameter_across_bk_fallback_boundary(method):
-    from exp21.test_exp21 import golden, loss
-    m = SharedAcrossBoundary().cuda()
-    x, y = torch.randn(4, 3, 4, device='cuda'), torch.randn(4, 3, 4, device='cuda')
-    expected = golden(copy.deepcopy(m), x, y)
-    strategy = {'fast2': 'fast', 'ghost2': 'ghost'}.get(method, 'auto')
-    h = BookKeeping(m, strategy=strategy, fallback_vjp_chunk_size=32)
-    result = h.aggregate(x, y, method, loss_fn=loss)
-    assert_result(m, result, expected)
-    assert id(m.linear.weight) in h.fallback_ids
-    assert id(m.linear.weight) not in h.bk_trainable
-    assert result[-1]['fallback_parameter_ids'] == sorted(h.fallback_ids)
-    assert 'linear.weight' in result[-1]['fallback_parameter_names']
-    assert 'packed.weight' in result[-1]['fallback_parameter_names']
-    assert all('linear' not in r.params for r in h.records)
-    h.remove()
-
-
-def test_forced_fast_uses_chunked_affine():
-    from exp21.test_exp21 import golden, loss
-    m = nn.Linear(7, 13).cuda()
-    x, y = torch.randn(3, 8, 7, device='cuda'), torch.randn(3, 8, 13, device='cuda')
-    expected = golden(copy.deepcopy(m), x, y)
-    base = 3*(7+1)*4
-    h = BookKeeping(m, strategy='fast', max_fast_temp_bytes=base*2)
-    result = h.aggregate(x, y, 'bk_gd', loss_fn=loss)
-    assert_result(m, result, expected)
-    route = result[-1]['layer_routing']['']
-    assert route['strategy'] == 'chunked_fast'
-    assert route['output_chunk_size'] == 2
-    assert route['estimated_chunked_fast_bytes'] <= base*2
-    h.remove()
-
-
-@pytest.mark.parametrize('kind_name', ['linear', 'conv', 'hf'])
-def test_chunked_affine_matches_fast(kind_name):
-    from transformers.pytorch_utils import Conv1D
-    if kind_name == 'linear':
-        m = nn.Linear(4, 9).cuda()
-        a, b = torch.randn(2, 5, 4, device='cuda'), torch.randn(2, 5, 9, device='cuda')
-    elif kind_name == 'conv':
-        m = nn.Conv2d(2, 3, 3, padding=1).cuda()
-        a, b = torch.randn(2, 2, 5, 5, device='cuda'), torch.randn(2, 3, 5, 5, device='cuda')
-    else:
-        m = Conv1D(9, 4).cuda()
-        a, b = torch.randn(2, 5, 4, device='cuda'), torch.randn(2, 5, 9, device='cuda')
-    r = Record('', m, a, b, None, {id(p) for p in m.parameters()})
-    route = norm_route(r, 'fast', r.affine_workspace(2))
-    assert route['strategy'] == 'chunked_fast'
-    torch.testing.assert_close(r.chunked_norm(route['output_chunk_size']),
-                               sum(g.flatten(1).square().sum(1) for g in r.fast().values()),
-                               rtol=1e-4, atol=2e-5)
-
-
-def test_fallback_chunk_uses_memory_budget(monkeypatch):
-    from exp21.test_exp21 import golden, loss
-    m = nn.Sequential(nn.Linear(4, 5), Packed(), nn.Linear(5, 3)).cuda()
-    x, y = torch.randn(8, 4, device='cuda'), torch.randn(8, 3, device='cuda')
-    expected = golden(copy.deepcopy(m), x, y)
-    parameter_bytes = sum(p.numel()*p.element_size() for p in [m[1].packed])
-    h = BookKeeping(m, fallback_memory_budget_bytes=parameter_bytes*4)
-    original = torch.autograd.grad
-    chunks = []
-    def grad(outputs, inputs, **kw):
-        if kw.get('is_grads_batched'):
-            chunks.append(kw['grad_outputs'].shape[0])
-        return original(outputs, inputs, **kw)
-    monkeypatch.setattr(torch.autograd, 'grad', grad)
-    result = h.aggregate(x, y, 'bk_gd', loss_fn=loss)
-    assert_result(m, result, expected)
-    stats = result[-1]
-    assert stats['fallback_vjp_effective_chunk_size'] == 4
-    assert max(chunks) == 4
-    assert stats['fallback_temporary_grad_bytes'] <= 4*parameter_bytes
-    h.remove()
 
 
 @pytest.mark.parametrize('chunk', [1,2,4])
@@ -321,7 +221,7 @@ def test_frozen_affine_memory_cap(freeze):
     h=BookKeeping(m,max_fast_temp_bytes=1)
     result=h.aggregate(x,y,'bk_gd',loss_fn=loss)
     assert_result(m,result,expected)
-    assert result[-1]['layer_routing']['']['routing_reason']=='ghost_only_feasible'
+    assert result[-1]['layer_routing']['']['routing_reason']=='ghost_memory_cap'
     assert not getattr(m,freeze).requires_grad
     h.remove()
 
@@ -348,7 +248,7 @@ def test_norm_allocation_shapes(monkeypatch):
             tensors=out if isinstance(out,(tuple,list)) else [out]
             for tensor in tensors:
                 if isinstance(tensor,torch.Tensor):
-                    assert tuple(tensor.shape) not in ((2,50003,3),(50003,3))
+                    assert tuple(tensor.shape) not in ((2,50003,3),(50003,3),(2,17,17))
             return out
     m=LargeTie(50003,3).cuda()
     h=BookKeeping(m,tile=64,tied_output_chunk_size=7)

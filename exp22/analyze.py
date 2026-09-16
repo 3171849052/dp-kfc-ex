@@ -28,6 +28,11 @@ COMPARISONS = (
 )
 
 
+def accuracy_auc(epochs, accuracies):
+    """Exp20 definition: trapezoidal integral over observed epoch points."""
+    return float(np.trapezoid(np.asarray(accuracies, dtype=float), np.asarray(epochs, dtype=float)))
+
+
 def _bootstrap(values: np.ndarray, rng: np.random.Generator, draws: int = 20_000):
     if len(values) == 1:
         return float(values[0]), float(values[0])
@@ -87,10 +92,9 @@ def main():
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    output = (args.output or (cfg.RESULTS / ("smoke" if args.smoke else "formal"))).resolve()
+    output = (args.output or (cfg.RESULTS / "smoke" if args.smoke else cfg.RESULTS)).resolve()
     analyze(output, args.smoke)
 
 
 if __name__ == "__main__":
     main()
-

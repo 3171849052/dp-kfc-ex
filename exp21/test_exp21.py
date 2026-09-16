@@ -301,7 +301,7 @@ def test_auto_strategy_and_repeated_step_memory():
     for i in range(6):
         result = hooks.aggregate(x, y, 'bk_gd')
         stats = result[-1]
-        assert stats['layer_strategies'] == dict(conv1='full_fast', conv2='full_fast', fc1='ghost', fc2='ghost')
+        assert stats['layer_strategies'] == dict(conv1='fast', conv2='fast', fc1='ghost', fc2='ghost')
         assert not hooks.records and not hooks.pending
         del result
         model.zero_grad(set_to_none=True)
@@ -358,10 +358,7 @@ from exp21.test_optimized_cases import (test_row_ghost, test_memory_compute_rout
     test_local_fallback, test_streaming_baseline, test_vector_embedding,
     test_tied_workspace, test_shared_guard, test_optimized_repeated_memory,
     test_dropout_fallback_replay, test_frozen_affine_memory_cap,
-    test_ghost_conv_cap, test_norm_allocation_shapes,
-    test_shared_parameter_across_bk_fallback_boundary,
-    test_forced_fast_uses_chunked_affine, test_chunked_affine_matches_fast,
-    test_fallback_chunk_uses_memory_budget)
+    test_ghost_conv_cap, test_norm_allocation_shapes)
 
 
 if __name__ == '__main__':

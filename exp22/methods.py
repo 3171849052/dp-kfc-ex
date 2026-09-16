@@ -32,6 +32,14 @@ def _group(name: str) -> str:
     return "identity"
 
 
+def _retained_bytes(tensors):
+    storages = {}
+    for tensor in tensors:
+        storage = tensor.untyped_storage()
+        storages[(tensor.device, storage.data_ptr())] = storage.nbytes()
+    return sum(storages.values())
+
+
 class Clipper:
     """Exp21-style API with exact chunked logical-batch semantics.
 
@@ -80,6 +88,7 @@ class Clipper:
         self.records = []
         self.backward_calls = 0
         self.optimizer_steps = 0
+        self.noise_events = 0
         self.accountant_steps = 0
         self._last_stats = {}
 
@@ -117,8 +126,9 @@ class Clipper:
         if self.pos_embed is not None and self.pos_embed.requires_grad and not position_backprops:
             raise RuntimeError("pos_embed did not receive per-example backprop")
 
-        per_parameter = {p: torch.zeros((len(x),) + tuple(p.shape), device=p.device, dtype=p.dtype)
-                         for p in self.parameters}
+        cache_bytes = _retained_bytes(
+            list(activations.values()) + list(backprops.values()) + position_backprops
+        )
         layer_sq = {}
         group_sq = defaultdict(lambda: torch.zeros(len(x), device=x.device, dtype=x.dtype))
         temporary_bytes = 0
@@ -129,33 +139,44 @@ class Clipper:
             temporary_bytes = max(temporary_bytes, tensor_bytes(g))
             layer_sq[name] = g.square().sum(dim=(1, 2))
             group_sq[_group(name)].add_(layer_sq[name])
-            split = split_linear_gradient(g, module)
-            for parameter, value in split.items():
-                per_parameter[parameter] = value
             del g
         for name, module in self.norm_modules.items():
             grads = layernorm_per_example_gradient(activations[name], backprops[name], module)
             sq = torch.zeros(len(x), device=x.device, dtype=x.dtype)
             for parameter, value in grads.items():
-                per_parameter[parameter] = value
                 sq = sq + value.reshape(len(x), -1).square().sum(dim=1)
             layer_sq[name] = sq
             group_sq["identity"].add_(sq)
             temporary_bytes = max(temporary_bytes, sum(tensor_bytes(v) for v in grads.values()))
+            del grads
         if self.pos_embed is not None and self.pos_embed.requires_grad:
             pos = position_backprops[0]
             if pos.shape[1:] != self.pos_embed.shape[1:]:
                 raise RuntimeError("unexpected pos_embed gradient shape")
-            value = pos.reshape(len(x), *self.pos_embed.shape)
-            per_parameter[self.pos_embed] = value
-            layer_sq["pos_embed"] = value.reshape(len(x), -1).square().sum(dim=1)
+            layer_sq["pos_embed"] = pos.reshape(len(x), -1).square().sum(dim=1)
             group_sq["identity"].add_(layer_sq["pos_embed"])
         norms = sum(layer_sq.values()).clamp_min(0).sqrt()
         factors = (self.max_grad_norm / (norms + 1e-6)).clamp(max=1).detach()
-        aggregate = {
-            p: torch.einsum("b,b...->...", factors, g)
-            for p, g in per_parameter.items()
-        }
+        aggregate = {p: torch.zeros_like(p) for p in self.parameters}
+        for name, module in self.linear_modules.items():
+            g = per_example_linear_gradient(activations[name], backprops[name], module)
+            if self.operator is not None and name in self.operator.data:
+                g = self.operator.transform_gradient(name, g)
+            clipped = torch.einsum("b,bod->od", factors, g)
+            for parameter, value in split_linear_gradient(clipped, module).items():
+                aggregate[parameter].add_(value)
+            del g, clipped
+        for name, module in self.norm_modules.items():
+            grads = layernorm_per_example_gradient(activations[name], backprops[name], module)
+            for parameter, value in grads.items():
+                aggregate[parameter].add_(torch.einsum("b,b...->...", factors, value))
+            del grads
+        if self.pos_embed is not None and self.pos_embed.requires_grad:
+            aggregate[self.pos_embed].add_(torch.einsum("b,b...->...", factors, position_backprops[0]))
+        activations.clear()
+        backprops.clear()
+        position_backprops.clear()
+        cache_empty = not activations and not backprops and not position_backprops
         return {
             "loss": losses.detach().sum(),
             "norms": norms.detach(),
@@ -163,7 +184,10 @@ class Clipper:
             "layer_sq": {k: v.detach() for k, v in layer_sq.items()},
             "group_sq": {k: v.detach() for k, v in group_sq.items()},
             "aggregate": aggregate,
+            "bk_cache_bytes": cache_bytes,
             "temporary_per_sample_grad_bytes": temporary_bytes,
+            "fallback_temporary_grad_bytes": 0,
+            "cache_empty_after_step": cache_empty,
         }
 
     def _finish(self, parts, total_size):
@@ -187,15 +211,17 @@ class Clipper:
         group_sq = {name: torch.cat(values) for name, values in group_sq.items()}
         stats = {
             "backward_calls": len(parts),
-            "bk_cache_bytes": 0,
+            "bk_cache_bytes": max((part["bk_cache_bytes"] for part in parts), default=0),
             "temporary_per_sample_grad_bytes": max(
                 (part["temporary_per_sample_grad_bytes"] for part in parts), default=0
             ),
-            "fallback_temporary_grad_bytes": 0,
-            "cache_empty_after_step": True,
+            "fallback_temporary_grad_bytes": max(
+                (part["fallback_temporary_grad_bytes"] for part in parts), default=0
+            ),
+            "cache_empty_after_step": all(part["cache_empty_after_step"] for part in parts),
             "preconditioned_layers": self.preconditioned_layers,
             "identity_geometry_layers": self.identity_geometry_layers,
-            "layer_strategies": {name: "bk" for name in self.linear_modules},
+            "layer_strategies": {name: "bk_layer_local" for name in self.linear_modules},
             "layer_group_sq": group_sq,
             "logical_batch_size": total_size,
             "physical_batch_size": max(len(part["norms"]) for part in parts),
@@ -261,6 +287,7 @@ class Clipper:
             p.grad.add_(noise, alpha=sigma * bound).div_(batch_size)
         optimizer.step()
         self.optimizer_steps += 1
+        self.noise_events += 1
         return self.optimizer_steps
 
     def remove(self):

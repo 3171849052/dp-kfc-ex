@@ -8,7 +8,15 @@ from typing import Iterable
 import torch
 from torch import nn
 
-from .config import A_POWER, DAMPING, NUM_CLASSES, SYNTHETIC_ALPHA, SYNTHETIC_BATCHES, SYNTHETIC_BATCH_SIZE
+from .config import (
+    A_POWER,
+    DAMPING,
+    NUM_CLASSES,
+    SYNTHETIC_ALPHA,
+    SYNTHETIC_BATCHES,
+    SYNTHETIC_BATCH_SIZE,
+    SYNTHETIC_PHYSICAL_BATCH_SIZE,
+)
 from .handlers import flatten_linear_input
 
 
@@ -132,10 +140,24 @@ def synthetic_labels(
     device: torch.device | str,
     batch_size: int,
     num_classes: int = NUM_CLASSES,
+    generator: torch.Generator | None = None,
 ) -> torch.Tensor:
     device = torch.device(device)
-    generator = torch.Generator(device=device).manual_seed(seed + 20000 + epoch)
+    if generator is None:
+        generator = torch.Generator(device=device).manual_seed(seed + 20000 + epoch)
     return torch.randint(num_classes, (batch_size,), device=device, generator=generator)
+
+
+def synthetic_label_stream(
+    seed: int,
+    epoch: int,
+    device: torch.device | str,
+    batch_sizes: Iterable[int],
+    num_classes: int = NUM_CLASSES,
+) -> list[torch.Tensor]:
+    device = torch.device(device)
+    generator = torch.Generator(device=device).manual_seed(seed + 20000 + epoch)
+    return [synthetic_labels(seed, epoch, device, size, num_classes, generator) for size in batch_sizes]
 
 
 def _selected(model: nn.Module, layer_names: Iterable[str] | None) -> dict[str, nn.Linear]:
@@ -178,9 +200,12 @@ def build_a_operator(
         return hook
 
     handles = [module.register_forward_hook(capture(name)) for name, module in modules.items()]
+    forward_calls = 0
     try:
-        for x in cache:
-            model(x)
+        for logical_x in cache:
+            for start in range(0, len(logical_x), SYNTHETIC_PHYSICAL_BATCH_SIZE):
+                model(logical_x[start:start + SYNTHETIC_PHYSICAL_BATCH_SIZE])
+                forward_calls += 1
     finally:
         for handle in handles:
             handle.remove()
@@ -189,9 +214,9 @@ def build_a_operator(
     for name in modules:
         factors[name]["A"].div_(counts[name])
     operator = AOnlyOperator(factors, power, damping)
-    identity = [name for name, _ in model.named_modules() if False]
     stats = {
-        "builder_forward_calls": len(cache),
+        "builder_forward_calls": forward_calls,
+        "builder_logical_batches": len(cache),
         "builder_vjp_calls": 0,
         "builder_reverse_vectors": 0,
         "builder_samples": sum(len(x) for x in cache),
@@ -231,23 +256,31 @@ def build_full_operator(
         return hook
 
     handles = [module.register_forward_hook(capture(name)) for name, module in modules.items()]
+    forward_calls = 0
+    vjp_calls = 0
+    num_classes = getattr(model, "num_classes", None)
+    if num_classes is None and hasattr(model, "head"):
+        num_classes = model.head.out_features
+    label_generator = torch.Generator(device=next(model.parameters()).device).manual_seed(seed + 20000 + epoch)
     try:
-        for x in cache:
-            num_classes = getattr(model, "num_classes", None)
-            if num_classes is None and hasattr(model, "head"):
-                num_classes = model.head.out_features
-            labels = synthetic_labels(seed, epoch, x.device, len(x), num_classes or NUM_CLASSES)
-            model.zero_grad(set_to_none=True)
-            logits = model(x)
-            torch.nn.functional.cross_entropy(logits, labels, reduction="sum").backward()
-            for name, module in modules.items():
-                a = flatten_linear_input(activations[name], module)
-                b = backprops[name].reshape(-1, module.out_features)
-                factors[name]["A"].add_(a.T @ a)
-                factors[name]["G"].add_(b.T @ b)
-                counts[name] += a.shape[0]
-            activations.clear()
-            backprops.clear()
+        for logical_x in cache:
+            labels = synthetic_labels(seed, epoch, logical_x.device, len(logical_x), num_classes or NUM_CLASSES, label_generator)
+            for start in range(0, len(logical_x), SYNTHETIC_PHYSICAL_BATCH_SIZE):
+                x = logical_x[start:start + SYNTHETIC_PHYSICAL_BATCH_SIZE]
+                y = labels[start:start + SYNTHETIC_PHYSICAL_BATCH_SIZE]
+                model.zero_grad(set_to_none=True)
+                logits = model(x)
+                torch.nn.functional.cross_entropy(logits, y, reduction="sum").backward()
+                for name, module in modules.items():
+                    a = flatten_linear_input(activations[name], module)
+                    b = backprops[name].reshape(-1, module.out_features)
+                    factors[name]["A"].add_(a.T @ a)
+                    factors[name]["G"].add_(b.T @ b)
+                    counts[name] += a.shape[0]
+                activations.clear()
+                backprops.clear()
+                forward_calls += 1
+                vjp_calls += 1
     finally:
         for handle in handles:
             handle.remove()
@@ -259,9 +292,10 @@ def build_full_operator(
         factors[name]["G"].div_(counts[name])
     operator = FullKFACOperator(factors, damping)
     stats = {
-        "builder_forward_calls": len(cache),
-        "builder_vjp_calls": len(cache),
-        "builder_reverse_vectors": sum(len(x) for x in cache),
+        "builder_forward_calls": forward_calls,
+        "builder_logical_batches": len(cache),
+        "builder_vjp_calls": vjp_calls,
+        "builder_reverse_vectors": vjp_calls,
         "builder_samples": sum(len(x) for x in cache),
         "preconditioned_layers": sorted(modules),
         "operator_state_bytes": operator.operator_state_bytes,

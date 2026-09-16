@@ -113,14 +113,10 @@ def run(method, seed, smoke, output):
         stats.update({k: phases[k] for k in ('ghost_layer_count', 'fast_layer_count',
             'fallback_layer_count', 'fallback_layers', 'requires_second_backward', 'backward_calls',
             'first_pass_parameter_grad_count', 'gd_applied', 'input_gradient_computed',
-            'first_pass_param_grad_disabled', 'first_pass_includes_streamed_norm',
-            'fallback_vjp_chunk_size', 'fallback_vjp_max_chunk_size',
-            'fallback_vjp_effective_chunk_size', 'fallback_parameter_bytes',
-            'fallback_memory_budget_bytes', 'fallback_parameter_count')})
+            'first_pass_param_grad_disabled', 'fallback_vjp_chunk_size', 'fallback_parameter_count')})
         stats['gd_anchor_module'] = phases['gd_anchor_module']
         for k in ('layer_routing', 'layer_strategies', 'bk_ghost_layers', 'bk_fast_layers', 'fallback_layer_names',
-                  'fallback_parameter_names', 'fallback_parameter_ids', 'preconditioned_layers',
-                  'identity_geometry_layers', 'gd_anchor_modules'):
+                  'fallback_parameter_names', 'preconditioned_layers', 'identity_geometry_layers', 'gd_anchor_modules'):
             stats[k] = json.dumps(phases[k])
         stats.update(cache_empty_after_step=True, batch_end_allocated_bytes=json.dumps(allocations))
         if smoke:

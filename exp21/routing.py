@@ -23,8 +23,6 @@ class Routes:
     def __init__(self, model, operator):
         self.modules, self.owners = {}, {}
         self.fallback_layer_names, self.fallback_parameter_names = [], []
-        self.fallback_parameter_ids = set()
-        self.fallback_params = []
         self.broadcast_embeddings = set()
         self.params = [p for p in model.parameters() if p.requires_grad]
         self.trainable = {id(p) for p in self.params}
@@ -42,16 +40,13 @@ class Routes:
                 self.broadcast_embeddings.add(id(m.wpe))
             if any(name == prefix or name.startswith(prefix+'.') or prefix == '' for prefix in subtree):
                 continue
-            direct = {n: p for n, p in m.named_parameters(recurse=False, remove_duplicate=False)
-                      if id(p) in self.trainable}
+            direct = {n: p for n, p in m.named_parameters(recurse=False) if id(p) in self.trainable}
             if type(m) in FALLBACK_MODULE_TYPES:
-                ps = {n: p for n, p in m.named_parameters(remove_duplicate=False)
-                      if id(p) in self.trainable}
+                ps = {n: p for n, p in m.named_parameters() if id(p) in self.trainable}
                 if ps:
                     self.fallback_layer_names.append(name)
                     self.fallback_parameter_names.extend((name+'.' if name else '')+n for n in ps)
                     covered.update(id(p) for p in ps.values())
-                    self.fallback_parameter_ids.update(id(p) for p in ps.values())
                     subtree.append(name)
                 continue
             if not direct:
@@ -60,7 +55,6 @@ class Routes:
                 self.fallback_layer_names.append(name)
                 self.fallback_parameter_names.extend((name+'.' if name else '')+n for n in direct)
                 covered.update(id(p) for p in direct.values())
-                self.fallback_parameter_ids.update(id(p) for p in direct.values())
                 continue
             adapter = kind(m)
             allowed = {'weight'} if adapter == 'embedding' else {'weight', 'bias'}
@@ -82,7 +76,7 @@ class Routes:
         # One shared Parameter cannot use two different augmented module maps.
         all_owners = {}
         for n, m in all_modules.items():
-            for p in {id(p): p for p in m.parameters(recurse=False)}.values():
+            for p in m.parameters(recurse=False):
                 if id(p) in self.trainable:
                     all_owners.setdefault(id(p), []).append(n)
         shared_names = {n for names in all_owners.values() if len(names) > 1 for n in names}
@@ -91,20 +85,12 @@ class Routes:
         self.preconditioned_layers = sorted(selected)
         self.identity_geometry_layers = [n for n, m in all_modules.items()
             if n not in selected and any(id(p) in self.trainable for p in m.parameters(recurse=False))]
-        self.fallback_params = [p for p in self.params if id(p) in self.fallback_parameter_ids]
-
-    @staticmethod
-    def parameter_names(model, parameter_ids):
-        """Display metadata, retaining aliases while never using them for routing."""
-        return [n for n, p in model.named_parameters(remove_duplicate=False)
-                if id(p) in parameter_ids]
 
     def metadata(self, second=False):
         count = len(self.fallback_layer_names)
         return dict(fallback_layers=count, fallback_layer_count=count,
             fallback_layer_names=list(self.fallback_layer_names),
             fallback_parameter_names=list(self.fallback_parameter_names),
-            fallback_parameter_ids=sorted(self.fallback_parameter_ids),
             requires_second_backward=bool(count) or second,
             preconditioned_layers=self.preconditioned_layers,
             identity_geometry_layers=self.identity_geometry_layers,
@@ -122,64 +108,29 @@ LAUNCH_EQUIVALENT_MACS = 440_000_000
 
 
 def norm_route(record, strategy, max_fast_temp_bytes, tile=64):
-    """Choose full affine Fast, chunked affine Fast, or row-tiled Ghost."""
-    if strategy not in ('auto', 'ghost', 'fast'):
-        raise ValueError(f'Invalid norm strategy: {strategy}')
+    """Hard workspace cap, then compute + reduction + launch cost estimates."""
     b = len(record.b)
+    size = sum(p.numel() for p in record.params.values())*b*record.b.element_size()
     if record.kind != 'linear':
         choice = 'fast_sparse' if record.kind == 'embedding' else 'fast'
-        return dict(strategy=choice, estimated_fast_bytes=0,
-                    estimated_full_fast_bytes=0, estimated_chunked_fast_bytes=0,
-                    output_chunk_size=0, candidate_output_chunk_size=0,
-                    estimated_full_fast_cost=0, estimated_chunked_fast_cost=0,
+        return dict(strategy=choice, estimated_fast_bytes=size if choice == 'fast' else 0,
                     estimated_fast_cost=0, estimated_ghost_cost=0,
                     routing_reason='fast_sparse' if choice == 'fast_sparse' else 'fast_norm')
-    t, d, o = record.b.shape[1], record.affine_z().shape[-1], record.b.shape[-1]
-    element_size = record.b.element_size()
-    full_bytes = b*d*o*element_size
-    chunk_base_bytes = b*d*element_size
-    full_feasible = full_bytes <= max_fast_temp_bytes
-    max_chunk = max_fast_temp_bytes//chunk_base_bytes if chunk_base_bytes else 0
-    chunk = min(o, max_chunk)
-    chunk_feasible = chunk >= 1
-    chunk_bytes = b*d*chunk*element_size if chunk_feasible else 0
+    t, d, o = record.b.shape[1], record.z.shape[-1], record.b.shape[-1]
+    # The affine kernel forms the full augmented matrix, including frozen subsets.
+    size = b*d*o*record.b.element_size()
     fast_macs, ghost_macs = b*t*d*o, b*t*t*(d+o)
-    rows = min(tile, t)
+    rows = min(tile, max(1, t-1))
     tiles = (t+rows-1)//rows
-    full_cost = fast_macs + b*d*o*FAST_REDUCTION_EQUIVALENT_TOKENS + LAUNCH_EQUIVALENT_MACS
-    chunk_cost = (fast_macs + b*d*o*FAST_REDUCTION_EQUIVALENT_TOKENS
-                  + (o+chunk-1)//chunk*LAUNCH_EQUIVALENT_MACS) if chunk_feasible else None
-    ghost_cost = GHOST_COMPUTE_FACTOR*ghost_macs + tiles*LAUNCH_EQUIVALENT_MACS
-    if strategy == 'ghost':
-        choice, reason = 'ghost', 'ghost_only_feasible'
-    elif strategy == 'fast':
-        if full_feasible:
-            choice, reason = 'full_fast', 'fast_compute'
-        elif chunk_feasible:
-            choice, reason = 'chunked_fast', 'chunked_fast_compute'
-        else:
-            raise RuntimeError('Forced Fast strategy exceeds the affine workspace cap')
+    fast = fast_macs + b*d*o*FAST_REDUCTION_EQUIVALENT_TOKENS + LAUNCH_EQUIVALENT_MACS
+    ghost = GHOST_COMPUTE_FACTOR*ghost_macs + tiles*LAUNCH_EQUIVALENT_MACS
+    if size > max_fast_temp_bytes:
+        choice, reason = 'ghost', 'ghost_memory_cap'
+    elif strategy != 'auto':
+        choice, reason = strategy, strategy+'_requested'
     else:
-        candidates = [('ghost', ghost_cost)]
-        if full_feasible:
-            candidates.append(('full_fast', full_cost))
-        if chunk_feasible:
-            candidates.append(('chunked_fast', chunk_cost))
-        choice = min(candidates, key=lambda item: item[1])[0]
-        reason = ({'full_fast': 'fast_compute', 'chunked_fast': 'chunked_fast_compute',
-                   'ghost': 'ghost_compute'}[choice]
-                  if choice != 'ghost' or full_feasible or chunk_feasible
-                  else 'ghost_only_feasible')
-    return dict(strategy=choice,
-                estimated_fast_bytes=full_bytes,
-                estimated_full_fast_bytes=full_bytes,
-                estimated_chunked_fast_bytes=chunk_bytes,
-                output_chunk_size=chunk if choice == 'chunked_fast' else 0,
-                candidate_output_chunk_size=chunk if chunk_feasible else 0,
-                estimated_fast_cost=full_cost,
-                estimated_full_fast_cost=full_cost,
-                estimated_chunked_fast_cost=chunk_cost,
-                estimated_ghost_cost=ghost_cost,
-                estimated_fast_macs=fast_macs,
-                estimated_ghost_macs=ghost_macs,
-                routing_reason=reason)
+        choice = 'ghost' if ghost <= fast else 'fast'
+        reason = choice+'_compute'
+    return dict(strategy=choice, estimated_fast_bytes=size, estimated_fast_cost=fast,
+                estimated_ghost_cost=ghost, estimated_fast_macs=fast_macs,
+                estimated_ghost_macs=ghost_macs, routing_reason=reason)
