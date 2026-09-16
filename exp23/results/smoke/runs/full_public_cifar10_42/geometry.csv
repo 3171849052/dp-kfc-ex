@@ -1,0 +1,5 @@
+method,source,seed,epoch,layer,diagnostic_scope,cosA,relative_frobenius_A,cosG,relative_frobenius_G,fisher_cosine_proxy
+full_public_cifar10,cifar10,42,1,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9283954728536647,1.585592774119102,0.6722964465476315,0.7517141453856948,0.624156977390427
+full_public_cifar10,cifar10,42,1,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8515688850495962,1.2122655972161744,0.8569556395370589,0.530572397557681,0.7297567584975369
+full_public_cifar10,cifar10,42,1,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.5932184622281779,0.8599633755855077,0.7378434974805534,0.7290041849379448,0.43770238494047436
+full_public_cifar10,cifar10,42,1,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8311050601009733,0.5892289931192015,0.995574058985836,0.09398093107605979,0.8274266381283931

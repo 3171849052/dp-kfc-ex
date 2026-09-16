@@ -1,0 +1,5 @@
+method,source,seed,epoch,layer,diagnostic_scope,cosA,relative_frobenius_A
+a_public_cifar10,cifar10,42,1,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9283954728536647,1.585592774119102
+a_public_cifar10,cifar10,42,1,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8515688850495962,1.2122655972161744
+a_public_cifar10,cifar10,42,1,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.5932184622281779,0.8599633755855077
+a_public_cifar10,cifar10,42,1,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8311050601009733,0.5892289931192015

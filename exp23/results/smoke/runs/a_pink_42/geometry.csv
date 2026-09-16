@@ -1,0 +1,5 @@
+method,source,seed,epoch,layer,diagnostic_scope,cosA,relative_frobenius_A
+a_pink,pink,42,1,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8618116263472527,0.7908662092298306
+a_pink,pink,42,1,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8169699345649275,0.6628943531273978
+a_pink,pink,42,1,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.7100319801040785,0.7637139184871902
+a_pink,pink,42,1,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.854649087127294,0.5625582573472794

@@ -1,0 +1,32 @@
+{
+  "method": "full_pink",
+  "seed": 42,
+  "smoke": true,
+  "epochs": 1,
+  "calibration_samples": 2560,
+  "a_power": 0.4,
+  "damping": 0.001,
+  "clip": 1.0,
+  "logical_batch": 256,
+  "epsilon_target": 1.0,
+  "delta": 1e-05,
+  "learning_rate": 0.5,
+  "noise_multiplier": 1.068115234375,
+  "accounting": "Exp19/20 shuffled fixed-batch RDP convention; smoke uses formal sigma and sample rate",
+  "oracle": "Fixed 10x256 MNIST samples, seed 23000, before private training each epoch; read-only",
+  "diagnostic_scope": "research-only: unnoised oracle/clipping/norm diagnostics; not a DP release",
+  "initialization_hash": "8e4e86c4eab8bdeb6a558c645769920030e0ad9ebf5be2002de9e650d0b89a1e",
+  "private_batch_hashes": [
+    "628e7756c0b84a28f3d0e08922cb5ea4db9ea19fd2f82006bf0d0d5874e9e45a",
+    "580a567ea57443f15bf1c2db333a47049cfc0dd4f0510bd63cca3c30bb89b78a"
+  ],
+  "final_noise_rng_hash": "c82ab88bdbb3bd5ec04d5ea5b0a9bd8d3f9d88ee099a29d2e0fc250569c018c6",
+  "rng": {
+    "initialization": "seed (CPU only)",
+    "private_shuffle": "seed",
+    "dp_noise": "seed+40000",
+    "calibration": "seed+10000+epoch",
+    "pink_labels": "seed+20000+epoch"
+  },
+  "timing": "CUDA synchronized phase boundaries; no disposable warmup; oracle/evaluation excluded from algorithm timings"
+}

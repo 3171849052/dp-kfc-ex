@@ -1,0 +1,5 @@
+method,source,seed,epoch,layer,diagnostic_scope,cosA,relative_frobenius_A
+a_public_fashion,fashion,42,1,conv1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9660282295184386,0.9784331189526183
+a_public_fashion,fashion,42,1,conv2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9336224782831184,0.8054845076380771
+a_public_fashion,fashion,42,1,fc1,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.8361055847818185,0.5683062079376703
+a_public_fashion,fashion,42,1,fc2,research-only: unnoised oracle/clipping/norm diagnostics; not a DP release,0.9332410043666731,0.3713046355254961
