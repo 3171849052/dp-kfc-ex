@@ -29,26 +29,6 @@ def linear_covariances(
     return A, G, a.shape[0]
 
 
-def per_example_linear_gradient(
-    activation: torch.Tensor,
-    backprop: torch.Tensor,
-    module: nn.Linear,
-) -> torch.Tensor:
-    b, t, _ = backprop.reshape(len(backprop), -1, backprop.shape[-1]).shape
-    a = activation.reshape(b, -1, activation.shape[-1])
-    if module.bias is not None:
-        a = torch.cat((a, torch.ones_like(a[..., :1])), dim=-1)
-    bp = backprop.reshape(b, -1, backprop.shape[-1])
-    return torch.einsum("bto,bti->boi", bp, a)
-
-
-def split_linear_gradient(g: torch.Tensor, module: nn.Linear) -> dict[nn.Parameter, torch.Tensor]:
-    result = {module.weight: g[..., :-1] if module.bias is not None else g}
-    if module.bias is not None:
-        result[module.bias] = g[..., -1]
-    return result
-
-
 def layernorm_per_example_gradient(
     activation: torch.Tensor,
     backprop: torch.Tensor,
