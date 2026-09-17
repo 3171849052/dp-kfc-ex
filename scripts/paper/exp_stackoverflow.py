@@ -15,8 +15,10 @@ from dp_kfac.models import BERTClassifier
 from dp_kfac.trainer import Trainer
 from dp_kfac.results import save_results_csv
 
-EPSILONS = [0.5, 1.0, 2.0, 3.0, 5.0, 7.5, 10.0]
-SEEDS = [42, 7, 91, 23, 58, 134, 76, 3, 219, 65]
+# EPSILONS = [0.5, 1.0, 2.0, 3.0, 5.0, 7.5, 10.0]
+EPSILONS = [7.5]
+# SEEDS = [42, 7, 91, 23, 58, 134, 76, 3, 219, 65]
+SEEDS = [42]
 EPOCHS = 5
 LR = 2e-4
 BATCH_SIZE = 64

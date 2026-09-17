@@ -83,3 +83,40 @@ p50/p90/p99/max、A/G 谱范围/trace/加 damping condition、p/RMS scale、校�
 
 已有项目 `data/` 若有完整 CIFAR 解压目录则只读复用，否则下载到 `exp25/data/`。
 模型权重保存在 `exp25/cache/`，不修改已有实验或其结果。
+
+### Standalone YAML entry point
+
+The three BK+GD standalone configurations are in `configs/standalone/`:
+
+- `crossvit_cifar100_dp_sgd_bk_gd.yaml`
+- `crossvit_cifar100_dp_kfc_a_pink_bk_gd.yaml`
+- `crossvit_cifar100_dp_kfc_pink_bk_gd.yaml`
+
+Set `DEFAULT_CONFIG` in the repository's existing `run.sh` to the desired YAML,
+then run `./run.sh` from the repository root. The existing tmux launcher writes
+`config.yaml`, `resolved_config.yaml`, `metrics.csv`, `train.log`, and
+`summary.json` under the top-level `outputs/`. No Exp25 shell is needed.
+The YAML data root is `exp25/data`, where this experiment's CIFAR datasets live.
+
+Standalone calls the same `exp25.run_one.run` loop, geometry operators and BK+GD
+functions. Defaults retain the 5-epoch, batch-256 Exp25 protocol (195 steps per
+epoch, 975 scheduled steps); derived privacy values are calculated at runtime.
+Pink geometry uses one auxiliary batch per epoch, with random labels in 0..99.
+Detailed Exp25 diagnostics are retained in `summary.json`; metrics without an
+Exp25 counterpart (gain quantiles and operator storage) are left empty in CSV.
+
+For a minimal real-data smoke run, prepare the directory using
+`scripts/train.py --config <YAML> --prepare-run`, then execute
+`scripts/train.py --config <YAML> --run-dir <DIRECTORY> --smoke`, redirecting
+stdout/stderr to `<DIRECTORY>/train.log`. Smoke executes one private batch and
+one evaluation batch, retaining the full YAML privacy calibration schedule.
+It does not launch the full training schedule.
+
+Run regression tests from the repository root:
+
+```bash
+PYTHONPATH=src conda run -n curve python -m pytest -q \
+  exp25/test_exp25.py tests/test_standalone_exp25.py \
+  tests/test_standalone_config.py tests/test_standalone_smoke.py \
+  tests/test_standalone_adamw.py tests/test_run_logging.py
+```

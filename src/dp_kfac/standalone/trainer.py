@@ -161,7 +161,7 @@ def evaluate(model, loader, device):
     return loss / len(loader.dataset), correct / len(loader.dataset)
 
 
-def train(c, run_dir):
+def train(c, run_dir, smoke=False):
     directory = Path(run_dir).resolve()
     # Prepared runs are single-use; never append another training to an old run.
     from .config import load_config
@@ -169,6 +169,12 @@ def train(c, run_dir):
         raise ValueError('config differs from the prepared run')
     if len((directory / 'metrics.csv').read_text().splitlines()) != 1 or (directory / 'summary.json').exists():
         raise ValueError('run directory has already been used')
+    from .config import BK_GD_ALGORITHMS
+    if c['algorithm'] in BK_GD_ALGORITHMS:
+        from .exp25_adapter import train_exp25
+        return train_exp25(c, directory, smoke=smoke)
+    if smoke:
+        raise ValueError('--smoke is only supported for BK+GD algorithms')
     device = torch.device('cuda:0' if c['runtime']['device'] == 'cuda' else 'cpu')
     torch.set_num_threads(c['runtime']['threads'])
     torch.backends.cudnn.benchmark = False

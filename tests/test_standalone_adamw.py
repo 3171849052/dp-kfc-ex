@@ -19,7 +19,7 @@ def test_adamw_config_and_update(algorithm):
     model.weight.grad = torch.zeros_like(model.weight)
     optimizer.step()
     # Decoupled decay applies even with a zero sanitized gradient.
-    torch.testing.assert_close(model.weight, torch.tensor([[2 * (1 - .001 * .01)]]))
+    torch.testing.assert_close(model.weight, torch.tensor([[2 * (1 - c['training']['learning_rate'] * .01)]]))
     assert optimizer.state[model.weight]['step'].item() == 1
     assert '_adamw_' in format_run_name(c)
     assert '_mom' not in format_run_name(c)

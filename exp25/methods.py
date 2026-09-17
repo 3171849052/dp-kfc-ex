@@ -25,31 +25,31 @@ def first_pass(model, x, y):
 
 
 @torch.no_grad()
-def reconstruct(a, b, operator=None):
+def reconstruct(a, b, operator=None, clip=CLIP):
     if operator is not None:
         a = operator.transform_activation('classifier', a)
         if hasattr(operator, 'transform_backprop'):
             b = operator.transform_backprop('classifier', b)
     # || b_i a_i^T ||_F = ||b_i|| ||a_i||; no B x O x I tensor.
     norms = a.norm(dim=1) * b.norm(dim=1)
-    factors = (CLIP / (norms + 1e-6)).clamp(max=1.)
+    factors = (clip / (norms + 1e-6)).clamp(max=1.)
     aggregate = (b * factors[:, None]).T @ a
     return aggregate, norms, factors
 
 
-def aggregate(model, x, y, operator=None):
+def aggregate(model, x, y, operator=None, clip=CLIP):
     losses, a, b, count = first_pass(model, x, y)
-    summed, norms, factors = reconstruct(a, b, operator)
+    summed, norms, factors = reconstruct(a, b, operator, clip)
     return losses, summed, norms, factors, count
 
 
 @torch.no_grad()
-def update(model, optimizer, summed, sigma, batch_size, generator, accountant):
+def update(model, optimizer, summed, sigma, batch_size, generator, accountant, clip=CLIP, sample_rate=SAMPLE_RATE):
     noise = torch.randn(summed.shape, dtype=summed.dtype, device=summed.device,
-                        generator=generator) * (sigma * CLIP)
+                        generator=generator) * (sigma * clip)
     gradient = (summed + noise) / batch_size
     model.classifier.weight.grad = gradient[:, :-1].contiguous()
     model.classifier.bias.grad = gradient[:, -1].contiguous()
     optimizer.step()
     optimizer.zero_grad(set_to_none=True)
-    accountant.step(noise_multiplier=sigma, sample_rate=SAMPLE_RATE)
+    accountant.step(noise_multiplier=sigma, sample_rate=sample_rate)

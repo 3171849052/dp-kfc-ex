@@ -1,7 +1,9 @@
-"""IMDB Logistic Regression with DP-KFAC vs AdaDPS."""
+"""IMDB logistic regression with public or synthetic DP-KFC-A."""
 
-import sys
 import argparse
+import copy
+import itertools
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
@@ -16,29 +18,57 @@ from rich.console import Console
 
 from dp_kfac.data import get_imdb_data, get_agnews_data, get_tfidf_features
 from dp_kfac.models import LogisticRegression
-from dp_kfac.trainer import Trainer, evaluate, set_seed
+from dp_kfac.trainer import evaluate, generate_white_noise, set_seed
 from dp_kfac.privacy import clip_and_noise_gradients
-from dp_kfac.methods import estimate_adadps_preconditioner, precondition_per_sample_gradients_adadps
 from dp_kfac.results import save_results_csv
+from exp_imdb_logreg import (
+    EPSILONS, SEEDS, EPOCHS, LR, BATCH_SIZE, MAX_GRAD_NORM_KFAC,
+    MAX_FEATURES, NUM_CLASSES,
+)
 
-# EPSILONS = [0.5, 1.0, 1.5, 2.8, 8.0]
-EPSILONS = [2.8]
-# SEEDS = [42, 7, 91, 23, 58, 134, 76, 3, 219, 65]
-SEEDS = [42]
-EPOCHS = 32
-LR = 0.1
-BATCH_SIZE = 256
-MAX_GRAD_NORM_DPSGD = 0.1
-MAX_GRAD_NORM_KFAC = 2.0
-MAX_FEATURES = 10000
-NUM_CLASSES = 2
-
+A_POWER = 0.4
+DAMPING = 1e-3
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 console = Console()
 
 
-def train_adadps(
+def compute_a_covariance(activation: torch.Tensor) -> torch.Tensor:
+    """Dense, bias-augmented Linear covariance used by IMDB DP-KFAC."""
+    A = activation
+    A_bias = torch.cat([A, torch.ones_like(A[:, :1])], dim=1)
+    return A_bias.T @ A_bias / A.size(0) + 1e-5 * torch.eye(
+        A_bias.size(1), device=A.device, dtype=A.dtype
+    )
+
+
+def compute_a_operator(
+    A: torch.Tensor,
+    power: float = A_POWER,
+    damping: float = DAMPING,
+) -> torch.Tensor:
+    """Compute the dense (A + damping I)^(-power), without rescaling."""
+    eigvals, eigvecs = torch.linalg.eigh(
+        A + damping * torch.eye(A.size(0), device=A.device, dtype=A.dtype)
+    )
+    return eigvecs @ torch.diag(eigvals.clamp(min=1e-6).pow(-power)) @ eigvecs.T
+
+
+def precondition_per_sample_gradients_a(
+    model: GradSampleModule,
+    operators: dict[str, torch.Tensor],
+) -> None:
+    """Right-multiply each Linear layer's bias-augmented sample gradients."""
+    for name, module in model._module.named_modules():
+        if isinstance(module, nn.Linear):
+            g_sample_w = module.weight.grad_sample
+            g_sample_b = module.bias.grad_sample
+            g_aug = torch.cat([g_sample_w, g_sample_b.unsqueeze(2)], dim=2)
+            preconditioned = torch.einsum("bok,ki->boi", g_aug, operators[name])
+            module.weight.grad_sample = preconditioned[:, :, :-1]
+            module.bias.grad_sample = preconditioned[:, :, -1]
+
+
+def train_dp_kfc_a(
     model: nn.Module,
     train_loader: DataLoader,
     public_loader: DataLoader,
@@ -49,16 +79,15 @@ def train_adadps(
     delta: float,
     max_grad_norm: float,
     seed: int,
+    use_public_data: bool,
 ) -> tuple:
-    """Train with AdaDPS diagonal preconditioning."""
     set_seed(seed)
-    model = model.to(device)
+    # Match Trainer._fresh_model(): every run starts from the same base model.
+    model = copy.deepcopy(model).to(device)
     model = GradSampleModule(model, batch_first=True, loss_reduction="sum")
     optimizer = torch.optim.SGD(
-        [p for p in model.parameters() if p.requires_grad], lr=LR
+        [p for p in model.parameters() if p.requires_grad], lr=LR, momentum=0.9
     )
-
-    # Compute noise multiplier
     train_size = len(train_loader.dataset)
     batch_size = train_loader.batch_size or BATCH_SIZE
     sample_rate = batch_size / train_size
@@ -70,34 +99,65 @@ def train_adadps(
         steps=total_steps,
         accountant="rdp",
     )
-
-    # Estimate preconditioner from public data
-    preconditioner = estimate_adadps_preconditioner(model, public_loader, device)
-
     accountant = RDPAccountant()
     criterion = nn.CrossEntropyLoss(reduction="sum")
+    public_iter = iter(itertools.cycle(public_loader))
+    operators = {}
 
     for epoch in range(epochs):
         model.train()
-        for data, target in train_loader:
+        for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)
             model.zero_grad(set_to_none=True)
+
+            if batch_idx % len(train_loader) == 0:
+                if use_public_data:
+                    calibration_data = next(public_iter)[0].to(device)
+                else:
+                    calibration_data = generate_white_noise(
+                        data.size(0), (data.size(1),), device
+                    )
+
+                activations = {}
+
+                def capture_activation(name):
+                    def hook(module, inputs, output):
+                        activations[name] = inputs[0].detach()
+                    return hook
+
+                handles = [
+                    module.register_forward_hook(capture_activation(name))
+                    for name, module in model._module.named_modules()
+                    if isinstance(module, nn.Linear)
+                ]
+                # Opacus does not record calibration activations under no_grad.
+                with torch.no_grad():
+                    model(calibration_data)
+                for handle in handles:
+                    handle.remove()
+                operators = {
+                    name: compute_a_operator(compute_a_covariance(activation))
+                    for name, activation in activations.items()
+                }
+
             output = model(data)
             loss = criterion(output, target)
             loss.backward()
-
-            precondition_per_sample_gradients_adadps(model, preconditioner)
-            clip_and_noise_gradients(model, noise_multiplier, max_grad_norm, data.size(0))
+            precondition_per_sample_gradients_a(model, operators)
+            clip_and_noise_gradients(
+                model, noise_multiplier, max_grad_norm, data.size(0)
+            )
             optimizer.step()
             accountant.step(noise_multiplier=noise_multiplier, sample_rate=sample_rate)
 
-    acc, test_loss = evaluate(model, test_loader, device)
-    return acc, test_loss
+        console.print(f"      Epoch {epoch + 1}/{epochs}")
+
+    return evaluate(model, test_loader, device)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="IMDB logistic regression: DP-KFAC vs AdaDPS"
+        description="IMDB logistic regression: DP-KFC-A"
     )
     parser.add_argument(
         "--fast",
@@ -137,7 +197,7 @@ def main():
     train_texts, train_labels, test_texts, test_labels = get_imdb_data()
 
     console.print("[bold cyan]Loading AG News (public proxy)...[/bold cyan]")
-    public_texts, public_labels = get_agnews_data()
+    public_texts, _ = get_agnews_data()
 
     console.print("[bold cyan]Extracting TF-IDF features...[/bold cyan]")
     train_feats, test_feats, public_feats = get_tfidf_features(
@@ -146,13 +206,12 @@ def main():
 
     train_labels_t = torch.tensor(train_labels, dtype=torch.long)
     test_labels_t = torch.tensor(test_labels, dtype=torch.long)
-    public_labels_t = torch.tensor(public_labels, dtype=torch.long)
 
     input_dim = train_feats.shape[1]
 
     train_ds = TensorDataset(train_feats, train_labels_t)
     test_ds = TensorDataset(test_feats, test_labels_t)
-    public_ds = TensorDataset(public_feats, public_labels_t)
+    public_ds = TensorDataset(public_feats)
 
     train_loader = DataLoader(
         train_ds, batch_size=BATCH_SIZE, shuffle=True, drop_last=True
@@ -175,118 +234,39 @@ def main():
     results = []
     base_model = LogisticRegression(input_dim=input_dim, num_classes=NUM_CLASSES)
 
-    trainer_dpsgd = Trainer(
-        model=base_model,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        public_loader=public_loader,
-        device=DEVICE,
-        learning_rate=LR,
-        optimizer_type="sgd",
-        is_text=False,
-    )
-
-    trainer_kfac = Trainer(
-        model=base_model,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        public_loader=public_loader,
-        device=DEVICE,
-        learning_rate=LR,
-        optimizer_type="sgd",
-        is_text=False,
-    )
-
     for eps in epsilons:
         console.print(f"\n[bold yellow]===  Epsilon = {eps}  ===[/bold yellow]")
-
         for seed in seeds:
             console.print(f"[dim]  Seed {seed}[/dim]")
-
-            console.print("    [cyan]DP-SGD[/cyan]")
-            run = trainer_dpsgd.train_dp_sgd(
-                epochs=epochs,
-                epsilon=eps,
-                delta=delta,
-                max_grad_norm=MAX_GRAD_NORM_DPSGD,
-                seed=seed,
-            )
-            acc, loss = run[-1]["accuracy"], run[-1]["test_loss"]
-            results.append({
-                "Method": "DP-SGD",
-                "Epsilon": eps,
-                "Seed": seed,
-                "Accuracy": acc,
-                "Loss": loss,
-            })
-            console.print(f"      acc={acc:.4f}  loss={loss:.4f}")
-
-            console.print("    [cyan]KFAC (Public)[/cyan]")
-            run = trainer_kfac.train_dp_kfac(
-                epochs=epochs,
-                epsilon=eps,
-                delta=delta,
-                max_grad_norm=MAX_GRAD_NORM_KFAC,
-                seed=seed,
-                use_public_data=True,
-            )
-            acc, loss = run[-1]["accuracy"], run[-1]["test_loss"]
-            results.append({
-                "Method": "KFAC (Public)",
-                "Epsilon": eps,
-                "Seed": seed,
-                "Accuracy": acc,
-                "Loss": loss,
-            })
-            console.print(f"      acc={acc:.4f}  loss={loss:.4f}")
-
-            console.print("    [cyan]KFAC (Synthetic)[/cyan]")
-            run = trainer_kfac.train_dp_kfac(
-                epochs=epochs,
-                epsilon=eps,
-                delta=delta,
-                max_grad_norm=MAX_GRAD_NORM_KFAC,
-                seed=seed,
-                use_public_data=False,
-                use_pink_noise=False,
-            )
-            acc, loss = run[-1]["accuracy"], run[-1]["test_loss"]
-            results.append({
-                "Method": "KFAC (Synthetic)",
-                "Epsilon": eps,
-                "Seed": seed,
-                "Accuracy": acc,
-                "Loss": loss,
-            })
-            console.print(f"      acc={acc:.4f}  loss={loss:.4f}")
-
-            console.print("    [cyan]AdaDPS[/cyan]")
-            adadps_model = LogisticRegression(
-                input_dim=input_dim, num_classes=NUM_CLASSES
-            )
-            acc, loss = train_adadps(
-                model=adadps_model,
-                train_loader=train_loader,
-                public_loader=public_loader,
-                test_loader=test_loader,
-                device=DEVICE,
-                epochs=epochs,
-                epsilon=eps,
-                delta=delta,
-                max_grad_norm=MAX_GRAD_NORM_KFAC,
-                seed=seed,
-            )
-            results.append({
-                "Method": "AdaDPS",
-                "Epsilon": eps,
-                "Seed": seed,
-                "Accuracy": acc,
-                "Loss": loss,
-            })
-            console.print(f"      acc={acc:.4f}  loss={loss:.4f}")
+            for method, use_public_data in [
+                ("DP-KFC-A (Public)", True),
+                ("DP-KFC-A (Synthetic)", False),
+            ]:
+                console.print(f"    [cyan]{method}[/cyan]")
+                acc, loss = train_dp_kfc_a(
+                    model=base_model,
+                    train_loader=train_loader,
+                    public_loader=public_loader,
+                    test_loader=test_loader,
+                    device=DEVICE,
+                    epochs=epochs,
+                    epsilon=eps,
+                    delta=delta,
+                    max_grad_norm=MAX_GRAD_NORM_KFAC,
+                    seed=seed,
+                    use_public_data=use_public_data,
+                )
+                results.append({
+                    "Method": method,
+                    "Epsilon": eps,
+                    "Seed": seed,
+                    "Accuracy": acc,
+                    "Loss": loss,
+                })
+                console.print(f"      acc={acc:.4f}  loss={loss:.4f}")
 
     output_dir = Path(args.output_dir)
-    output_path = output_dir / "imdb_logreg_results.csv"
+    output_path = output_dir / "imdb_logreg_a_results.csv"
     save_results_csv(
         results,
         output_path,

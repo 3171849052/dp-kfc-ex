@@ -7,7 +7,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 import torch
 from rich.console import Console
@@ -18,8 +18,10 @@ from dp_kfac.data import get_cifar100_loaders, get_cifar10_loaders
 from dp_kfac.trainer import Trainer
 from dp_kfac.results import save_results_csv
 
-EPSILONS = [0.5, 1.0, 2.0, 3.0, 5.0, 7.5, 10.0]
-SEEDS = [42, 7, 91, 23, 58, 134, 76, 3, 219, 65]
+# EPSILONS = [0.5, 1.0, 2.0, 3.0, 5.0, 7.5, 10.0]
+EPSILONS = [7.5]
+# SEEDS = [42, 7, 91, 23, 58, 134, 76, 3, 219, 65]
+SEEDS = [42]
 EPOCHS = 5
 LR = 1e-3
 BATCH_SIZE = 256

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEFAULT_CONFIG="$ROOT/configs/standalone/mnist_dp_sgd_adamw.yaml"
+DEFAULT_CONFIG="$ROOT/configs/standalone/crossvit_cifar100_dp_sgd_bk_gd.yaml"
 if [[ $# -eq 0 ]]; then
   CONFIG="$DEFAULT_CONFIG"
 elif [[ $# -eq 2 && $1 == --config ]]; then

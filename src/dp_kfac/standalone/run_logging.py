@@ -29,15 +29,17 @@ def format_run_name(c, timestamp=None):
     values = [('s', c['seed']), ('ep', t['epochs']), ('bs', c['data']['batch_size']),
               ('lr', t['learning_rate']), ('mom', t['momentum']), ('eps', p['epsilon']),
               ('d', p['delta']), ('C', p['max_grad_norm'])]
-    if t['optimizer'] == 'adamw':
-        tokens.append('adamw')
+    if t['optimizer'] in ('adam', 'adamw'):
+        tokens.append(t['optimizer'])
         values = [(key, value) for key, value in values if key != 'mom']
         values += [('b1', t['betas'][0]), ('b2', t['betas'][1]),
                    ('aeps', t['eps']), ('wd', t['weight_decay'])]
-    if c['algorithm'] != 'dp_sgd':
+    if c['algorithm'] not in ('dp_sgd', 'dp_sgd_bk_gd'):
         values += [('M', s['samples']), ('U', s['refresh_every_epochs'])]
-    if c['algorithm'] == 'dp_kfc':
+    if c['algorithm'] in ('dp_kfc', 'dp_kfc_a_pink_bk_gd', 'dp_kfc_pink_bk_gd'):
         values += [('damp', c['kfac']['damping'])]
+    if c['algorithm'] == 'dp_kfc_a_pink_bk_gd':
+        values += [('p', c['kfac']['a_power'])]
     if c['algorithm'] == 'dp_equil':
         values += [('K', c['equil']['probes']), ('tau', c['equil']['tau'])]
     tokens += [key + format_number(value) for key, value in values]
@@ -90,9 +92,12 @@ def prepare_run(c, config_path, now=None):
             break
     (directory / 'config.yaml').write_bytes(Path(config_path).read_bytes())
     resolved = deepcopy(c)
-    steps = math.ceil(60000 / c['data']['batch_size'])
-    resolved.update(train_size=60000, test_size=10000, steps_per_epoch=steps,
-        total_steps=steps * c['training']['epochs'], sample_rate=c['data']['batch_size']/60000,
+    from .config import BK_GD_ALGORITHMS
+    bk_gd = c['algorithm'] in BK_GD_ALGORITHMS
+    train_size = 50000 if bk_gd else 60000
+    steps = train_size // c['data']['batch_size'] if bk_gd else math.ceil(train_size / c['data']['batch_size'])
+    resolved.update(train_size=train_size, test_size=10000, steps_per_epoch=steps,
+        total_steps=steps * c['training']['epochs'], sample_rate=c['data']['batch_size']/train_size,
         noise_multiplier=None, actual_device=None, physical_gpu_index=None, gpu_name=None,
         run_directory=str(directory), rng_seeds=rng_seeds(c))
     write_yaml(directory / 'resolved_config.yaml', resolved)
@@ -102,6 +107,13 @@ def prepare_run(c, config_path, now=None):
 
 
 def rng_seeds(c):
+    from .config import BK_GD_ALGORITHMS
+    if c['algorithm'] in BK_GD_ALGORITHMS:
+        from exp25.data import OFFSETS
+        return {'model': c['seed'], 'dp_noise': c['seed'] + OFFSETS['dp_noise'],
+                'epoch_streams': {stream: {epoch: c['seed'] + OFFSETS[stream] + epoch * 1000000
+                    for epoch in range(1, c['training']['epochs'] + 1)}
+                    for stream in ('private', 'pink', 'pink_labels')}}
     return {'model_and_dp_noise': c['seed'], 'train_loader': c['seed'],
             'test_loader': c['seed'],
             'synthetic_epoch_seeds': {epoch: c['seed'] + 10000 + epoch

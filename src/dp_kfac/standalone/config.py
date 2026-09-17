@@ -4,6 +4,8 @@ from pathlib import Path
 import math
 import yaml
 
+BK_GD_ALGORITHMS = ('dp_sgd_bk_gd', 'dp_kfc_a_pink_bk_gd', 'dp_kfc_pink_bk_gd')
+
 DEFAULTS = {
     'seed': 42,
     'model': {'name': 'simple_cnn'},
@@ -27,8 +29,12 @@ def load_config(path):
     c = deepcopy(DEFAULTS)
     if not isinstance(raw, dict):
         raise ValueError('config must be a mapping')
-    if raw.get('algorithm') not in ('dp_sgd', 'dp_kfc', 'dp_equil'):
-        raise ValueError('algorithm must be dp_sgd, dp_kfc or dp_equil')
+    if raw.get('algorithm') not in ('dp_sgd', 'dp_kfc', 'dp_equil') + BK_GD_ALGORITHMS:
+        raise ValueError('unsupported algorithm')
+    if raw['algorithm'] in BK_GD_ALGORITHMS:
+        c['model'].update(pretrained=True, frozen_backbone=True, classifier_in_features=288, num_classes=100)
+        c['data']['normalization'] = 'imagenet'
+        c['kfac']['a_power'] = 0.4
     for key, value in raw.items():
         if key == 'algorithm':
             c[key] = value
@@ -40,13 +46,14 @@ def load_config(path):
             c[key].update(value)
         else:
             c[key] = value
-    for section, name, expected in [('model', 'name', 'simple_cnn'),
-            ('data', 'dataset', 'mnist'),
+    bk_gd = c['algorithm'] in BK_GD_ALGORITHMS
+    for section, name, expected in [('model', 'name', 'crossvit_tiny_240' if bk_gd else 'simple_cnn'),
+            ('data', 'dataset', 'cifar100' if bk_gd else 'mnist'),
             ('privacy', 'accountant', 'rdp'), ('synthetic', 'distribution', 'pink_noise')]:
         if c[section][name] != expected:
             raise ValueError(f'{section}.{name} must be {expected}')
-    if c['training']['optimizer'] not in ('sgd', 'adamw'):
-        raise ValueError('training.optimizer must be sgd or adamw')
+    if c['training']['optimizer'] not in (('adam',) if bk_gd else ('sgd', 'adamw')):
+        raise ValueError('unsupported training.optimizer for algorithm')
     betas = c['training']['betas']
     if (not isinstance(betas, list) or len(betas) != 2
             or any(type(v) not in (int, float) or not math.isfinite(v)
@@ -81,4 +88,22 @@ def load_config(path):
         raise ValueError('delta must be less than 1')
     if c['synthetic']['samples'] % c['synthetic']['batch_size']:
         raise ValueError('synthetic.samples must be divisible by synthetic.batch_size')
+    if bk_gd:
+        for section, name, expected in [
+                ('model', 'pretrained', True), ('model', 'frozen_backbone', True),
+                ('model', 'classifier_in_features', 288), ('model', 'num_classes', 100),
+                ('data', 'normalization', 'imagenet'), ('data', 'num_workers', 0),
+                ('training', 'betas', [0.9, 0.999]), ('training', 'eps', 1e-8),
+                ('training', 'weight_decay', 0.0), ('runtime', 'deterministic', True),
+                ('synthetic', 'refresh_every_epochs', 1)]:
+            if c[section][name] != expected:
+                raise ValueError(f'{section}.{name} must be {expected} for BK+GD')
+        if c['data']['eval_batch_size'] != c['data']['batch_size']:
+            raise ValueError('BK+GD eval_batch_size must equal batch_size')
+        if c['synthetic']['samples'] != c['data']['batch_size'] or c['synthetic']['batch_size'] != c['data']['batch_size']:
+            raise ValueError('BK+GD geometry requires one auxiliary batch of data.batch_size samples')
+        if Path(c['output']['root']).resolve() != Path(__file__).resolve().parents[3] / 'outputs':
+            raise ValueError('BK+GD output.root must be the repository outputs directory')
+        if not 0 < c['kfac']['a_power'] <= 1:
+            raise ValueError('kfac.a_power must be in (0, 1]')
     return c

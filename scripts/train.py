@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
 
@@ -17,6 +18,7 @@ def main():
     modes.add_argument('--print-gpu', action='store_true')
     modes.add_argument('--validate-gpu', action='store_true')
     modes.add_argument('--tmux-session-name', type=Path, metavar='RUN_DIR')
+    parser.add_argument('--smoke', action='store_true', help='BK+GD: one real private batch and one evaluation batch')
     args = parser.parse_args()
     # dp_kfac's existing __init__ imports torch, so load YAML before importing it.
     import yaml
@@ -49,7 +51,7 @@ def main():
         print(prepare_run(c, args.config))
     else:
         from dp_kfac.standalone.trainer import train
-        train(c, args.run_dir)
+        train(c, args.run_dir, smoke=args.smoke)
 
 
 if __name__ == '__main__':

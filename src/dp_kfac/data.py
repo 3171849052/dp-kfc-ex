@@ -395,7 +395,7 @@ def get_imdb_data(
     """Load IMDB movie review dataset from HuggingFace."""
     from datasets import load_dataset
 
-    imdb = load_dataset("imdb")
+    imdb = load_dataset("stanfordnlp/imdb")
 
     train_texts = [item["text"] for item in imdb["train"]]
     train_labels = [item["label"] for item in imdb["train"]]
@@ -505,7 +505,7 @@ def get_agnews_data(
 ) -> Tuple[List[str], List[int]]:
     from datasets import load_dataset
 
-    ag_dataset = load_dataset("ag_news")
+    ag_dataset = load_dataset("fancyzhx/ag_news")
 
     public_texts = []
     public_labels = []

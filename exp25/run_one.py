@@ -4,6 +4,7 @@ sys.dont_write_bytecode = True
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+from contextlib import nullcontext
 import argparse
 import hashlib
 import json
@@ -36,9 +37,11 @@ def evaluate(model, loader, device):
     return loss / count, correct / count
 
 
-def run(method, seed, smoke=False, device=None):
+def run(method, seed, smoke=False, device=None, *, protocol=c, on_resolved=None, on_epoch=None,
+        threads=4, data_root=None):
+    c = protocol
     device = torch.device(device or ('cuda' if torch.cuda.is_available() else 'cpu'))
-    torch.set_num_threads(4)
+    torch.set_num_threads(threads)
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     torch.backends.cudnn.benchmark = False
@@ -47,7 +50,7 @@ def run(method, seed, smoke=False, device=None):
     model = make_model(seed, device)
     init_hash = hashlib.sha256(b''.join(p.detach().cpu().numpy().tobytes()
                                      for p in model.classifier.parameters())).hexdigest()
-    train, test, public = load_data()
+    train, test, public = load_data(root=data_root)
     assert len(train) == c.TRAIN_SAMPLES
     if smoke:
         test = Subset(test, range(c.BATCH_SIZE))
@@ -55,34 +58,38 @@ def run(method, seed, smoke=False, device=None):
     optimizer = torch.optim.Adam(model.classifier.parameters(), lr=c.LR)
     accountant = RDPAccountant()
     sigma = c.noise_multiplier()
+    if on_resolved is not None:
+        on_resolved(sigma, device, len(train), len(test))
     noise_rng = rng(seed, 'dp_noise', device=device)
-    folder = c.ROOT / 'results' / ('smoke' if smoke else 'formal')
-    folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f'{method}_{seed}.jsonl'
+    path = None
+    if on_epoch is None:
+        folder = c.ROOT / 'results' / ('smoke' if smoke else 'formal')
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f'{method}_{seed}.jsonl'
     best = 0.
-    with path.open('w') as output:
+    with (path.open('w') if path else nullcontext()) as output:
         for epoch in range(1, (1 if smoke else c.EPOCHS) + 1):
             if device.type == 'cuda':
                 torch.cuda.reset_peak_memory_stats(device)
             sync(device)
-            start = time.perf_counter()
+            epoch_start = start = time.perf_counter()
             if source == 'none':
                 operator, diagnostics = build(model, None, None, kind)
             else:
-                aux_x, aux_y = auxiliary(source, train, public, seed, epoch, device)
-                operator, diagnostics = build(model, aux_x, aux_y, kind)
+                aux_x, aux_y = auxiliary(source, train, public, seed, epoch, device, batch_size=c.BATCH_SIZE)
+                operator, diagnostics = build(model, aux_x, aux_y, kind, a_power=c.A_POWER, damping=c.DAMPING)
                 del aux_x, aux_y
             sync(device)
             geometry_time = time.perf_counter() - start
-            loader = private_loader(train, seed, epoch, smoke)
+            loader = private_loader(train, seed, epoch, smoke, batch_size=c.BATCH_SIZE)
             order_hash = hashlib.sha256(bytes(str(loader.dataset.indices), 'ascii')).hexdigest()
             norms_all, factors_all, train_loss = [], [], 0.
             sync(device)
             start = time.perf_counter()
             for x, y in loader:
                 x, y = x.to(device), y.to(device)
-                losses, summed, norms, factors, count = aggregate(model, x, y, operator)
-                update(model, optimizer, summed, sigma, len(y), noise_rng, accountant)
+                losses, summed, norms, factors, count = aggregate(model, x, y, operator, clip=c.CLIP)
+                update(model, optimizer, summed, sigma, len(y), noise_rng, accountant, clip=c.CLIP, sample_rate=c.SAMPLE_RATE)
                 train_loss += losses.sum().item()
                 norms_all.append(norms.cpu())
                 factors_all.append(factors.cpu())
@@ -108,12 +115,16 @@ def run(method, seed, smoke=False, device=None):
                 transformed_norm_p50=norms.quantile(.5).item(), transformed_norm_p90=norms.quantile(.9).item(),
                 transformed_norm_p99=norms.quantile(.99).item(), transformed_norm_max=norms.max().item(),
                 geometry_diagnostics=diagnostics, geometry_build_time=geometry_time,
+                epoch_total_seconds=time.perf_counter() - epoch_start,
                 private_training_time=private_time,
                 cuda_peak_memory=torch.cuda.max_memory_allocated(device) if device.type == 'cuda' else 0,
                 trainable_parameter_count=sum(p.numel() for p in model.parameters() if p.requires_grad),
                 first_pass_parameter_grad_count=count, pretrained=True, input_size=240)
-            output.write(json.dumps(row, allow_nan=False) + '\n')
-            output.flush()
+            if on_epoch is None:
+                output.write(json.dumps(row, allow_nan=False) + '\n')
+                output.flush()
+            else:
+                on_epoch(row)
             print(f'{method} seed={seed} epoch={epoch} accuracy={accuracy:.6f} steps={steps}', flush=True)
     return path
 

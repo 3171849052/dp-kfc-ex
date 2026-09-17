@@ -1,0 +1,3 @@
+Method,Epsilon,Seed,Accuracy,Loss
+DP-KFC-A (Public),2.8,42,0.87144,0.31713797790663584
+DP-KFC-A (Synthetic),2.8,42,0.8586,0.33940310031175613

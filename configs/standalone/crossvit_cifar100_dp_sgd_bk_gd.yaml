@@ -1,0 +1,37 @@
+algorithm: dp_sgd_bk_gd
+seed: 42
+model:
+  name: crossvit_tiny_240
+  pretrained: true
+  frozen_backbone: true
+  classifier_in_features: 288
+  num_classes: 100
+data:
+  dataset: cifar100
+  root: exp25/data
+  normalization: imagenet
+  batch_size: 256
+  eval_batch_size: 256
+  num_workers: 0
+training:
+  epochs: 5
+  optimizer: adam
+  learning_rate: 0.01
+  weight_decay: 0.0
+privacy:
+  epsilon: 8.0
+  delta: 1.0e-5
+  max_grad_norm: 1.0
+  accountant: rdp
+synthetic:
+  distribution: pink_noise
+  samples: 256
+  batch_size: 256
+  refresh_every_epochs: 1
+runtime:
+  device: cuda
+  gpu: 0
+  threads: 4
+  deterministic: true
+output:
+  root: outputs
