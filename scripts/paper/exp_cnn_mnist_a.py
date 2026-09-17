@@ -1,8 +1,10 @@
 """MNIST: non-normalized Full/A-only KFC, explicit clipping versus GD+GN+BK.
 
 Each epoch uses one 256-example geometry batch. BK keeps raw factors and uses
-fixed tiled Gram norms; it never constructs sample gradient matrices. Timings
-synchronize CUDA, including the component timings (profiling adds overhead).
+fixed tiled Gram norms; it never constructs sample gradient matrices. The default
+protocol runs BK at every epsilon and adds Explicit at epsilon=3. Only epsilon=3
+is profiled. Timings synchronize CUDA, including the component timings
+(profiling adds overhead).
 Cache/workspace byte counts describe tensor storage; CUDA peaks include the
 whole live allocator footprint. RDP accounting follows the original experiment's
 sample-rate convention with shuffled, fixed-size, drop-last private batches.
@@ -42,6 +44,7 @@ from scripts.paper.exp_imdb_logreg_a import compute_a_covariance, compute_a_oper
 # Training configuration. Keep these local so this experiment can be tuned
 # without modifying the original exp_cnn_mnist.py script.
 EPSILONS = [0.5, 3.0, 8.0]
+PROFILE_EPSILON = 3.0
 SEEDS = [42, 7, 91, 23, 58]
 EPOCHS = 5
 LR = 1e-3
@@ -77,7 +80,10 @@ def timestamp(device):
 
 
 @contextmanager
-def timed(stats, key, device):
+def timed(stats, key, device, enabled=True):
+    if not enabled:
+        yield
+        return
     start = timestamp(device)
     yield
     stats[key] += timestamp(device) - start
@@ -171,13 +177,14 @@ def build_geometry(model, layers, geometry, source, public, device, seed, epoch)
 
 
 @torch.no_grad()
-def explicit_clip(model, layers, ua, ug, stats, device, batch_size):
+def explicit_clip(model, layers, ua, ug, stats, device, batch_size, profile):
     def sample_bytes():
         return _retained_bytes([p.grad_sample for p in model.parameters()])
 
-    stats["grad_sample_peak_bytes"] = max(stats["grad_sample_peak_bytes"], sample_bytes())
+    if profile:
+        stats["grad_sample_peak_bytes"] = max(stats["grad_sample_peak_bytes"], sample_bytes())
     if ua:
-        with timed(stats, "sample_gradient_precondition_seconds", device):
+        with timed(stats, "sample_gradient_precondition_seconds", device, enabled=profile):
             if ug:
                 precondition_per_sample_gradients(model, ua, ug)
             else:
@@ -187,25 +194,27 @@ def explicit_clip(model, layers, ua, ug, stats, device, batch_size):
                     g = g @ ua[name]
                     module.weight.grad_sample = g[..., :-1].reshape_as(module.weight.grad_sample)
                     module.bias.grad_sample = g[..., -1]
-            for module in layers.values():
-                stats["sample_gradient_matrices_preconditioned"] += batch_size
-                stats["sample_gradient_elements_preconditioned"] += batch_size * (
-                    module.weight.numel() + module.bias.numel()
-                )
-    stats["grad_sample_peak_bytes"] = max(stats["grad_sample_peak_bytes"], sample_bytes())
-    with timed(stats, "norm_clip_seconds", device):
+            if profile:
+                for module in layers.values():
+                    stats["sample_gradient_matrices_preconditioned"] += batch_size
+                    stats["sample_gradient_elements_preconditioned"] += batch_size * (
+                        module.weight.numel() + module.bias.numel()
+                    )
+    if profile:
+        stats["grad_sample_peak_bytes"] = max(stats["grad_sample_peak_bytes"], sample_bytes())
+    with timed(stats, "norm_clip_seconds", device, enabled=profile):
         sq = sum(torch.linalg.vector_norm(p.grad_sample, dim=tuple(range(1, p.grad_sample.ndim))).square()
                  for p in model.parameters())
         norms = sq.clamp_min(0).sqrt()
         factors = (MAX_GRAD_NORM / (norms + 1e-6)).clamp(max=1)
-    with timed(stats, "aggregate_seconds", device):
+    with timed(stats, "aggregate_seconds", device, enabled=profile):
         for p in model.parameters():
             p.grad = torch.einsum("b,b...->...", factors, p.grad_sample)
             p.grad_sample = None
     return norms, factors
 
 
-def bk_differentiate(model, layers, x, y, stats):
+def bk_differentiate(model, layers, x, y, stats, profile):
     """Disable parameter differentiation; only differentiate through output anchors."""
     activations, backprops, anchors = {}, {}, []
     for p in model.parameters():
@@ -222,63 +231,71 @@ def bk_differentiate(model, layers, x, y, stats):
     assert set(activations) == set(backprops) == set(layers)
     trainable = {id(p) for p in model.parameters()}
     records = []
-    cache_peak = _retained_bytes(list(activations.values()) + list(backprops.values()))
+    if profile:
+        cache_peak = _retained_bytes(list(activations.values()) + list(backprops.values()))
     for name, module in layers.items():
         # operator=None is essential: the persistent record contains RAW Z/B.
         record = Record(name, module, activations.pop(name), backprops.pop(name), None, trainable)
         records.append(record)
-        cache_peak = max(cache_peak, _retained_bytes(
-            list(activations.values()) + list(backprops.values()) +
-            [t for r in records for t in (r.z, r.b)]
-        ))
-    stats["bk_cache_peak_bytes"] = max(stats["bk_cache_peak_bytes"], cache_peak)
+        if profile:
+            cache_peak = max(cache_peak, _retained_bytes(
+                list(activations.values()) + list(backprops.values()) +
+                [t for r in records for t in (r.z, r.b)]
+            ))
+    if profile:
+        stats["bk_cache_peak_bytes"] = max(stats["bk_cache_peak_bytes"], cache_peak)
     return losses.detach().sum(), records
 
 
 @torch.no_grad()
-def bk_clip(records, ua, ug, stats, device):
+def bk_clip(records, ua, ug, stats, device, profile):
     sq = records[0].b.new_zeros(len(records[0].b))
     for record in records:
         z, b = record.z, record.b
         transformed_bytes = 0
         if ua:
-            with timed(stats, "factor_precondition_seconds", device):
+            with timed(stats, "factor_precondition_seconds", device, enabled=profile):
                 z = z @ ua[record.name]
-                stats["factor_elements_preconditioned_for_norm"] += z.numel()
-                transformed_bytes += nbytes(z)
+                if profile:
+                    stats["factor_elements_preconditioned_for_norm"] += z.numel()
+                    transformed_bytes += nbytes(z)
                 if ug:
                     b = b @ ug[record.name].T
-                    stats["factor_elements_preconditioned_for_norm"] += b.numel()
-                    transformed_bytes += nbytes(b)
-        with timed(stats, "norm_clip_seconds", device):
+                    if profile:
+                        stats["factor_elements_preconditioned_for_norm"] += b.numel()
+                        transformed_bytes += nbytes(b)
+        with timed(stats, "norm_clip_seconds", device, enabled=profile):
             # Tiled Gram identity from exp22: no [batch, output, input] gradient.
             layer_sq, workspace = Clipper._linear_norm_squared(z, b, tile=GHOST_TILE)
             sq.add_(layer_sq)
-            stats["bk_temporary_peak_bytes"] = max(
-                stats["bk_temporary_peak_bytes"], transformed_bytes + workspace + nbytes(sq) + nbytes(layer_sq)
-            )
+            if profile:
+                stats["bk_temporary_peak_bytes"] = max(
+                    stats["bk_temporary_peak_bytes"], transformed_bytes + workspace + nbytes(sq) + nbytes(layer_sq)
+                )
             del z, b, layer_sq  # transformed factors never reach aggregation
-    with timed(stats, "norm_clip_seconds", device):
+    with timed(stats, "norm_clip_seconds", device, enabled=profile):
         norms = sq.clamp_min(0).sqrt()
         factors = (MAX_GRAD_NORM / (norms + 1e-6)).clamp(max=1)
     for record in records:
-        with timed(stats, "aggregate_seconds", device):
+        with timed(stats, "aggregate_seconds", device, enabled=profile):
             weighted_b = torch.empty(record.b.shape, device=device, dtype=record.b.dtype)
             torch.mul(record.b, factors[:, None, None], out=weighted_b)
             h = weighted_b.reshape(-1, weighted_b.shape[-1]).T @ record.z.reshape(-1, record.z.shape[-1])
-            stats["bk_temporary_peak_bytes"] = max(
-                stats["bk_temporary_peak_bytes"], nbytes(weighted_b) + nbytes(h)
-            )
+            if profile:
+                stats["bk_temporary_peak_bytes"] = max(
+                    stats["bk_temporary_peak_bytes"], nbytes(weighted_b) + nbytes(h)
+                )
             del weighted_b
         if ua:
-            with timed(stats, "aggregate_precondition_seconds", device):
+            with timed(stats, "aggregate_precondition_seconds", device, enabled=profile):
                 if ug:
                     h = ug[record.name] @ h
                 h = h @ ua[record.name]
-                stats["aggregate_matrices_preconditioned"] += 1
-                stats["aggregate_elements_preconditioned"] += h.numel()
-                stats["bk_temporary_peak_bytes"] = max(stats["bk_temporary_peak_bytes"], 2 * nbytes(h))
-        with timed(stats, "aggregate_seconds", device):
+                if profile:
+                    stats["aggregate_matrices_preconditioned"] += 1
+                    stats["aggregate_elements_preconditioned"] += h.numel()
+                    stats["bk_temporary_peak_bytes"] = max(stats["bk_temporary_peak_bytes"], 2 * nbytes(h))
+        with timed(stats, "aggregate_seconds", device, enabled=profile):
             for p, grad in record.split(h).items():
                 p.grad = grad
         del h
@@ -286,7 +303,7 @@ def bk_clip(records, ua, ug, stats, device):
     return norms, factors
 
 
-def run_one(train, test, public, geometry, source, engine, epsilon, seed, epochs, device, output_dir):
+def run_one(train, test, public, geometry, source, engine, epsilon, seed, epochs, device, output_dir, profile: bool):
     set_seed(seed)
     train.generator = torch.Generator().manual_seed(seed)
     train.sampler.generator = train.generator
@@ -307,16 +324,22 @@ def run_one(train, test, public, geometry, source, engine, epsilon, seed, epochs
         model.zero_grad(set_to_none=True)
         ua.clear()
         ug.clear()
-        stats = {key: 0.0 for key in TIMINGS}
-        stats.update({key: 0 for key in COUNTERS})
-        stats.update(grad_sample_peak_bytes=0, bk_cache_peak_bytes=0, bk_temporary_peak_bytes=0)
-        reset_peak(device)
-        started = timestamp(device)
+        stats = {key: 0.0 if profile else float("nan") for key in TIMINGS}
+        stats.update({key: 0 if profile else float("nan") for key in (
+            *COUNTERS, "grad_sample_peak_bytes", "bk_cache_peak_bytes", "bk_temporary_peak_bytes",
+        )})
+        if profile:
+            reset_peak(device)
+        started = timestamp(device) if profile else float("nan")
         ua, ug = build_geometry(model, layers, geometry, source, public, device, seed, epoch)
-        stats["geometry_build_seconds"] = timestamp(device) - started
-        stats.update(peaks(device, "geometry"))
-        reset_peak(device)
-        started = timestamp(device)
+        stats["geometry_build_seconds"] = timestamp(device) - started if profile else float("nan")
+        stats.update(peaks(device, "geometry") if profile else {
+            "geometry_peak_allocated_bytes": float("nan"),
+            "geometry_peak_reserved_bytes": float("nan"),
+        })
+        if profile:
+            reset_peak(device)
+        started = timestamp(device) if profile else float("nan")
         all_norms, all_factors = [], []
         total_loss, examples = 0.0, 0
         steps = optimizer_steps = noise_events = accountant_steps = 0
@@ -324,19 +347,19 @@ def run_one(train, test, public, geometry, source, engine, epsilon, seed, epochs
             x, y = x.to(device), y.to(device)
             assert len(x) == BATCH_SIZE
             model.zero_grad(set_to_none=True)
-            with timed(stats, "differentiation_seconds", device):
+            with timed(stats, "differentiation_seconds", device, enabled=profile):
                 if engine == "explicit":
                     loss = F.cross_entropy(model(x), y, reduction="sum")
                     loss.backward()
                     loss = loss.detach()
                 else:
-                    loss, records = bk_differentiate(model, layers, x, y, stats)
+                    loss, records = bk_differentiate(model, layers, x, y, stats, profile)
             if engine == "explicit":
-                norms, factors = explicit_clip(model, layers, ua, ug, stats, device, len(x))
+                norms, factors = explicit_clip(model, layers, ua, ug, stats, device, len(x), profile)
             else:
-                norms, factors = bk_clip(records, ua, ug, stats, device)
+                norms, factors = bk_clip(records, ua, ug, stats, device, profile)
                 assert all(not hasattr(p, "grad_sample") for p in model.parameters())
-            with timed(stats, "noise_optimizer_seconds", device):
+            with timed(stats, "noise_optimizer_seconds", device, enabled=profile):
                 for p in model.parameters():
                     noise = torch.randn(p.shape, device=device, dtype=p.dtype, generator=noise_rng)
                     p.grad.add_(noise, alpha=sigma * MAX_GRAD_NORM).div_(len(x))
@@ -348,22 +371,30 @@ def run_one(train, test, public, geometry, source, engine, epsilon, seed, epochs
             steps += 1
             total_loss += loss.item()
             examples += len(x)
-            all_norms.append(norms.cpu())
-            all_factors.append(factors.cpu())
-        stats["private_train_seconds"] = timestamp(device) - started
-        stats.update(peaks(device, "private"))
+            if profile:
+                all_norms.append(norms.cpu())
+                all_factors.append(factors.cpu())
+        stats["private_train_seconds"] = timestamp(device) - started if profile else float("nan")
+        stats.update(peaks(device, "private") if profile else {
+            "private_peak_allocated_bytes": float("nan"),
+            "private_peak_reserved_bytes": float("nan"),
+        })
         stats["algorithm_seconds"] = stats["geometry_build_seconds"] + stats["private_train_seconds"]
-        started = timestamp(device)
+        started = timestamp(device) if profile else float("nan")
         accuracy, test_loss = evaluate(model, test, device)
-        stats["evaluation_seconds"] = timestamp(device) - started
-        norms, factors = torch.cat(all_norms), torch.cat(all_factors)
-        row = dict(method=method, geometry=geometry, source=source, engine=engine,
+        stats["evaluation_seconds"] = timestamp(device) - started if profile else float("nan")
+        if profile:
+            norms, factors = torch.cat(all_norms), torch.cat(all_factors)
+        row = dict(method=method, geometry=geometry, source=source, engine=engine, profiled=profile,
                    epsilon_target=epsilon, epsilon_spent=accountant.get_epsilon(DELTA), delta=DELTA,
                    noise_multiplier=sigma, seed=seed, epoch=epoch, train_loss=total_loss / examples,
                    test_loss=test_loss, accuracy=accuracy, **stats,
-                   clip_fraction=(factors < 1).float().mean().item(), mean_clip_factor=factors.mean().item(),
-                   norm_p50=norms.quantile(.5).item(), norm_p90=norms.quantile(.9).item(),
-                   norm_p99=norms.quantile(.99).item(), norm_max=norms.max().item(),
+                   clip_fraction=(factors < 1).float().mean().item() if profile else float("nan"),
+                   mean_clip_factor=factors.mean().item() if profile else float("nan"),
+                   norm_p50=norms.quantile(.5).item() if profile else float("nan"),
+                   norm_p90=norms.quantile(.9).item() if profile else float("nan"),
+                   norm_p99=norms.quantile(.99).item() if profile else float("nan"),
+                   norm_max=norms.max().item() if profile else float("nan"),
                    logical_steps=steps, optimizer_steps=optimizer_steps, noise_events=noise_events,
                    accountant_steps=accountant_steps)
         assert steps == optimizer_steps == noise_events == accountant_steps
@@ -385,21 +416,20 @@ def run_one(train, test, public, geometry, source, engine, epsilon, seed, epochs
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--fast", action="store_true", help="All 14 conditions, seed=42, epsilon=1, one full epoch")
+    parser.add_argument("--fast", action="store_true", help="All 14 conditions, seed=42, epsilon=3, one full epoch with profiling")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--epsilon", type=float)
-    parser.add_argument("--engine", choices=("explicit", "bk", "all"), default="all")
+    parser.add_argument("--engine", choices=("auto", "explicit", "bk", "all"), default="auto")
     parser.add_argument("--output_dir", type=Path, default=Path("results/cnn_mnist_a"))
     args = parser.parse_args()
     if args.fast:
-        seeds, epsilons, epochs, engines = [42], [1.0], 1, ["explicit", "bk"]
+        seeds, epsilons, epochs = [42], [PROFILE_EPSILON], 1
     else:
         seeds = [args.seed] if args.seed is not None else SEEDS
         epsilons = [args.epsilon] if args.epsilon is not None else EPSILONS
         epochs = EPOCHS
-        engines = ["explicit", "bk"] if args.engine == "all" else [args.engine]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}; seeds={seeds}; epsilons={epsilons}; epochs={epochs}; engines={engines}", flush=True)
+    print(f"Device: {device}; seeds={seeds}; epsilons={epsilons}; epochs={epochs}; engine={'all' if args.fast else args.engine}", flush=True)
     train, test, _ = get_mnist_loaders(BATCH_SIZE)
     match, _, _ = get_fashionmnist_loaders(BATCH_SIZE)
     from medmnist import PathMNIST
@@ -411,11 +441,16 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
     summaries = []
     for epsilon in epsilons:
+        profile = epsilon == PROFILE_EPSILON
+        if args.fast or args.engine == "all" or (args.engine == "auto" and profile):
+            engines = ("bk", "explicit")
+        else:
+            engines = ("bk",) if args.engine == "auto" else (args.engine,)
         for seed in seeds:
             for geometry, source in CONDITIONS:
                 for engine in engines:
                     summaries.append(run_one(train, test, public, geometry, source, engine,
-                                             epsilon, seed, epochs, device, args.output_dir))
+                                             epsilon, seed, epochs, device, args.output_dir, profile=profile))
                     pd.DataFrame(summaries).to_csv(args.output_dir / "summary.csv", index=False)
 
 
