@@ -41,8 +41,8 @@ from scripts.paper.exp_imdb_logreg_a import compute_a_covariance, compute_a_oper
 
 # Training configuration. Keep these local so this experiment can be tuned
 # without modifying the original exp_cnn_mnist.py script.
-EPSILONS = [0.5, 1.0, 2.0, 3.0, 5.0, 7.5, 10.0]
-SEEDS = [42, 7, 91, 23, 58, 134, 76, 3, 219, 65]
+EPSILONS = [0.5, 3.0, 8.0]
+SEEDS = [42, 7, 91, 23, 58]
 EPOCHS = 5
 LR = 1e-3
 BATCH_SIZE = 256
