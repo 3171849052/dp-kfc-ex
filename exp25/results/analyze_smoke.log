@@ -1,0 +1,8 @@
+dp_sgd_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+dp_kfc_a_public_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+dp_kfc_a_pink_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+dp_kfc_a_oracle_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+dp_kfc_public_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+dp_kfc_pink_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+dp_kfc_oracle_bk_gd: 0.781 ± NA (smoke n=1)%; paired delta=+0.000 pp
+

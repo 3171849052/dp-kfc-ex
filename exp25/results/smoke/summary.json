@@ -1,0 +1,100 @@
+[
+  {
+    "method": "dp_sgd_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": false
+  },
+  {
+    "method": "dp_kfc_a_public_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": false
+  },
+  {
+    "method": "dp_kfc_a_pink_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": false
+  },
+  {
+    "method": "dp_kfc_a_oracle_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": true
+  },
+  {
+    "method": "dp_kfc_public_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": false
+  },
+  {
+    "method": "dp_kfc_pink_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": false
+  },
+  {
+    "method": "dp_kfc_oracle_bk_gd",
+    "n": 1,
+    "accuracy_mean": 0.0078125,
+    "accuracy_std": null,
+    "best_accuracy_mean": 0.0078125,
+    "best_accuracy_std": null,
+    "paired_accuracy_delta": {
+      "42": 0.0
+    },
+    "paired_delta_mean": 0.0,
+    "paired_bootstrap_95_ci": null,
+    "oracle_non_deployable_upper_bound": true
+  }
+]

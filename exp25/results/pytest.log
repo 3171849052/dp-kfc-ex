@@ -1,0 +1,9 @@
+..........                                                               [100%]
+=============================== warnings summary ===============================
+test_exp25.py::test_privacy_schedule
+  /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+10 passed, 1 warning in 7.25s
+
