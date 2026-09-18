@@ -416,7 +416,7 @@ def get_sst2_data(
     """Load SST-2 from GLUE benchmark via HuggingFace."""
     from datasets import load_dataset
 
-    sst2 = load_dataset("glue", "sst2")
+    sst2 = load_dataset("nyu-mll/glue", "sst2")
 
     train_texts = [item["sentence"] for item in sst2["train"]]
     train_labels = [item["label"] for item in sst2["train"]]

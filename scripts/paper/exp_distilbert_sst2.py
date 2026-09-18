@@ -139,7 +139,7 @@ def pack_prompts(sentences, tokenizer):
 
 def load_data(tokenizer):
     from datasets import load_dataset
-    dataset = load_dataset("glue", "sst2")
+    dataset = load_dataset("nyu-mll/glue", "sst2")
     if len(dataset["train"]) != TRAIN_SIZE:
         raise ValueError(f"Expected complete SST-2 train ({TRAIN_SIZE}), got {len(dataset['train'])}")
     result = []
@@ -199,16 +199,21 @@ def geometry_layers(model):
 
 
 def synthetic_prompts(tokenizer, seed, epoch):
-    """Uniform non-special token IDs, fixed length, independent random labels."""
+    """Variable-length uniform non-special payloads with independent random labels."""
     rng = torch.Generator().manual_seed(seed + 10000 + epoch)
     suffix, _ = prompt_parts(tokenizer)
     allowed = torch.tensor(sorted(set(range(len(tokenizer))) - set(tokenizer.all_special_ids)))
     room = MAX_LENGTH - len(suffix) - 2
-    sentences = allowed[torch.randint(len(allowed), (GEOMETRY_BATCH_SIZE, room), generator=rng)]
-    ids = torch.cat((torch.full((GEOMETRY_BATCH_SIZE, 1), tokenizer.cls_token_id), sentences,
-                     torch.tensor(suffix + [tokenizer.sep_token_id]).expand(GEOMETRY_BATCH_SIZE, -1)), dim=1)
-    positions = torch.full_like(ids, 1 + room + suffix.index(tokenizer.mask_token_id))
-    return torch.stack((ids, torch.ones_like(ids), positions), dim=1), torch.randint(2, (GEOMETRY_BATCH_SIZE,), generator=rng)
+    lengths = torch.randint(room + 1, (GEOMETRY_BATCH_SIZE,), generator=rng)
+    rows = []
+    for length in lengths.tolist():
+        payload = allowed[torch.randint(len(allowed), (length,), generator=rng)].tolist()
+        ids = [tokenizer.cls_token_id, *payload, *suffix, tokenizer.sep_token_id]
+        attention = [1] * len(ids) + [0] * (MAX_LENGTH - len(ids))
+        ids += [tokenizer.pad_token_id] * (MAX_LENGTH - len(ids))
+        mask_position = 1 + length + suffix.index(tokenizer.mask_token_id)
+        rows.append([ids, attention, [mask_position] * MAX_LENGTH])
+    return torch.tensor(rows, dtype=torch.long), torch.randint(2, (GEOMETRY_BATCH_SIZE,), generator=rng)
 
 
 def matrix_power(covariance, power):
