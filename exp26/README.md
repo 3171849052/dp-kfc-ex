@@ -14,8 +14,11 @@ The current `scripts/paper/exp_distilbert_sst2.py` supplies the complete trainin
 implementation, prompt MLM, data, structural synthetic geometry, BK clipping,
 Adam (default weight_decay=0, no scheduler), and RDP accounting. Only base/none
 and full/synthetic run, each at physical batch 128 and logical batch 1024.
-The reference's profiling instrumentation is enabled to collect clipping/norm
-diagnostics; no controlled batch-16 run or Explicit run is launched.
+Exp26 uses profile=False and collect_diagnostics=True: clipping/norm diagnostics
+are retained without timing, CUDA peak-memory tracking, or profiling counters.
+Completed run CSVs and summary.csv keep only hyperparameter-search fields.
+No controlled batch-16 run or Explicit run is launched. The shell uses the
+calling environment directly; the launch command above selects curve once.
 
 Each combination resets seed 42 and creates a fresh model and optimizer, visiting
 all 67,349 training examples for each of three epochs. C controls both global

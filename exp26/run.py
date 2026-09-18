@@ -22,12 +22,12 @@ def run_one(train, validation, tokenizer, method, clip_norm, learning_rate, devi
     try:
         # The same C is read by bk_clip and by Gaussian noise addition.
         # The reference resets RNGs, model, Adam, loader and accountant per run.
-        # profile=True retains epoch-wide clipping diagnostics; this does not
-        # invoke the reference main's controlled BK=16/Explicit profiling grid.
+        # Keep epoch-wide diagnostics without timing/memory profiling.
         summary = reference.run_one(
             train, validation, tokenizer, geometry, source, cfg.ENGINE,
             cfg.EPSILON, cfg.SEED, cfg.EPOCHS, device, cfg.RESULTS,
-            cfg.PHYSICAL_BATCH_SIZE, True, tag, lr=learning_rate,
+            cfg.PHYSICAL_BATCH_SIZE, profile=False, profile_mode=tag,
+            lr=learning_rate, collect_diagnostics=True,
         )
     finally:
         reference.MAX_GRAD_NORM = previous_clip_norm
@@ -35,10 +35,10 @@ def run_one(train, validation, tokenizer, method, clip_norm, learning_rate, devi
     rows["C"] = clip_norm
     rows["learning_rate"] = learning_rate
     rows["noise_std"] = rows["noise_multiplier"] * clip_norm
-    rows.to_csv(path, index=False)
+    rows[cfg.RESULT_FIELDS].to_csv(path, index=False)
     summary.update(C=clip_norm, learning_rate=learning_rate,
                    noise_std=summary["noise_multiplier"] * clip_norm)
-    return summary
+    return {key: summary[key] for key in cfg.RESULT_FIELDS}
 
 
 def main():

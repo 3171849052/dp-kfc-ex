@@ -167,9 +167,12 @@ def test_bk_explicit_and_autograd_agree(tokenizer, geometry, device_name, monkey
     ("bk", "controlled", "PROFILE_PHYSICAL_BATCH_SIZE", 12),
     ("explicit", "controlled", "PROFILE_PHYSICAL_BATCH_SIZE", 12),
 ])
-@pytest.mark.parametrize("geometry,profile", [("base", True), ("base", False), ("full", True), ("a_only", True)])
+@pytest.mark.parametrize("geometry,profile,collect_diagnostics", [
+    ("base", True, False), ("base", False, False), ("full", True, False),
+    ("a_only", True, False), ("base", False, True), ("full", False, True),
+])
 def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_path, engine, geometry, profile,
-                                                  profile_mode, batch_constant, physical_steps):
+                                                  profile_mode, batch_constant, physical_steps, collect_diagnostics):
     monkeypatch.setattr(exp, "MAX_LENGTH", 12)
     monkeypatch.setattr(exp, "LOGICAL_BATCH_SIZE", 8)
     monkeypatch.setattr(exp, "BK_PHYSICAL_BATCH_SIZE", 4)
@@ -195,8 +198,21 @@ def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_pa
         return original_adam(*args, **kwargs)
 
     monkeypatch.setattr(torch.optim, "Adam", adam)
+    if not profile:
+        def forbidden_profile(*args, **kwargs):
+            pytest.fail("Timing/CUDA memory profiling must remain disabled")
+
+        monkeypatch.setattr(exp, "timestamp", forbidden_profile)
+        monkeypatch.setattr(exp, "reset_peak", forbidden_profile)
+        monkeypatch.setattr(exp, "peak", forbidden_profile)
+        monkeypatch.setattr(exp, "_retained_bytes", forbidden_profile)
+        monkeypatch.setattr(exp, "nbytes", forbidden_profile)
+        for name in ("synchronize", "reset_peak_memory_stats", "max_memory_allocated", "max_memory_reserved"):
+            monkeypatch.setattr(torch.cuda, name, forbidden_profile)
+
     result = exp.run_one(data, data, tokenizer, geometry, "none" if geometry == "base" else "synthetic", engine, 3., 42, 2,
-                         torch.device("cpu"), tmp_path, getattr(exp, batch_constant), profile, profile_mode, lr=1e-4)
+                         torch.device("cpu"), tmp_path, getattr(exp, batch_constant), profile, profile_mode, lr=1e-4,
+                         collect_diagnostics=collect_diagnostics)
     assert learning_rates == [1e-4]
     assert result["lr"] == 1e-4
     assert result["device"] == "cpu"
@@ -215,11 +231,119 @@ def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_pa
     assert len(rows) == 2
     assert pd.isna(rows.iloc[0]["accuracy"])
     assert 0 <= rows.iloc[-1]["accuracy"] <= 1
+    diagnostics = ["clip_fraction", "mean_clip_factor", "norm_p50", "norm_p90", "norm_p99", "norm_max"]
+    assert rows[diagnostics].notna().all().all() if profile or collect_diagnostics else rows[diagnostics].isna().all().all()
+    if not profile:
+        profiling = [key for key in result if key.endswith(("_seconds", "_bytes"))] + list(exp.COUNTERS)
+        assert rows[profiling].isna().all().all()
     if profile:
         assert all(result[key] >= 0 for key in exp.TIMINGS)
         assert result["algorithm_seconds"] == result["geometry_build_seconds"] + result["private_train_seconds"]
     else:
         assert all(pd.isna(result[key]) for key in (*exp.TIMINGS, *exp.COUNTERS, *exp.MEMORY))
+
+
+def test_exp26_grid_and_shell():
+    from itertools import product
+    from exp26 import config as cfg
+
+    assert cfg.METHODS == {"DP-Adam": ("base", "none"), "DP-KFC": ("full", "synthetic")}
+    assert cfg.CLIP_NORMS == [0.5, 1.0, 2.0, 4.0]
+    assert cfg.LEARNING_RATES == [1e-5, 1e-4, 5e-4, 1e-3]
+    assert len(list(product(cfg.METHODS, cfg.CLIP_NORMS, cfg.LEARNING_RATES))) == 32
+    assert (cfg.PHYSICAL_BATCH_SIZE, cfg.LOGICAL_BATCH_SIZE, cfg.ENGINE) == (128, 1024, "bk")
+    assert (cfg.EPSILON, cfg.DELTA, cfg.EPOCHS, cfg.SEED) == (3., 1e-5, 3, 42)
+    assert (cfg.DAMPING, cfg.GEOMETRY_BATCH_SIZE, cfg.GEOMETRY_PHYSICAL_BATCH_SIZE, cfg.MAX_LENGTH) == (1e-3, 256, 16, 128)
+    shell = (Path(__file__).resolve().parents[1] / "exp26/run_all.sh").read_text()
+    assert "conda run" not in shell
+    assert "python -m exp26.run" in shell and "python -m exp26.analyze" in shell
+
+
+@pytest.mark.parametrize("method", ["DP-Adam", "DP-KFC"])
+def test_exp26_clipping_noise_lr_and_fresh_runs(tokenizer, monkeypatch, tmp_path, method):
+    from exp26 import config as cfg, run
+
+    monkeypatch.setattr(cfg, "RESULTS", tmp_path)
+    monkeypatch.setattr(cfg, "EPOCHS", 1)
+    monkeypatch.setattr(exp, "MAX_LENGTH", 12)
+    monkeypatch.setattr(exp, "GEOMETRY_BATCH_SIZE", 3)
+    monkeypatch.setattr(exp, "GEOMETRY_PHYSICAL_BATCH_SIZE", 2)
+    models, optimizers, initial_weights, gradients = [], [], [], {}
+
+    def model_factory(tokenizer, device):
+        model = tiny_model(tokenizer, device)
+        models.append(model)
+        initial_weights.append(next(model.parameters()).detach().clone())
+        return model
+
+    monkeypatch.setattr(exp, "make_model", model_factory)
+    original_clip = exp.bk_clip
+
+    def clip(*args):
+        assert args[-1] is False  # Exp26 must disable BK profiling.
+        norms, factors = original_clip(*args)
+        torch.testing.assert_close(factors, (exp.MAX_GRAD_NORM / (norms + 1e-6)).clamp(max=1))
+        gradients.update({p: p.grad.clone() for p in args[0].parameters()})
+        return norms, factors
+
+    monkeypatch.setattr(exp, "bk_clip", clip)
+    original_sigma = exp.get_noise_multiplier
+    sigmas = []
+
+    def noise_multiplier(**kwargs):
+        sigma = original_sigma(**kwargs)
+        sigmas.append(sigma)
+        return sigma
+
+    monkeypatch.setattr(exp, "get_noise_multiplier", noise_multiplier)
+    # Known unit Gaussian draws let us check the exact pre-averaging scale.
+    monkeypatch.setattr(torch, "randn", lambda shape, *, device, dtype, generator:
+                        torch.ones(shape, device=device, dtype=dtype))
+    original_adam = torch.optim.Adam
+    learning_rates = []
+
+    def adam(parameters, **kwargs):
+        learning_rates.append(kwargs["lr"])
+        optimizer = original_adam(parameters, **kwargs)
+        optimizers.append(optimizer)
+        assert optimizer.defaults["weight_decay"] == 0
+        original_step = optimizer.step
+
+        def step():
+            for group in optimizer.param_groups:
+                for parameter in group["params"]:
+                    expected = (gradients[parameter] + sigmas[-1] * exp.MAX_GRAD_NORM) / len(data)
+                    torch.testing.assert_close(parameter.grad, expected)
+            return original_step()
+
+        optimizer.step = step
+        return optimizer
+
+    monkeypatch.setattr(torch.optim, "Adam", adam)
+    data = TensorDataset(exp.pack_prompts(["a film"] * 3, tokenizer), torch.tensor([0, 1, 0]))
+    previous_c = exp.MAX_GRAD_NORM
+    results = []
+    for c, lr in [(0.5, 1e-5), (4., 1e-3)]:
+        result = run.run_one(data, data, tokenizer, method, c, lr, torch.device("cpu"))
+        results.append(result)
+        assert set(result) == set(cfg.RESULT_FIELDS)
+        assert result["physical_batch_size"] == 128 and result["engine"] == "bk"
+        assert result["C"] == c and result["learning_rate"] == lr
+        assert result["noise_std"] == result["noise_multiplier"] * c
+        assert result["logical_steps"] == result["optimizer_steps"] == result["noise_events"] == result["accountant_steps"] == 1
+        assert exp.MAX_GRAD_NORM == previous_c
+        assert all(pd.notna(result[key]) for key in ("clip_fraction", "mean_clip_factor", "norm_p50", "norm_p90", "norm_p99", "norm_max"))
+        gradients.clear()
+    assert models[0] is not models[1] and optimizers[0] is not optimizers[1]
+    torch.testing.assert_close(initial_weights[0], initial_weights[1])
+    assert learning_rates == [1e-5, 1e-3]
+    assert sigmas[0] == sigmas[1]
+    assert results[0]["sample_rate"] == results[1]["sample_rate"]
+    assert results[0]["epsilon_spent"] == results[1]["epsilon_spent"]
+    csvs = list(tmp_path.glob("*.csv"))
+    assert len(csvs) == 2
+    for path in csvs:
+        assert set(pd.read_csv(path).columns) == set(cfg.RESULT_FIELDS)
 
 
 def test_synthetic_prompt_payloads(tokenizer, monkeypatch):

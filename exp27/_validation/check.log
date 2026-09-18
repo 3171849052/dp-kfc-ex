@@ -1,0 +1,56 @@
+[1/50] DP-KFC-Pink C=0.1 lr=0.0001
+[2/50] DP-KFC-A-Pink C=0.1 lr=0.0001
+[3/50] DP-KFC-Pink C=0.1 lr=0.0005
+[4/50] DP-KFC-A-Pink C=0.1 lr=0.0005
+[5/50] DP-KFC-Pink C=0.1 lr=0.001
+[6/50] DP-KFC-A-Pink C=0.1 lr=0.001
+[7/50] DP-KFC-Pink C=0.1 lr=0.002
+[8/50] DP-KFC-A-Pink C=0.1 lr=0.002
+[9/50] DP-KFC-Pink C=0.1 lr=0.005
+[10/50] DP-KFC-A-Pink C=0.1 lr=0.005
+[11/50] DP-KFC-Pink C=0.5 lr=0.0001
+[12/50] DP-KFC-A-Pink C=0.5 lr=0.0001
+[13/50] DP-KFC-Pink C=0.5 lr=0.0005
+[14/50] DP-KFC-A-Pink C=0.5 lr=0.0005
+[15/50] DP-KFC-Pink C=0.5 lr=0.001
+[16/50] DP-KFC-A-Pink C=0.5 lr=0.001
+[17/50] DP-KFC-Pink C=0.5 lr=0.002
+[18/50] DP-KFC-A-Pink C=0.5 lr=0.002
+[19/50] DP-KFC-Pink C=0.5 lr=0.005
+[20/50] DP-KFC-A-Pink C=0.5 lr=0.005
+[21/50] DP-KFC-Pink C=1 lr=0.0001
+[22/50] DP-KFC-A-Pink C=1 lr=0.0001
+[23/50] DP-KFC-Pink C=1 lr=0.0005
+[24/50] DP-KFC-A-Pink C=1 lr=0.0005
+[25/50] DP-KFC-Pink C=1 lr=0.001
+[26/50] DP-KFC-A-Pink C=1 lr=0.001
+[27/50] DP-KFC-Pink C=1 lr=0.002
+[28/50] DP-KFC-A-Pink C=1 lr=0.002
+[29/50] DP-KFC-Pink C=1 lr=0.005
+[30/50] DP-KFC-A-Pink C=1 lr=0.005
+[31/50] DP-KFC-Pink C=2 lr=0.0001
+[32/50] DP-KFC-A-Pink C=2 lr=0.0001
+[33/50] DP-KFC-Pink C=2 lr=0.0005
+[34/50] DP-KFC-A-Pink C=2 lr=0.0005
+[35/50] DP-KFC-Pink C=2 lr=0.001
+[36/50] DP-KFC-A-Pink C=2 lr=0.001
+[37/50] DP-KFC-Pink C=2 lr=0.002
+[38/50] DP-KFC-A-Pink C=2 lr=0.002
+[39/50] DP-KFC-Pink C=2 lr=0.005
+[40/50] DP-KFC-A-Pink C=2 lr=0.005
+[41/50] DP-KFC-Pink C=5 lr=0.0001
+[42/50] DP-KFC-A-Pink C=5 lr=0.0001
+[43/50] DP-KFC-Pink C=5 lr=0.0005
+[44/50] DP-KFC-A-Pink C=5 lr=0.0005
+[45/50] DP-KFC-Pink C=5 lr=0.001
+[46/50] DP-KFC-A-Pink C=5 lr=0.001
+[47/50] DP-KFC-Pink C=5 lr=0.002
+[48/50] DP-KFC-A-Pink C=5 lr=0.002
+[49/50] DP-KFC-Pink C=5 lr=0.005
+[50/50] DP-KFC-A-Pink C=5 lr=0.005
+DP-KFC: best C=5, lr=0.005, accuracy=90.0000%
+DP-KFC-A: best C=5, lr=0.005, accuracy=90.8333%
+[1/50] DP-KFC-Pink C=0.1 lr=0.0001
+PASS: AST, paired 50-call grid, unique directories, incremental CSV, global restoration,
+failure propagation, completeness checks, rankings, pairing, PNG/PDF generation.
+Synthetic data only: no training runs executed.

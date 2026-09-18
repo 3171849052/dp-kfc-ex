@@ -315,7 +315,8 @@ def bk_differentiate(model, x, y, stats, device, profile):
         for handle in handles:
             handle.remove()
     assert set(activations) == set(backprops) == set(layers)
-    peak(stats, "bk_cache_peak_bytes", _retained_bytes(list(activations.values()) + list(backprops.values())), profile)
+    if profile:
+        peak(stats, "bk_cache_peak_bytes", _retained_bytes(list(activations.values()) + list(backprops.values())), profile)
     records = []
     for name, module in layers.items():
         records.append(Record(name, module, activations.pop(name), backprops.pop(name), None, parameters))
@@ -338,23 +339,25 @@ def bk_clip(model, records, ua, ug, stats, device, profile):
             transformed_bytes = 0
             if record.name in ua:
                 z = z @ ua[record.name]
-                transformed_bytes += nbytes(z)
                 if profile:
+                    transformed_bytes += nbytes(z)
                     stats["factor_elements_preconditioned_for_norm"] += z.numel()
                 if record.name in ug:
                     b = b @ ug[record.name].T
-                    transformed_bytes += nbytes(b)
                     if profile:
+                        transformed_bytes += nbytes(b)
                         stats["factor_elements_preconditioned_for_norm"] += b.numel()
         with timed(stats, "norm_clip_seconds", device, profile):
             if record.kind == "linear":
                 part, workspace = Clipper._linear_norm_squared(z, b, tile=GHOST_TILE)
                 sq.add_(part)
-                peak(stats, "bk_temporary_peak_bytes", transformed_bytes + workspace + nbytes(part) + nbytes(sq), profile)
+                if profile:
+                    peak(stats, "bk_temporary_peak_bytes", transformed_bytes + workspace + nbytes(part) + nbytes(sq), profile)
             elif record.kind == "embedding":
                 samples, ids, values = record.embedding_rows()
                 sq.index_add_(0, samples, values.square().sum(-1))
-                peak(stats, "bk_temporary_peak_bytes", 2 * nbytes(values) + nbytes(samples) + nbytes(ids), profile)
+                if profile:
+                    peak(stats, "bk_temporary_peak_bytes", 2 * nbytes(values) + nbytes(samples) + nbytes(ids), profile)
                 if record is word:
                     # Shared parameter: ||embedding + head||² includes 2<e,h>.
                     # Only the sparse token rows are needed, never [B,V,D].
@@ -363,12 +366,14 @@ def bk_clip(model, records, ua, ug, stats, device, profile):
                         ss, vv = samples[start:start + GHOST_TILE], ids[start:start + GHOST_TILE]
                         rows = (head.b[ss, :, vv].unsqueeze(-1) * head_z[ss]).sum(1)
                         sq.index_add_(0, ss, 2 * (values[start:start + GHOST_TILE] * rows).sum(-1))
-                        peak(stats, "bk_temporary_peak_bytes", 2 * nbytes(values) + 3 * nbytes(rows), profile)
+                        if profile:
+                            peak(stats, "bk_temporary_peak_bytes", 2 * nbytes(values) + 3 * nbytes(rows), profile)
                 del samples, ids, values
             else:
                 gradients = record.fast()
                 sq.add_(sum(g.flatten(1).square().sum(1) for g in gradients.values()))
-                peak(stats, "bk_temporary_peak_bytes", 2 * sum(nbytes(g) for g in gradients.values()), profile)
+                if profile:
+                    peak(stats, "bk_temporary_peak_bytes", 2 * sum(nbytes(g) for g in gradients.values()), profile)
                 del gradients
         del z, b
     with timed(stats, "norm_clip_seconds", device, profile):
@@ -379,11 +384,13 @@ def bk_clip(model, records, ua, ug, stats, device, profile):
             if record.kind == "linear":
                 weighted = record.b * factors[:, None, None]
                 h = weighted.reshape(-1, weighted.shape[-1]).T @ record.z.reshape(-1, record.z.shape[-1])
-                peak(stats, "bk_temporary_peak_bytes", nbytes(weighted) + nbytes(h), profile)
+                if profile:
+                    peak(stats, "bk_temporary_peak_bytes", nbytes(weighted) + nbytes(h), profile)
                 del weighted
             else:
                 gradients = record.aggregate(factors)
-                peak(stats, "bk_temporary_peak_bytes", sum(nbytes(g) for g in gradients.values()), profile)
+                if profile:
+                    peak(stats, "bk_temporary_peak_bytes", sum(nbytes(g) for g in gradients.values()), profile)
         if record.kind == "linear":
             if record.name in ua:
                 with timed(stats, "aggregate_precondition_seconds", device, profile):
@@ -393,7 +400,7 @@ def bk_clip(model, records, ua, ug, stats, device, profile):
                     if profile:
                         stats["aggregate_matrices_preconditioned"] += 1
                         stats["aggregate_elements_preconditioned"] += h.numel()
-                    peak(stats, "bk_temporary_peak_bytes", 2 * nbytes(h), profile)
+                        peak(stats, "bk_temporary_peak_bytes", 2 * nbytes(h), profile)
             gradients = record.split(h)
         with timed(stats, "aggregate_seconds", device, profile):
             for parameter, grad in gradients.items():
@@ -450,7 +457,10 @@ def evaluate(model, validation, device):
     return correct / total, loss / total
 
 
-def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, seed, epochs, device, output_dir, physical_batch_size, profile, profile_mode, lr=LR):
+def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, seed, epochs, device, output_dir, physical_batch_size, profile, profile_mode, lr=LR, collect_diagnostics=False):
+    # Preserve diagnostics for existing profiling callers, independently allow
+    # diagnostics without timing, memory tracking, or profiling counters.
+    collect_diagnostics = collect_diagnostics or profile
     set_seed(seed)
     raw = make_model(tokenizer, device)
     layers = geometry_layers(raw)
@@ -518,7 +528,7 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
                     total_loss += loss.item()
                     examples += len(part_x)
                     physical_steps += 1
-                    if profile:
+                    if collect_diagnostics:
                         norms_list.append(norms.cpu())
                         factors_list.append(factors.cpu())
                 with timed(stats, "noise_optimizer_seconds", device, profile), torch.no_grad():
@@ -543,7 +553,7 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
             if epoch == epochs:
                 accuracy, test_loss = evaluate(raw, validation, device)
             stats["evaluation_seconds"] = timestamp(device) - started if profile else float("nan")
-            if profile:
+            if collect_diagnostics:
                 norms, factors = torch.cat(norms_list), torch.cat(factors_list)
             row = dict(method={"base": "DP-Adam", "full": "DP-KFC", "a_only": "DP-KFC-A"}[geometry],
                        geometry=geometry, source=source, engine=engine, profiled=profile, profile_mode=profile_mode,
@@ -556,12 +566,12 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
                        geometry_physical_batch_size=GEOMETRY_PHYSICAL_BATCH_SIZE,
                        preconditioned_layers=len(ua), trainable_parameters=sum(p.numel() for p in raw.parameters()),
                        train_loss=total_loss / examples, test_loss=test_loss, accuracy=accuracy, **stats,
-                       clip_fraction=(factors < 1).float().mean().item() if profile else float("nan"),
-                       mean_clip_factor=factors.mean().item() if profile else float("nan"),
-                       norm_p50=norms.quantile(.5).item() if profile else float("nan"),
-                       norm_p90=norms.quantile(.9).item() if profile else float("nan"),
-                       norm_p99=norms.quantile(.99).item() if profile else float("nan"),
-                       norm_max=norms.max().item() if profile else float("nan"),
+                       clip_fraction=(factors < 1).float().mean().item() if collect_diagnostics else float("nan"),
+                       mean_clip_factor=factors.mean().item() if collect_diagnostics else float("nan"),
+                       norm_p50=norms.quantile(.5).item() if collect_diagnostics else float("nan"),
+                       norm_p90=norms.quantile(.9).item() if collect_diagnostics else float("nan"),
+                       norm_p99=norms.quantile(.99).item() if collect_diagnostics else float("nan"),
+                       norm_max=norms.max().item() if collect_diagnostics else float("nan"),
                        logical_steps=steps, physical_steps=physical_steps, optimizer_steps=optimizer_steps,
                        noise_events=noise_events, accountant_steps=accountant_steps)
             rows.append(row)
