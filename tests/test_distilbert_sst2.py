@@ -162,16 +162,23 @@ def test_bk_explicit_and_autograd_agree(tokenizer, geometry, device_name, monkey
         wrapper.remove_hooks()
 
 
-@pytest.mark.parametrize("engine", ["bk", "explicit"])
+@pytest.mark.parametrize("engine,profile_mode,batch_constant,physical_steps", [
+    ("bk", "practical", "BK_PHYSICAL_BATCH_SIZE", 6),
+    ("bk", "controlled", "PROFILE_PHYSICAL_BATCH_SIZE", 12),
+    ("explicit", "controlled", "PROFILE_PHYSICAL_BATCH_SIZE", 12),
+])
 @pytest.mark.parametrize("geometry,profile", [("base", True), ("base", False), ("full", True), ("a_only", True)])
-def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_path, engine, geometry, profile):
+def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_path, engine, geometry, profile,
+                                                  profile_mode, batch_constant, physical_steps):
     monkeypatch.setattr(exp, "MAX_LENGTH", 12)
-    monkeypatch.setattr(exp, "LOGICAL_BATCH_SIZE", 4)
-    monkeypatch.setattr(exp, "PHYSICAL_BATCH_SIZE", 2)
+    monkeypatch.setattr(exp, "LOGICAL_BATCH_SIZE", 8)
+    monkeypatch.setattr(exp, "BK_PHYSICAL_BATCH_SIZE", 4)
+    monkeypatch.setattr(exp, "EXPLICIT_PHYSICAL_BATCH_SIZE", 2)
+    monkeypatch.setattr(exp, "PROFILE_PHYSICAL_BATCH_SIZE", 2)
     monkeypatch.setattr(exp, "GEOMETRY_BATCH_SIZE", 3)
     monkeypatch.setattr(exp, "GEOMETRY_PHYSICAL_BATCH_SIZE", 2)
     monkeypatch.setattr(exp, "make_model", tiny_model)
-    data = TensorDataset(exp.pack_prompts(["a film"] * 7, tokenizer), torch.arange(7) % 2)
+    data = TensorDataset(exp.pack_prompts(["a film"] * 11, tokenizer), torch.arange(11) % 2)
     calls = []
     original = exp.evaluate
 
@@ -180,14 +187,31 @@ def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_pa
         return original(*args)
 
     monkeypatch.setattr(exp, "evaluate", evaluate)
+    learning_rates = []
+    original_adam = torch.optim.Adam
+
+    def adam(*args, **kwargs):
+        learning_rates.append(kwargs["lr"])
+        return original_adam(*args, **kwargs)
+
+    monkeypatch.setattr(torch.optim, "Adam", adam)
     result = exp.run_one(data, data, tokenizer, geometry, "none" if geometry == "base" else "synthetic", engine, 3., 42, 2,
-                         torch.device("cpu"), tmp_path, profile)
+                         torch.device("cpu"), tmp_path, getattr(exp, batch_constant), profile, profile_mode, lr=1e-4)
+    assert learning_rates == [1e-4]
+    assert result["lr"] == 1e-4
+    assert result["device"] == "cpu"
     assert len(calls) == 1
-    assert result["train_examples"] == 14
+    assert result["train_examples"] == 22
     assert result["logical_steps"] == result["optimizer_steps"] == result["noise_events"] == result["accountant_steps"] == 4
-    assert result["physical_steps"] == 8
+    assert result["physical_steps"] == physical_steps
+    assert result["sample_rate"] == 8 / 11
+    assert result["physical_batch_size"] == getattr(exp, batch_constant)
+    assert result["profile_mode"] == profile_mode
+    assert result["profiled"] == profile
     assert 0 < result["epsilon_spent"] <= 3.01
-    rows = pd.read_csv(next(tmp_path.glob("*.csv")))
+    rows = pd.read_csv(tmp_path / f"{geometry}_{result['source']}_{engine}_{profile_mode}_eps3_seed42.csv")
+    assert (rows["physical_batch_size"] == getattr(exp, batch_constant)).all()
+    assert (rows["profile_mode"] == profile_mode).all()
     assert len(rows) == 2
     assert pd.isna(rows.iloc[0]["accuracy"])
     assert 0 <= rows.iloc[-1]["accuracy"] <= 1
@@ -196,3 +220,82 @@ def test_logical_batches_csv_and_final_evaluation(tokenizer, monkeypatch, tmp_pa
         assert result["algorithm_seconds"] == result["geometry_build_seconds"] + result["private_train_seconds"]
     else:
         assert all(pd.isna(result[key]) for key in (*exp.TIMINGS, *exp.COUNTERS, *exp.MEMORY))
+
+
+def test_synthetic_prompt_payloads(tokenizer, monkeypatch):
+    monkeypatch.setattr(exp, "MAX_LENGTH", 12)
+    packed, labels = exp.synthetic_prompts(tokenizer, 42, 1)
+    suffix, _ = exp.prompt_parts(tokenizer)
+    allowed = set(range(len(tokenizer))) - set(tokenizer.all_special_ids)
+    lengths = []
+    for ids, attention, positions in packed:
+        valid = int(attention.sum())
+        payload_len = valid - len(suffix) - 2
+        lengths.append(payload_len)
+        assert 1 <= payload_len <= exp.MAX_LENGTH - len(suffix) - 2
+        assert ids[0] == tokenizer.cls_token_id
+        assert set(ids[1:1 + payload_len].tolist()) <= allowed
+        assert ids[1 + payload_len:valid - 1].tolist() == suffix
+        assert ids[valid - 1] == tokenizer.sep_token_id
+        assert (ids[valid:] == tokenizer.pad_token_id).all()
+        assert (attention[:valid] == 1).all()
+        assert (attention[valid:] == 0).all()
+        assert (positions == 1 + payload_len + suffix.index(tokenizer.mask_token_id)).all()
+        assert ids[positions[0]] == tokenizer.mask_token_id
+    assert len(set(lengths)) > 1
+    assert set(labels.tolist()) == {0, 1}
+    repeated, repeated_labels = exp.synthetic_prompts(tokenizer, 42, 1)
+    assert torch.equal(packed, repeated)
+    assert torch.equal(labels, repeated_labels)
+
+
+@pytest.mark.parametrize("engine,epsilon,fast,expected", [
+    ("auto", 8., False, [("bk", 128, False, "practical")]),
+    ("auto", 3., False, [("bk", 128, True, "practical"),
+                         ("bk", 16, True, "controlled"), ("explicit", 16, True, "controlled")]),
+    ("bk", 3., False, [("bk", 128, True, "practical")]),
+    ("explicit", 3., False, [("explicit", 16, True, "practical")]),
+    ("all", 8., False, [("bk", 128, False, "practical"),
+                        ("bk", 16, True, "controlled"), ("explicit", 16, True, "controlled")]),
+    ("bk", 8., True, [("bk", 128, True, "practical"),
+                      ("bk", 16, True, "controlled"), ("explicit", 16, True, "controlled")]),
+])
+def test_main_run_selection(monkeypatch, tmp_path, engine, epsilon, fast, expected):
+    argv = ["experiment", "--engine", engine, "--epsilon", str(epsilon),
+            "--seed", "7", "--output_dir", str(tmp_path), "--lr", "1e-4", "--gpu", "1"]
+    if fast:
+        argv.append("--fast")
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    selected_devices = []
+    monkeypatch.setattr(torch.cuda, "set_device", selected_devices.append)
+    monkeypatch.setattr(exp.AutoTokenizer, "from_pretrained", lambda _: None)
+    monkeypatch.setattr(exp, "load_data", lambda _: (None, None))
+    calls = []
+
+    def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, seed,
+                epochs, device, output_dir, physical_batch_size, profile, profile_mode, lr=exp.LR):
+        assert lr == 1e-4
+        assert device == torch.device("cuda:1")
+        calls.append((geometry, source, engine, physical_batch_size, profile, profile_mode,
+                      epsilon, seed, epochs))
+        return {}
+
+    monkeypatch.setattr(exp, "run_one", run_one)
+    exp.main()
+    assert selected_devices == [1]
+    assert calls == [(geometry, source, *run, 3. if fast else epsilon,
+                      42 if fast else 7, 1 if fast else exp.EPOCHS)
+                     for geometry, source in exp.CONDITIONS for run in expected]
+
+
+def test_evaluation_batch_size(tokenizer, monkeypatch):
+    monkeypatch.setattr(exp, "MAX_LENGTH", 12)
+    monkeypatch.setattr(exp, "EVAL_BATCH_SIZE", 2)
+    data = TensorDataset(exp.pack_prompts(["a film"] * 5, tokenizer), torch.arange(5) % 2)
+    model = tiny_model(tokenizer)
+    sizes = []
+    model.register_forward_pre_hook(lambda module, inputs: sizes.append(len(inputs[0])))
+    exp.evaluate(model, data, torch.device("cpu"))
+    assert sizes == [2, 2, 1]

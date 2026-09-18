@@ -13,11 +13,15 @@ Poisson-sampling privacy proof. Validation is used only for final evaluation.
 BK keeps raw factors, computes tiled norms including the embedding/head cross
 term, and preconditions only the clipped aggregate. Explicit materializes all
 per-example gradients. Both keep every parameter requires_grad=True.
+Main accuracy runs use BK physical batch 128. Controlled implementation profiling
+compares BK and Explicit only at physical batch 16; practical runtime at batch 128
+is end-to-end efficiency, not an algorithm speedup against Explicit at batch 16.
 Cache counters measure retained tensor storage, workspace counters track local
 tensors (excluding backend workspaces), and CUDA peaks cover the whole allocator.
 """
 
 import argparse
+import math
 from contextlib import contextmanager
 from pathlib import Path
 import sys
@@ -49,7 +53,10 @@ LR = 5e-5
 MAX_GRAD_NORM = 1.0
 DELTA = 1e-5
 LOGICAL_BATCH_SIZE = 1024
-PHYSICAL_BATCH_SIZE = 8
+BK_PHYSICAL_BATCH_SIZE = 128
+EXPLICIT_PHYSICAL_BATCH_SIZE = 16
+PROFILE_PHYSICAL_BATCH_SIZE = 16
+EVAL_BATCH_SIZE = 16
 GEOMETRY_BATCH_SIZE = 256
 GEOMETRY_PHYSICAL_BATCH_SIZE = 16
 DAMPING = 1e-3
@@ -204,7 +211,7 @@ def synthetic_prompts(tokenizer, seed, epoch):
     suffix, _ = prompt_parts(tokenizer)
     allowed = torch.tensor(sorted(set(range(len(tokenizer))) - set(tokenizer.all_special_ids)))
     room = MAX_LENGTH - len(suffix) - 2
-    lengths = torch.randint(room + 1, (GEOMETRY_BATCH_SIZE,), generator=rng)
+    lengths = torch.randint(1, room + 1, (GEOMETRY_BATCH_SIZE,), generator=rng)
     rows = []
     for length in lengths.tolist():
         payload = allowed[torch.randint(len(allowed), (length,), generator=rng)].tolist()
@@ -434,7 +441,7 @@ def evaluate(model, validation, device):
     model.eval()
     correct = total = 0
     loss = 0.0
-    for x, y in DataLoader(validation, batch_size=PHYSICAL_BATCH_SIZE):
+    for x, y in DataLoader(validation, batch_size=EVAL_BATCH_SIZE):
         x, y = x.to(device), y.to(device)
         logits = model(x)
         correct += (logits.argmax(-1) == y).sum().item()
@@ -443,12 +450,12 @@ def evaluate(model, validation, device):
     return correct / total, loss / total
 
 
-def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, seed, epochs, device, output_dir, profile):
+def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, seed, epochs, device, output_dir, physical_batch_size, profile, profile_mode, lr=LR):
     set_seed(seed)
     raw = make_model(tokenizer, device)
     layers = geometry_layers(raw)
     model = GradSampleModule(raw, loss_reduction="sum") if engine == "explicit" else raw
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loader = DataLoader(train, batch_size=LOGICAL_BATCH_SIZE, shuffle=True, drop_last=False,
                         generator=torch.Generator().manual_seed(seed))
     sample_rate = min(LOGICAL_BATCH_SIZE / len(train), 1.0)
@@ -489,9 +496,9 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
                 # One persistent aggregate across physical batches; no intermediate
                 # Gaussian noise, optimizer update, or accountant event.
                 aggregate = {p: torch.zeros_like(p) for p in model.parameters()}
-                for start in range(0, len(x), PHYSICAL_BATCH_SIZE):
-                    part_x = x[start:start + PHYSICAL_BATCH_SIZE].to(device)
-                    part_y = y[start:start + PHYSICAL_BATCH_SIZE].to(device)
+                for start in range(0, len(x), physical_batch_size):
+                    part_x = x[start:start + physical_batch_size].to(device)
+                    part_y = y[start:start + physical_batch_size].to(device)
                     model.zero_grad(set_to_none=True)
                     with timed(stats, "differentiation_seconds", device, profile):
                         if engine == "explicit":
@@ -539,11 +546,12 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
             if profile:
                 norms, factors = torch.cat(norms_list), torch.cat(factors_list)
             row = dict(method={"base": "DP-Adam", "full": "DP-KFC", "a_only": "DP-KFC-A"}[geometry],
-                       geometry=geometry, source=source, engine=engine, profiled=profile,
+                       geometry=geometry, source=source, engine=engine, profiled=profile, profile_mode=profile_mode,
                        epsilon_target=epsilon, epsilon_spent=accountant.get_epsilon(DELTA), delta=DELTA,
                        noise_multiplier=sigma, sample_rate=sample_rate, seed=seed, epoch=epoch,
+                       lr=lr, device=str(device),
                        train_size=len(train), train_examples=examples, validation_size=len(validation),
-                       logical_batch_size=LOGICAL_BATCH_SIZE, physical_batch_size=PHYSICAL_BATCH_SIZE,
+                       logical_batch_size=LOGICAL_BATCH_SIZE, physical_batch_size=physical_batch_size,
                        geometry_batch_size=GEOMETRY_BATCH_SIZE if ua else 0,
                        geometry_physical_batch_size=GEOMETRY_PHYSICAL_BATCH_SIZE,
                        preconditioned_layers=len(ua), trainable_parameters=sum(p.numel() for p in raw.parameters()),
@@ -557,8 +565,8 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
                        logical_steps=steps, physical_steps=physical_steps, optimizer_steps=optimizer_steps,
                        noise_events=noise_events, accountant_steps=accountant_steps)
             rows.append(row)
-            pd.DataFrame(rows).to_csv(output_dir / f"{geometry}_{source}_{engine}_eps{epsilon:g}_seed{seed}.csv", index=False)
-            print(f"{geometry}/{source}/{engine} eps={epsilon:g} seed={seed} epoch={epoch} "
+            pd.DataFrame(rows).to_csv(output_dir / f"{geometry}_{source}_{engine}_{profile_mode}_eps{epsilon:g}_seed{seed}.csv", index=False)
+            print(f"{geometry}/{source}/{engine}/{profile_mode} physical={physical_batch_size} eps={epsilon:g} seed={seed} epoch={epoch} "
                   f"examples={examples} accuracy={accuracy:.4f} algorithm={stats['algorithm_seconds']:.2f}s", flush=True)
     finally:
         if engine == "explicit":
@@ -575,32 +583,48 @@ def run_one(train, validation, tokenizer, geometry, source, engine, epsilon, see
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--fast", action="store_true", help="All 6 conditions, seed=42, epsilon=3, one FULL epoch with profiling")
+    parser.add_argument("--fast", action="store_true", help="All 3 geometries with BK practical and both controlled engines, seed=42, epsilon=3, one FULL epoch")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--epsilon", type=float)
     parser.add_argument("--engine", choices=("auto", "explicit", "bk", "all"), default="auto")
-    parser.add_argument("--output_dir", type=Path, default=Path("results/distilbert_sst2"))
+    parser.add_argument("--lr", type=float, default=LR, help="Adam learning rate (default: %(default)s)")
+    parser.add_argument("--gpu", type=int, help="CUDA device index among visible GPUs (e.g. 1)")
+    parser.add_argument("--output_dir", type=Path, default=Path("results/distilbert_sst2_lr"))
     args = parser.parse_args()
     if args.epsilon is not None and args.epsilon <= 0:
         parser.error("--epsilon must be positive")
+    if not math.isfinite(args.lr) or args.lr <= 0:
+        parser.error("--lr must be finite and positive")
+    if args.gpu is not None:
+        if args.gpu < 0 or not torch.cuda.is_available() or args.gpu >= torch.cuda.device_count():
+            parser.error("--gpu must name an available CUDA device among visible GPUs")
+        torch.cuda.set_device(args.gpu)
     seeds = [42] if args.fast else [args.seed] if args.seed is not None else SEEDS
     epsilons = [PROFILE_EPSILON] if args.fast else [args.epsilon] if args.epsilon is not None else EPSILONS
     epochs = 1 if args.fast else EPOCHS
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}; seeds={seeds}; epsilons={epsilons}; epochs={epochs}; engine={'all' if args.fast else args.engine}", flush=True)
+    device = torch.device(f"cuda:{args.gpu}" if args.gpu is not None else
+                          "cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}; lr={args.lr:g}; output_dir={args.output_dir}; seeds={seeds}; epsilons={epsilons}; epochs={epochs}; engine={'all' if args.fast else args.engine}", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     train, validation = load_data(tokenizer)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     summaries = []
     for epsilon in epsilons:
         profile = epsilon == PROFILE_EPSILON
-        engines = ("bk", "explicit") if args.fast or args.engine == "all" or (args.engine == "auto" and profile) else (
-            "bk" if args.engine == "auto" else args.engine,)
+        if args.fast or args.engine == "all" or (args.engine == "auto" and profile):
+            runs = [("bk", BK_PHYSICAL_BATCH_SIZE, profile, "practical"),
+                    ("bk", PROFILE_PHYSICAL_BATCH_SIZE, True, "controlled"),
+                    ("explicit", PROFILE_PHYSICAL_BATCH_SIZE, True, "controlled")]
+        elif args.engine == "explicit":
+            runs = [("explicit", EXPLICIT_PHYSICAL_BATCH_SIZE, profile, "practical")]
+        else:
+            runs = [("bk", BK_PHYSICAL_BATCH_SIZE, profile, "practical")]
         for seed in seeds:
             for geometry, source in CONDITIONS:
-                for engine in engines:
+                for engine, physical_batch_size, profiled, profile_mode in runs:
                     summaries.append(run_one(train, validation, tokenizer, geometry, source, engine,
-                                             epsilon, seed, epochs, device, args.output_dir, profile))
+                                             epsilon, seed, epochs, device, args.output_dir,
+                                             physical_batch_size, profiled, profile_mode, lr=args.lr))
                     pd.DataFrame(summaries).to_csv(args.output_dir / "summary.csv", index=False)
 
 
