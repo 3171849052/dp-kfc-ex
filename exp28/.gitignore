@@ -1,0 +1,7 @@
+.cache/
+.mplconfig/
+.tmp/
+__pycache__/
+logs/
+results/
+_validation/results/

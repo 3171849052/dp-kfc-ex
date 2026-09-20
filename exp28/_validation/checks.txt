@@ -1,0 +1,8 @@
+PASS: Python AST static checks and bash -n exp28/run_all.sh.
+PASS: 16 unique grid points and independent run directories.
+PASS: mock reference call protocol and constant restoration, including exception path.
+PASS: summary/ranking schema, accounting fields and loss/LR tie-breaking.
+PASS: five analysis plots from synthetic smoke data (not experiment results).
+PASS: isolated local DistilBERT tokenizer/config and full SST-2 cache (67349/872).
+Reference implementation and existing experiment results were not modified.
+No GPU training was used for these checks.
