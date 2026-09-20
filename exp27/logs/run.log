@@ -1,0 +1,400 @@
+[1/50] DP-KFC-Pink C=0.1 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.4980 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6098 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7170 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.7647 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.7832 algorithm=nans
+[2/50] DP-KFC-A-Pink C=0.1 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.5641 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6992 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7576 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.7900 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.8240 algorithm=nans
+[3/50] DP-KFC-Pink C=0.1 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7654 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.8690 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9146 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9274 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9349 algorithm=nans
+[4/50] DP-KFC-A-Pink C=0.1 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7705 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.8992 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9243 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9352 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9430 algorithm=nans
+[5/50] DP-KFC-Pink C=0.1 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8400 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9170 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9329 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9403 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9474 algorithm=nans
+[6/50] DP-KFC-A-Pink C=0.1 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8593 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9264 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9424 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9485 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9551 algorithm=nans
+[7/50] DP-KFC-Pink C=0.1 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9058 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9331 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9452 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9478 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9528 algorithm=nans
+[8/50] DP-KFC-A-Pink C=0.1 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9086 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9419 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9520 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9560 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9610 algorithm=nans
+[9/50] DP-KFC-Pink C=0.1 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9294 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9352 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9337 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9234 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9129 algorithm=nans
+[10/50] DP-KFC-A-Pink C=0.1 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9289 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9439 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9454 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9386 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9347 algorithm=nans
+[11/50] DP-KFC-Pink C=0.5 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.4978 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6098 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7174 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.7647 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.7866 algorithm=nans
+[12/50] DP-KFC-A-Pink C=0.5 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.5641 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6992 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7576 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.8017 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.8366 algorithm=nans
+[13/50] DP-KFC-Pink C=0.5 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7654 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.8762 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9163 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9288 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9358 algorithm=nans
+[14/50] DP-KFC-A-Pink C=0.5 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7793 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9051 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9256 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9363 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9444 algorithm=nans
+[15/50] DP-KFC-Pink C=0.5 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8479 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9180 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9336 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9425 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9485 algorithm=nans
+[16/50] DP-KFC-A-Pink C=0.5 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8705 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9274 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9433 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9493 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9561 algorithm=nans
+[17/50] DP-KFC-Pink C=0.5 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9080 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9338 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9457 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9486 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9535 algorithm=nans
+[18/50] DP-KFC-A-Pink C=0.5 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9112 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9427 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9530 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9562 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9613 algorithm=nans
+[19/50] DP-KFC-Pink C=0.5 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9300 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9341 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9326 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9193 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9088 algorithm=nans
+[20/50] DP-KFC-A-Pink C=0.5 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9292 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9427 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9433 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9373 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9324 algorithm=nans
+[21/50] DP-KFC-Pink C=1 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.4978 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6098 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7174 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.7647 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.7893 algorithm=nans
+[22/50] DP-KFC-A-Pink C=1 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.5641 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6992 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7576 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.8072 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.8431 algorithm=nans
+[23/50] DP-KFC-Pink C=1 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7654 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.8801 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9173 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9290 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9365 algorithm=nans
+[24/50] DP-KFC-A-Pink C=1 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7846 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9053 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9261 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9370 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9445 algorithm=nans
+[25/50] DP-KFC-Pink C=1 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8513 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9193 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9340 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9427 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9492 algorithm=nans
+[26/50] DP-KFC-A-Pink C=1 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8752 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9283 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9436 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9501 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9563 algorithm=nans
+[27/50] DP-KFC-Pink C=1 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9087 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9345 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9460 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9490 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9534 algorithm=nans
+[28/50] DP-KFC-A-Pink C=1 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9113 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9429 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9537 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9558 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9618 algorithm=nans
+[29/50] DP-KFC-Pink C=1 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9299 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9345 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9315 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9196 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9077 algorithm=nans
+[30/50] DP-KFC-A-Pink C=1 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9302 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9422 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9420 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9365 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9316 algorithm=nans
+[31/50] DP-KFC-Pink C=2 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.4978 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6097 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7174 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.7647 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.7925 algorithm=nans
+[32/50] DP-KFC-A-Pink C=2 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.5641 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6992 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7576 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.8132 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.8478 algorithm=nans
+[33/50] DP-KFC-Pink C=2 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7663 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.8843 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9186 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9295 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9368 algorithm=nans
+[34/50] DP-KFC-A-Pink C=2 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7909 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9062 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9272 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9373 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9455 algorithm=nans
+[35/50] DP-KFC-Pink C=2 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8559 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9195 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9349 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9431 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9495 algorithm=nans
+[36/50] DP-KFC-A-Pink C=2 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8801 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9291 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9438 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9505 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9561 algorithm=nans
+[37/50] DP-KFC-Pink C=2 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9096 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9347 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9462 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9489 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9532 algorithm=nans
+[38/50] DP-KFC-A-Pink C=2 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9124 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9431 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9539 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9559 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9613 algorithm=nans
+[39/50] DP-KFC-Pink C=2 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9300 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9340 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9300 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9178 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9052 algorithm=nans
+[40/50] DP-KFC-A-Pink C=2 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9307 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9419 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9407 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9350 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9302 algorithm=nans
+[41/50] DP-KFC-Pink C=5 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.4978 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6097 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7174 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.7647 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.7983 algorithm=nans
+[42/50] DP-KFC-A-Pink C=5 lr=0.0001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.5641 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.6992 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.7614 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.8248 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.8576 algorithm=nans
+[43/50] DP-KFC-Pink C=5 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.7703 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.8892 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9198 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9301 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9373 algorithm=nans
+[44/50] DP-KFC-A-Pink C=5 lr=0.0005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8013 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9074 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9276 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9376 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9463 algorithm=nans
+[45/50] DP-KFC-Pink C=5 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8608 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9203 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9352 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9439 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9498 algorithm=nans
+[46/50] DP-KFC-A-Pink C=5 lr=0.001
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.8853 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9301 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9436 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9507 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9566 algorithm=nans
+[47/50] DP-KFC-Pink C=5 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9105 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9352 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9462 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9497 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9531 algorithm=nans
+[48/50] DP-KFC-A-Pink C=5 lr=0.002
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9144 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9440 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9549 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9558 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9610 algorithm=nans
+[49/50] DP-KFC-Pink C=5 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+full/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9305 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9332 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9290 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9168 algorithm=nans
+full/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9027 algorithm=nans
+[50/50] DP-KFC-A-Pink C=5 lr=0.005
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+a_only/pink/bk eps=2 seed=42 epoch=1 accuracy=0.9309 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=2 accuracy=0.9415 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=3 accuracy=0.9396 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=4 accuracy=0.9321 algorithm=nans
+a_only/pink/bk eps=2 seed=42 epoch=5 accuracy=0.9275 algorithm=nans
