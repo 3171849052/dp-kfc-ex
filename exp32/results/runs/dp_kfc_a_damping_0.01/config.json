@@ -1,0 +1,122 @@
+{
+  "ACCUMULATION_STEPS": 1,
+  "ADAM_EPS": 1e-08,
+  "A_POWER": 0.4,
+  "A_SCALE": 1.0,
+  "BETAS": [
+    0.9,
+    0.999
+  ],
+  "DAMPING_VALUES": [
+    0.001,
+    0.01,
+    0.1
+  ],
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 3.0,
+  "GPU_RUNS": {
+    "0": [
+      [
+        "dp_kfc",
+        0.001
+      ],
+      [
+        "dp_kfc_a",
+        0.001
+      ]
+    ],
+    "1": [
+      [
+        "dp_kfc",
+        0.01
+      ],
+      [
+        "dp_kfc_a",
+        0.01
+      ]
+    ],
+    "2": [
+      [
+        "dp_kfc",
+        0.1
+      ],
+      [
+        "dp_kfc_a",
+        0.1
+      ]
+    ],
+    "3": [
+      [
+        "dp_adam",
+        null
+      ]
+    ]
+  },
+  "IMG_SIZE": 224,
+  "LABELS": {
+    "dp_adam": "DP-Adam",
+    "dp_kfc": "DP-KFC",
+    "dp_kfc_a": "DP-KFC-A"
+  },
+  "LEARNING_RATE": 0.0001,
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "METHODS": [
+    "dp_adam",
+    "dp_kfc",
+    "dp_kfc_a"
+  ],
+  "MODEL_NAME": "squeezenet1_1",
+  "NUM_CLASSES": 10,
+  "PHYSICAL_BATCH_SIZE": 256,
+  "RESULTS": "/media/data/data/lt/DP-KFC/exp32/results",
+  "SEED": 42,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 256,
+  "TRAIN_SAMPLES": 50000,
+  "WEIGHTS": "SqueezeNet1_1_Weights.IMAGENET1K_V1",
+  "WEIGHT_DECAY": 0.0,
+  "method": "dp_kfc_a",
+  "optimizer": "torch.optim.Adam",
+  "damping": 0.01,
+  "seed": 42,
+  "epochs": 5,
+  "a_scale_matching": false,
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "trainable_parameters": 727626,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}

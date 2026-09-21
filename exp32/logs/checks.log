@@ -1,0 +1,5 @@
+Pretrained SqueezeNet: 26 convolutions, 727626 trainable parameters
+dp_adam exact transformed norms/aggregates and noisy Adam step passed
+dp_kfc exact transformed norms/aggregates and noisy Adam step passed
+dp_kfc_a exact transformed norms/aggregates and noisy Adam step passed
+Syntax/import, grid, GPU assignment, model and tiny smoke checks passed.
