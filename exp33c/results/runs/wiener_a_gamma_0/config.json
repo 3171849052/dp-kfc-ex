@@ -1,0 +1,125 @@
+{
+  "ACCUMULATION_STEPS": 2,
+  "ADAM_EPS": 1e-08,
+  "BETAS": [
+    0.9,
+    0.999
+  ],
+  "DATA_ROOT": "/media/data/data/lt/DP-KFC/exp30/data",
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 3.0,
+  "EXP33_DP_ADAMW_ACCURACY": 0.9276,
+  "EXP33_WIENER_A_ACCURACY": 0.718,
+  "GAMMAS": [
+    0.0,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "GPU_RUNS": {
+    "0": [
+      "wiener_a_gamma_0",
+      "wiener_a_gamma_0.75"
+    ],
+    "1": [
+      "wiener_a_gamma_0.1",
+      "wiener_a_gamma_1"
+    ],
+    "2": [
+      "wiener_a_gamma_0.25"
+    ],
+    "3": [
+      "wiener_a_gamma_0.5"
+    ]
+  },
+  "IMG_SIZE": 224,
+  "LEARNING_RATE": 0.0001,
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "MODEL_NAME": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "PHYSICAL_BATCH_SIZE": 128,
+  "RESULTS": "/media/data/data/lt/DP-KFC/exp33c/results",
+  "RUNS": {
+    "wiener_a_gamma_0": {
+      "gamma": 0.0,
+      "gpu": 0
+    },
+    "wiener_a_gamma_0.1": {
+      "gamma": 0.1,
+      "gpu": 1
+    },
+    "wiener_a_gamma_0.25": {
+      "gamma": 0.25,
+      "gpu": 2
+    },
+    "wiener_a_gamma_0.5": {
+      "gamma": 0.5,
+      "gpu": 3
+    },
+    "wiener_a_gamma_0.75": {
+      "gamma": 0.75,
+      "gpu": 0
+    },
+    "wiener_a_gamma_1": {
+      "gamma": 1.0,
+      "gpu": 1
+    }
+  },
+  "SEED": 42,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 128,
+  "TRAIN_SAMPLES": 50000,
+  "UPDATE_GROUPS": [
+    "patch_head",
+    "attention_qkv",
+    "attention_out",
+    "mlp",
+    "identity"
+  ],
+  "WEIGHT_DECAY": 0.01,
+  "method": "wiener_a_gamma_0",
+  "synthetic_physical_batch_size": 128,
+  "gamma": 0.0,
+  "lr": 0.0001,
+  "seed": 42,
+  "epochs": 5,
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "trainable_parameters": 5526346,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}
