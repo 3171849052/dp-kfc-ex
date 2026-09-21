@@ -1,0 +1,7 @@
+usage: run.py [-h] --method {dp_adamw,dp_kfc,dp_kfc_a}
+              [--damping {0.001,0.01,0.1}]
+
+options:
+  -h, --help            show this help message and exit
+  --method {dp_adamw,dp_kfc,dp_kfc_a}
+  --damping {0.001,0.01,0.1}

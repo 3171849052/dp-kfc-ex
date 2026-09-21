@@ -1,0 +1,5 @@
+usage: worker.py [-h] --gpu {0,1,2,3}
+
+options:
+  -h, --help       show this help message and exit
+  --gpu {0,1,2,3}
