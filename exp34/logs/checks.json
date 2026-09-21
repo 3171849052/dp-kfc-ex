@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "trainable_parameter_count": 5526346,
+  "linear_layers": 74,
+  "layernorm_layers": 25,
+  "total_steps": 3900,
+  "noise_multiplier": 0.83251953125,
+  "epsilon": 2.9977271782228176,
+  "exp30_five_epoch_sigma": 0.72021484375,
+  "formal_training_started": false
+}

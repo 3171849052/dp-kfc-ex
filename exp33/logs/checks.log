@@ -1,0 +1,7 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+PASS: grid, protocol, accounting, exact global clipping, synthetic covariance, post-noise filtering, identity parameters, gains and contraction
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+09/21/2026 16:21:10:WARNING:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+PASS: pretrained Exp22/30 initialization, 74 trainable Linear layers, actual ViT synthetic backward, all-layer contraction, no-scale KFC reference
+noise_multiplier=0.72021484375; epsilon=2.9959030525484205; 195 steps/epoch, 975 total

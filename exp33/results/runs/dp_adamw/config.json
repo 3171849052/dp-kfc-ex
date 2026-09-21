@@ -1,0 +1,85 @@
+{
+  "ACCUMULATION_STEPS": 2,
+  "ADAM_EPS": 1e-08,
+  "A_POWER": 0.4,
+  "BETAS": [
+    0.9,
+    0.999
+  ],
+  "DAMPING": 0.1,
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 3.0,
+  "GPU_METHODS": {
+    "0": "dp_adamw",
+    "1": "dp_wiener_a",
+    "2": "dp_wiener_full",
+    "3": "dp_kfc_a_01"
+  },
+  "IMG_SIZE": 224,
+  "LABELS": {
+    "dp_adamw": "DP-AdamW",
+    "dp_wiener_a": "DP-Wiener-A",
+    "dp_wiener_full": "DP-Wiener-Full",
+    "dp_kfc_a_01": "DP-KFC-A-0.1"
+  },
+  "LEARNING_RATE": 0.0001,
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "METHODS": [
+    "dp_adamw",
+    "dp_wiener_a",
+    "dp_wiener_full",
+    "dp_kfc_a_01"
+  ],
+  "MODEL_NAME": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "PHYSICAL_BATCH_SIZE": 128,
+  "RESULTS": "/media/data/data/lt/DP-KFC/exp33/results",
+  "SEED": 42,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 128,
+  "TRAIN_SAMPLES": 50000,
+  "WEIGHT_DECAY": 0.01,
+  "method": "dp_adamw",
+  "synthetic_physical_batch_size": 128,
+  "damping": null,
+  "seed": 42,
+  "epochs": 5,
+  "a_scale_matching": false,
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "trainable_parameters": 5526346,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}

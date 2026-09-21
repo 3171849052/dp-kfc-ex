@@ -1,0 +1,2 @@
+dp_adamw_accuracy,dp_wiener_a_accuracy,dp_wiener_full_accuracy,dp_kfc_a_01_accuracy,delta_wiener_a_vs_adamw,delta_wiener_full_vs_adamw,delta_wiener_full_vs_a,delta_wiener_a_vs_kfc_a
+0.9276,0.718,0.5064,0.9275,-0.2096,-0.4212,-0.2116,-0.20950000000000002
