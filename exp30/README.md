@@ -18,6 +18,10 @@ shuffle loader、评估和训练编排逻辑；预处理及计算公式相同，
   每 epoch 195 个 logical/optimizer/noise steps，共 975 次 accountant steps。
 - synthetic geometry：每 epoch 10×256 pink noise，alpha=1，synthetic physical batch=256。
 - A_POWER=0.4。DP-KFC 使用 full geometry；DP-KFC-A 映射到 Exp22 `dp_kfc_a_bk`。
+- DP-KFC-A 去掉 scale matching：构建后将 operator.scale 固定为 1，实际使用
+  `(A + damping I)^(-0.4)`，不乘 Exp22 的全局匹配系数。activation、gradient、
+  matrix 变换均采用此无缩放算子；gain/eigenvalue 诊断同步还原为无缩放值，
+  `scale_match=1`，run 配置记录 `a_scale_matching=false`。
 - 每 epoch 显式调用 `build_from_batches(..., damping=damping, power=cfg.A_POWER)`，
   不通过改默认常量进行 sweep。其他参数不 sweep。
 - Exp22 的 RDP fixed logical-batch convention，sample_rate=256/50000；

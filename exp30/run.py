@@ -28,6 +28,20 @@ from exp22.geometry import build_from_batches, synthetic_stream
 from exp22.methods import Clipper
 
 
+def remove_a_scale(operator, builder):
+    """Use raw (A + damping I)^(-power), including unscaled diagnostics."""
+    scale = operator.scale
+    operator.scale = 1.0
+    operator.moments["scale_match"] = 1.0
+    for name in operator.diagnostics:
+        if name.startswith("operator_gain_"):
+            operator.diagnostics[name] /= scale
+        elif name.startswith("transformed_eig_"):
+            operator.diagnostics[name] /= scale ** 2
+    builder.update(operator.moments)
+    builder.update(operator.diagnostics)
+
+
 def data_transform():
     return transforms.Compose([
         transforms.Resize((cfg.IMG_SIZE, cfg.IMG_SIZE), interpolation=transforms.InterpolationMode.BICUBIC),
@@ -110,6 +124,8 @@ def run(method: str, damping: float):
             model, cfg.EXP22_METHOD[method], probes, seed, epoch,
             damping=damping, power=cfg.A_POWER,
         )
+        if method == "dp_kfc_a":
+            remove_a_scale(operator, builder)
         torch.cuda.synchronize(device)
         builder_seconds = time.perf_counter() - build_start
 
@@ -215,6 +231,7 @@ def run(method: str, damping: float):
     configuration.update({
         "method": method, "exp22_method": cfg.EXP22_METHOD[method],
         "damping": damping, "seed": seed, "epochs": epochs,
+        "a_scale_matching": False,
         "total_steps": total_steps, "noise_multiplier": sigma,
         "trainable_parameters": sum(p.numel() for p in model.parameters() if p.requires_grad),
         "data_config": {"input_size": [3, cfg.IMG_SIZE, cfg.IMG_SIZE],

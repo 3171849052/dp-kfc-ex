@@ -1,1 +1,2 @@
 PASS: syntax/import; 14-run grid and GPU 4/4/4/2; cache isolation; Exp22 data/evaluation AST parity; temporary analysis fixtures (14 summary rows, 7 paired rows, two rankings, six plots, missing-run rejection). No training or model initialization performed.
+PASS: no-scale A-only activation/gradient/matrix transforms; corrected diagnostics; Python syntax/import. No training performed.
