@@ -1,0 +1,8 @@
+[1/5] DP-KFC-A damping=0.001 C=2 LR=0.0005 seed=42
+[2/5] DP-KFC-A damping=0.003 C=2 LR=0.0005 seed=42
+[3/5] DP-KFC-A damping=0.01 C=2 LR=0.0005 seed=42
+[4/5] DP-KFC-A damping=0.03 C=2 LR=0.0005 seed=42
+[5/5] DP-KFC-A damping=0.1 C=2 LR=0.0005 seed=42
+Best: damping=0.001, validation accuracy=50.0000%
+PASS: five runs, protocol/restoration, effective damping, raw CSV preservation, ranking and five log-scale plots
+

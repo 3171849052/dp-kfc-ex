@@ -1,0 +1,5 @@
+Using the latest cached version of the dataset since nyu-mll/glue couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'sst2' at /media/data/data/lt/DP-KFC/exp29/.cache/huggingface/datasets/nyu-mll___glue/sst2/0.0.0/bcdcba79d07bc864c1c254ccfcedcce55bcc9a8c (last modified on Fri Sep 18 14:50:45 2026).
+
+PASS: isolated tokenizer, model weights and complete SST-2 cache
+
