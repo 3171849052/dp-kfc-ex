@@ -1,0 +1,104 @@
+{
+  "ACCUMULATION_STEPS": 2,
+  "ADAM_EPS": 1e-08,
+  "A_POWER": 0.4,
+  "BETAS": [
+    0.9,
+    0.999
+  ],
+  "DAMPING_VALUES": [
+    0.0001,
+    0.0003,
+    0.001,
+    0.003,
+    0.01,
+    0.03,
+    0.1
+  ],
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 3.0,
+  "EXP22_METHOD": {
+    "dp_kfc": "dp_kfc",
+    "dp_kfc_a": "dp_kfc_a_bk"
+  },
+  "GPU_DAMPINGS": {
+    "0": [
+      0.0001,
+      0.0003
+    ],
+    "1": [
+      0.001,
+      0.003
+    ],
+    "2": [
+      0.01,
+      0.03
+    ],
+    "3": [
+      0.1
+    ]
+  },
+  "IMG_SIZE": 224,
+  "LABELS": {
+    "dp_kfc": "DP-KFC",
+    "dp_kfc_a": "DP-KFC-A"
+  },
+  "LEARNING_RATE": 0.0001,
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "METHODS": [
+    "dp_kfc",
+    "dp_kfc_a"
+  ],
+  "MODEL_NAME": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "PHYSICAL_BATCH_SIZE": 128,
+  "RESULTS": "/media/data/data/lt/DP-KFC/exp30/results",
+  "SEED": 42,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 256,
+  "TRAIN_SAMPLES": 50000,
+  "WEIGHT_DECAY": 0.01,
+  "method": "dp_kfc_a",
+  "exp22_method": "dp_kfc_a_bk",
+  "damping": 0.1,
+  "seed": 42,
+  "epochs": 5,
+  "a_scale_matching": false,
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "trainable_parameters": 5526346,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}

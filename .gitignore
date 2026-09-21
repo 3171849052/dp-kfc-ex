@@ -7,7 +7,7 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
 
 # Data and experiment outputs
 data/
@@ -19,11 +19,11 @@ experiments/
 *.swp
 
 # OS
-.DS_Store
+.DS_Store/
 
 # uv
 uv.lock
 rebuttal/
-.opencode
-
+.opencode/
+.cache/
 *.pt
