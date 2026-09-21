@@ -1,0 +1,148 @@
+{
+  "ACCUMULATION_STEPS": 2,
+  "ADAM_EPS": 1e-08,
+  "A_POWER": 0.4,
+  "BETAS": [
+    0.9,
+    0.999
+  ],
+  "DATA_ROOT": "/media/data/data/lt/DP-KFC/exp30/data",
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 3.0,
+  "EXP33_DP_ADAMW_ACCURACY": 0.9276,
+  "GPU_RUNS": {
+    "0": [
+      "wiener_a_none_lr_1e-4",
+      "wiener_a_rms_lr_1e-4"
+    ],
+    "1": [
+      "wiener_a_none_lr_3e-4",
+      "wiener_a_rms_lr_3e-4"
+    ],
+    "2": [
+      "wiener_a_none_lr_1e-3",
+      "wiener_a_rms_lr_1e-3"
+    ],
+    "3": [
+      "wiener_a_none_lr_3e-3",
+      "wiener_a_rms_lr_3e-3"
+    ]
+  },
+  "IDENTITY_LR": 0.0001,
+  "IMG_SIZE": 224,
+  "LEARNING_RATE": 0.0001,
+  "LINEAR_LRS": [
+    0.0001,
+    0.0003,
+    0.001,
+    0.003
+  ],
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "MODEL_NAME": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "PHYSICAL_BATCH_SIZE": 128,
+  "RESULTS": "/media/data/data/lt/DP-KFC/exp33b/results",
+  "RUNS": {
+    "wiener_a_none_lr_1e-4": {
+      "linear_lr": 0.0001,
+      "scale_mode": "none",
+      "gpu": 0
+    },
+    "wiener_a_rms_lr_1e-4": {
+      "linear_lr": 0.0001,
+      "scale_mode": "rms_match",
+      "gpu": 0
+    },
+    "wiener_a_none_lr_3e-4": {
+      "linear_lr": 0.0003,
+      "scale_mode": "none",
+      "gpu": 1
+    },
+    "wiener_a_rms_lr_3e-4": {
+      "linear_lr": 0.0003,
+      "scale_mode": "rms_match",
+      "gpu": 1
+    },
+    "wiener_a_none_lr_1e-3": {
+      "linear_lr": 0.001,
+      "scale_mode": "none",
+      "gpu": 2
+    },
+    "wiener_a_rms_lr_1e-3": {
+      "linear_lr": 0.001,
+      "scale_mode": "rms_match",
+      "gpu": 2
+    },
+    "wiener_a_none_lr_3e-3": {
+      "linear_lr": 0.003,
+      "scale_mode": "none",
+      "gpu": 3
+    },
+    "wiener_a_rms_lr_3e-3": {
+      "linear_lr": 0.003,
+      "scale_mode": "rms_match",
+      "gpu": 3
+    }
+  },
+  "SCALE_MODES": [
+    "none",
+    "rms_match"
+  ],
+  "SEED": 42,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 128,
+  "TRAIN_SAMPLES": 50000,
+  "UPDATE_GROUPS": [
+    "patch_head",
+    "attention_qkv",
+    "attention_out",
+    "mlp",
+    "identity"
+  ],
+  "WEIGHT_DECAY": 0.01,
+  "method": "wiener_a_rms_lr_3e-3",
+  "synthetic_physical_batch_size": 128,
+  "linear_lr": 0.003,
+  "identity_lr": 0.0001,
+  "scale_mode": "rms_match",
+  "seed": 42,
+  "epochs": 5,
+  "a_scale_matching": true,
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "trainable_parameters": 5526346,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}

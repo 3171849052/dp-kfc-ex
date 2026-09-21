@@ -27,3 +27,4 @@ rebuttal/
 .opencode/
 .cache/
 *.pt
+.opencode

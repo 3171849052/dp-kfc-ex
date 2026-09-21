@@ -1,0 +1,6 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+PASS: eight-run grid, 2/2/2/2 GPUs, protocol/RDP, synthetic clipping/covariance, scale oracle, epoch rebuild, two LR groups, post-noise filtering, real AdamW updates
+PASS: shared pretrained initialization, 74 Linear explicit conversion, synthetic/shuffle RNG reproducibility, cache confinement
+PASS: epoch-5 summary (8), paired (4), fixed reference, ten plots, incomplete-run rejection
+ALL LIGHTWEIGHT CHECKS PASSED; sigma=0.72021484375; epsilon=2.9959030525484205; no formal training started
