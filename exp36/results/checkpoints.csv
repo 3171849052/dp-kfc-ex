@@ -1,0 +1,7 @@
+epoch,checkpoint,seed,method,physical_gpu
+0,checkpoints/epoch_0.pt,42,dp_adamw,3
+1,checkpoints/epoch_1.pt,42,dp_adamw,3
+2,checkpoints/epoch_2.pt,42,dp_adamw,3
+3,checkpoints/epoch_3.pt,42,dp_adamw,3
+4,checkpoints/epoch_4.pt,42,dp_adamw,3
+5,checkpoints/epoch_5.pt,42,dp_adamw,3

@@ -78,3 +78,23 @@ GPU 0: dp_kfc_a, damping=0.01
   entry = pickle.load(f, encoding="latin1")
 /home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
   warnings.warn(
+dp_kfc_a damping=0.01 seed=42 epoch=1: accuracy=0.2752 loss=2.06850 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=2: accuracy=0.2961 loss=1.96932 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=3: accuracy=0.3027 loss=1.94314 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=4: accuracy=0.3032 loss=1.92346 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=5: accuracy=0.3148 loss=1.91467 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=6: accuracy=0.3175 loss=1.90499 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=7: accuracy=0.3235 loss=1.90026 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=8: accuracy=0.3246 loss=1.89747 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=9: accuracy=0.3282 loss=1.89164 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=10: accuracy=0.3370 loss=1.88480 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=11: accuracy=0.3392 loss=1.87681 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=12: accuracy=0.3470 loss=1.86933 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=13: accuracy=0.3481 loss=1.86572 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=14: accuracy=0.3477 loss=1.85750 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=15: accuracy=0.3529 loss=1.85738 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=16: accuracy=0.3548 loss=1.85134 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=17: accuracy=0.3591 loss=1.84752 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=18: accuracy=0.3623 loss=1.83851 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=19: accuracy=0.3633 loss=1.83393 logical_steps=195
+dp_kfc_a damping=0.01 seed=42 epoch=20: accuracy=0.3703 loss=1.82899 logical_steps=195

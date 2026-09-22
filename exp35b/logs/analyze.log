@@ -1,0 +1,12 @@
+/media/data/data/lt/DP-KFC/exp35b/analyze.py:39: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  frame = frame.assign(dataset=dataset, alpha=alpha, source_path=str(directory))
+/media/data/data/lt/DP-KFC/exp35b/analyze.py:39: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  frame = frame.assign(dataset=dataset, alpha=alpha, source_path=str(directory))
+/media/data/data/lt/DP-KFC/exp35b/analyze.py:39: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  frame = frame.assign(dataset=dataset, alpha=alpha, source_path=str(directory))
+/media/data/data/lt/DP-KFC/exp35b/analyze.py:39: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  frame = frame.assign(dataset=dataset, alpha=alpha, source_path=str(directory))
+/media/data/data/lt/DP-KFC/exp35b/analyze.py:39: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  frame = frame.assign(dataset=dataset, alpha=alpha, source_path=str(directory))
+/media/data/data/lt/DP-KFC/exp35b/analyze.py:39: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  frame = frame.assign(dataset=dataset, alpha=alpha, source_path=str(directory))
