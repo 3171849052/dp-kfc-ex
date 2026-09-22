@@ -8,7 +8,9 @@ from exp22.config import (
 )
 from exp34 import ROOT
 
-RESULTS = ROOT / "results"
+# Keep the original clip_norm=1 experiment intact; this is the clip_norm=2
+# rerun requested for Exp34.
+RESULTS = ROOT / "results_clip2"
 DATA_ROOT = ROOT.parent / "exp30" / "data"
 SEED = 42
 EPOCHS = 20
@@ -16,10 +18,15 @@ METHODS = ("dp_adamw", "dp_kfc", "dp_kfc_a")
 EXP22_METHOD = {"dp_adamw": "dp_sgd", "dp_kfc": "dp_kfc", "dp_kfc_a": "dp_kfc_a_bk"}
 LABELS = {"dp_adamw": "DP-AdamW", "dp_kfc": "DP-KFC", "dp_kfc_a": "DP-KFC-A"}
 DAMPING_VALUES = (1e-3, 1e-2, 1e-1)
-GPU_RUNS = {i: (("dp_kfc", d), ("dp_kfc_a", d)) for i, d in enumerate(DAMPING_VALUES)}
-# Three-card schedule: keep the damping pairs isolated and run the baseline
-# after the 0.1 pair on the last card.
-GPU_RUNS[2] = GPU_RUNS[2] + (("dp_adamw", None),)
+# Two-card schedule: keep each damping pair sequential and run the baseline
+# after the 0.1 pair on the second card.
+GPU_RUNS = {
+    0: (("dp_kfc", 1e-3), ("dp_kfc_a", 1e-3),
+        ("dp_kfc", 1e-2), ("dp_kfc_a", 1e-2)),
+    1: (("dp_kfc", 1e-1), ("dp_kfc_a", 1e-1), ("dp_adamw", None)),
+}
+# Exp34's imported default is 1; this rerun intentionally uses clip_norm=2.
+MAX_GRAD_NORM = 2.0
 LOGICAL_STEPS_PER_EPOCH = TRAIN_SAMPLES // LOGICAL_BATCH_SIZE
 TOTAL_STEPS = EPOCHS * LOGICAL_STEPS_PER_EPOCH
 

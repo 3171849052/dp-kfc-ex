@@ -55,19 +55,20 @@ def main():
     # Coverage only needs layer names; no expensive full-model geometry build.
     class Coverage:
         data = dict.fromkeys(linears)
-    clipper = Clipper(model, Coverage(), method='bk', max_grad_norm=1.)
+    assert cfg.MAX_GRAD_NORM == 2.
+    clipper = Clipper(model, Coverage(), method='bk', max_grad_norm=cfg.MAX_GRAD_NORM)
     assert set(clipper.preconditioned_layers) == linears
     assert set(clipper.identity_geometry_layers) == norms | {'cls_token', 'pos_embed'}
     clipper.remove()
-    baseline = Clipper(model, None, method='bk', max_grad_norm=1.)
+    baseline = Clipper(model, None, method='bk', max_grad_norm=cfg.MAX_GRAD_NORM)
     assert not baseline.preconditioned_layers
     baseline.remove()
     assert cfg.EPOCHS == 20 and cfg.TOTAL_STEPS == 3900
     assert (cfg.LOGICAL_BATCH_SIZE, cfg.PHYSICAL_BATCH_SIZE, cfg.ACCUMULATION_STEPS) == (256,128,2)
     assert (cfg.LEARNING_RATE, cfg.WEIGHT_DECAY, cfg.BETAS, cfg.ADAM_EPS) == (1e-4,.01,(.9,.999),1e-8)
     assert (cfg.SYNTHETIC_BATCHES, cfg.SYNTHETIC_BATCH_SIZE, cfg.SYNTHETIC_ALPHA, cfg.A_POWER) == (10,256,1.,.4)
-    assert len(cfg.grid()) == 7 and tuple(cfg.GPU_RUNS) == (0, 1, 2)
-    assert [len(v) for v in cfg.GPU_RUNS.values()] == [2, 2, 3]
+    assert len(cfg.grid()) == 7 and tuple(cfg.GPU_RUNS) == (0, 1)
+    assert [len(v) for v in cfg.GPU_RUNS.values()] == [4, 3]
     sigma = get_noise_multiplier(target_epsilon=3, target_delta=1e-5, sample_rate=256/50000, steps=3900, accountant='rdp')
     old = get_noise_multiplier(target_epsilon=3, target_delta=1e-5, sample_rate=256/50000, steps=975, accountant='rdp')
     assert sigma != old
@@ -96,7 +97,7 @@ def main():
             reference_op, _ = build_from_batches(tiny, 'dp_kfc', batches, 42, 1, damping=.01)
             torch.testing.assert_close(reference_op.transform_gradient('0', gradient), expected, atol=0, rtol=0)
         # One tiny logical batch checks BK accumulation/noise event semantics.
-        clipping = Clipper(tiny, operator, method='bk', max_grad_norm=1.)
+        clipping = Clipper(tiny, operator, method='bk', max_grad_norm=cfg.MAX_GRAD_NORM)
         optimizer = torch.optim.AdamW(tiny.parameters(), lr=cfg.LEARNING_RATE,
                                      betas=cfg.BETAS, eps=cfg.ADAM_EPS, weight_decay=cfg.WEIGHT_DECAY)
         _, _, _, _, stats = clipping.aggregate_logical(torch.randn(4,3), torch.tensor([0,1,2,3]), 2)

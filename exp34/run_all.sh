@@ -2,7 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PYTHONDONTWRITEBYTECODE=1
-mkdir -p exp34/logs exp34/results/runs
+RESULTS_DIR="exp34/results_clip2"
+LOG_DIR="exp34/logs_clip2"
+mkdir -p "$LOG_DIR" "$RESULTS_DIR/runs"
 
 # Validate the prepared dataset once before concurrent readers; Exp34 never writes it.
 python -B - <<'PY'
@@ -16,8 +18,8 @@ load_data(download=False)
 PY
 
 pids=()
-for gpu in 0 1 2; do
-    python -B exp34/worker.py --gpu "$gpu" >"exp34/logs/gpu${gpu}.log" 2>&1 &
+for gpu in 0 1; do
+    python -B exp34/worker.py --gpu "$gpu" >"$LOG_DIR/gpu${gpu}.log" 2>&1 &
     pids+=("$!")
 done
 status=0
@@ -29,7 +31,7 @@ for pid in "${pids[@]}"; do
     fi
 done
 if [[ "$status" -ne 0 ]]; then
-    echo "Exp34 worker failed; see exp34/logs/gpu*.log" >&2
+    echo "Exp34 worker failed; see $LOG_DIR/gpu*.log" >&2
     exit "$status"
 fi
 python -B exp34/analyze.py
