@@ -1,0 +1,6 @@
+label,source,privacy_status,nominal_dp_epsilon,final_accuracy,best_accuracy,final_test_loss,epochs,seed,model
+DP-AdamW,exp36b/results/runs/dp_adamw,standard_dp,3,0.9276,0.9276,0.2963035239458084,5,42,vit_tiny_patch16_224.augreg_in21k_ft_in1k
+Oracle DP-KFC-A,exp36b/results/runs/oracle_dp_kfc_a,oracle_non_private_geometry,3,0.9149,0.9149,0.3304077179431915,5,42,vit_tiny_patch16_224.augreg_in21k_ft_in1k
+Oracle Full DP-KFC,exp36b/results/runs/oracle_dp_kfc,oracle_non_private_geometry,3,0.8943,0.8943,0.442803103017807,5,42,vit_tiny_patch16_224.augreg_in21k_ft_in1k
+Pink DP-KFC-A,exp35/results/vit/runs/dp_kfc_a_raw,standard_dp,3,0.9168,0.9168,0.3620240429878235,5,42,vit_tiny_patch16_224.augreg_in21k_ft_in1k
+Pink Full DP-KFC,exp22/results/runs/dp_kfc_42,standard_dp,3,0.8776,0.8776,0.591692260313034,5,42,vit_tiny_patch16_224.augreg_in21k_ft_in1k

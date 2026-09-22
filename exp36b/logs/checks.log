@@ -1,0 +1,9 @@
+curve environment lightweight checks: PASS
+Python compile/import and shell syntax: PASS
+Exactly three methods, seed 42, fixed protocol: PASS
+Repository data/, download=False, real CIFAR input/labels: PASS
+2560 unique fixed indices and persisted-index calibration loader: PASS
+Raw A-only formula, unit scale, full inverse-square-root A/G: PASS
+Calibration parameter invariance and cleared gradients: PASS
+Token flatten, original BK loop, historical layer families: PASS
+No formal training executed during checks.

@@ -1,0 +1,9 @@
+             label                              source              privacy_status  nominal_dp_epsilon  final_accuracy  best_accuracy  final_test_loss  epochs  seed                                     model
+          DP-AdamW        exp36b/results/runs/dp_adamw                 standard_dp                   3          0.9276         0.9276         0.296304       5    42 vit_tiny_patch16_224.augreg_in21k_ft_in1k
+   Oracle DP-KFC-A exp36b/results/runs/oracle_dp_kfc_a oracle_non_private_geometry                   3          0.9149         0.9149         0.330408       5    42 vit_tiny_patch16_224.augreg_in21k_ft_in1k
+Oracle Full DP-KFC   exp36b/results/runs/oracle_dp_kfc oracle_non_private_geometry                   3          0.8943         0.8943         0.442803       5    42 vit_tiny_patch16_224.augreg_in21k_ft_in1k
+     Pink DP-KFC-A exp35/results/vit/runs/dp_kfc_a_raw                 standard_dp                   3          0.9168         0.9168         0.362024       5    42 vit_tiny_patch16_224.augreg_in21k_ft_in1k
+  Pink Full DP-KFC        exp22/results/runs/dp_kfc_42                 standard_dp                   3          0.8776         0.8776         0.591692       5    42 vit_tiny_patch16_224.augreg_in21k_ft_in1k
+Oracle DP-KFC-A vs Pink DP-KFC-A: final accuracy difference = -0.001900
+Oracle Full DP-KFC vs Pink Full DP-KFC: final accuracy difference = 0.016700
+Oracle nominal epsilon describes Gaussian training only; geometry is non-private.
