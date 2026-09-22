@@ -21,6 +21,9 @@ import json
 
 def main():
     torch.set_num_threads(4)
+    assert cfg.DATA_ROOT == cfg.ROOT.parent / "exp30" / "data"
+    assert (cfg.DATA_ROOT / "cifar-10-batches-py" / "data_batch_1").is_file()
+    assert (cfg.DATA_ROOT / "cifar-10-batches-py" / "test_batch").is_file()
     original = timm.create_model
     calls = []
     def create(*args, **kwargs):
@@ -63,7 +66,8 @@ def main():
     assert (cfg.LOGICAL_BATCH_SIZE, cfg.PHYSICAL_BATCH_SIZE, cfg.ACCUMULATION_STEPS) == (256,128,2)
     assert (cfg.LEARNING_RATE, cfg.WEIGHT_DECAY, cfg.BETAS, cfg.ADAM_EPS) == (1e-4,.01,(.9,.999),1e-8)
     assert (cfg.SYNTHETIC_BATCHES, cfg.SYNTHETIC_BATCH_SIZE, cfg.SYNTHETIC_ALPHA, cfg.A_POWER) == (10,256,1.,.4)
-    assert len(cfg.grid()) == 7 and [len(v) for v in cfg.GPU_RUNS.values()] == [2,2,2,1]
+    assert len(cfg.grid()) == 7 and tuple(cfg.GPU_RUNS) == (0, 1, 2)
+    assert [len(v) for v in cfg.GPU_RUNS.values()] == [2, 2, 3]
     sigma = get_noise_multiplier(target_epsilon=3, target_delta=1e-5, sample_rate=256/50000, steps=3900, accountant='rdp')
     old = get_noise_multiplier(target_epsilon=3, target_delta=1e-5, sample_rate=256/50000, steps=975, accountant='rdp')
     assert sigma != old

@@ -10,7 +10,7 @@
 conda run --no-capture-output -n curve bash exp34/run_all.sh
 ```
 
-启动器先检查七个 run 目录均不存在，然后在 `exp34/.cache/data/` 下载或验证 CIFAR-10，再启动四个 worker。GPU 0/1/2 分别执行 damping 0.001/0.01/0.1 的 Full KFC、A-only；GPU 3 执行 DP-AdamW。各 GPU 内顺序执行，每个 run 是独立进程。失败返回非零，不自动 resume、跳过或降低 batch size。已有任意正式 run 目录直接报错。
+启动器先检查七个 run 目录均不存在，然后只读并验证 `exp30/data/` 中已有的 CIFAR-10，再启动三个 worker。Exp34 不下载或写入数据集。GPU 0/1/2 分别执行 damping 0.001/0.01/0.1 的 Full KFC、A-only；GPU 2 完成其 damping=0.1 的两个 run 后，再顺序执行 DP-AdamW。各 GPU 内顺序执行，每个 run 是独立进程。失败返回非零，不自动 resume、跳过或降低 batch size。已有任意正式 run 目录直接报错。
 
 ## 协议及复用
 

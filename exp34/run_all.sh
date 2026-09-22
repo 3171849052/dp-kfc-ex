@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 export PYTHONDONTWRITEBYTECODE=1
 mkdir -p exp34/logs exp34/results/runs
 
-# Download/validate once before concurrent readers; all writes stay in Exp34.
+# Validate the prepared dataset once before concurrent readers; Exp34 never writes it.
 python -B - <<'PY'
 from exp34.run import load_data
 from exp34 import config as cfg
@@ -12,11 +12,11 @@ for _, method, damping in cfg.grid():
     path = cfg.RESULTS / "runs" / cfg.run_name(method, damping)
     if path.exists():
         raise FileExistsError(f"formal run already exists: {path}")
-load_data(download=True)
+load_data(download=False)
 PY
 
 pids=()
-for gpu in 0 1 2 3; do
+for gpu in 0 1 2; do
     python -B exp34/worker.py --gpu "$gpu" >"exp34/logs/gpu${gpu}.log" 2>&1 &
     pids+=("$!")
 done

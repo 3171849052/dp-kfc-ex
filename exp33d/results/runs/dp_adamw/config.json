@@ -1,0 +1,116 @@
+{
+  "ACCUMULATION_STEPS": 2,
+  "ADAM_BETAS": [
+    0.9,
+    0.999
+  ],
+  "ADAM_EPS": 1e-08,
+  "BETAS": [
+    1.0,
+    0.01,
+    0.001,
+    0.0001,
+    1e-05,
+    1e-06,
+    1e-07
+  ],
+  "DATA_ROOT": "/media/data/data/lt/DP-KFC/exp30/data",
+  "DELTA": 1e-05,
+  "EPOCHS": 5,
+  "EPSILON": 3.0,
+  "IMG_SIZE": 224,
+  "LEARNING_RATE": 0.0001,
+  "LOGICAL_BATCH_SIZE": 256,
+  "MAX_GRAD_NORM": 1.0,
+  "MODEL_NAME": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "PHYSICAL_BATCH_SIZE": 128,
+  "RESULTS": "/media/data/data/lt/DP-KFC/exp33d/results",
+  "RUNS": {
+    "dp_adamw": {
+      "beta": null,
+      "gpu": 3
+    },
+    "wiener_a_beta_1": {
+      "beta": 1.0,
+      "gpu": 3
+    },
+    "wiener_a_beta_1e-2": {
+      "beta": 0.01,
+      "gpu": 3
+    },
+    "wiener_a_beta_1e-3": {
+      "beta": 0.001,
+      "gpu": 3
+    },
+    "wiener_a_beta_1e-4": {
+      "beta": 0.0001,
+      "gpu": 3
+    },
+    "wiener_a_beta_1e-5": {
+      "beta": 1e-05,
+      "gpu": 3
+    },
+    "wiener_a_beta_1e-6": {
+      "beta": 1e-06,
+      "gpu": 3
+    },
+    "wiener_a_beta_1e-7": {
+      "beta": 1e-07,
+      "gpu": 3
+    }
+  },
+  "SEED": 42,
+  "SYNTHETIC_ALPHA": 1.0,
+  "SYNTHETIC_BATCHES": 10,
+  "SYNTHETIC_BATCH_SIZE": 256,
+  "SYNTHETIC_PHYSICAL_BATCH_SIZE": 128,
+  "TRAIN_SAMPLES": 50000,
+  "UPDATE_GROUPS": [
+    "patch_head",
+    "attention_qkv",
+    "attention_out",
+    "mlp",
+    "identity"
+  ],
+  "WEIGHT_DECAY": 0.01,
+  "method": "dp_adamw",
+  "synthetic_physical_batch_size": 128,
+  "beta": null,
+  "lr": 0.0001,
+  "seed": 42,
+  "epochs": 5,
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "trainable_parameters": 5526346,
+  "data_config": {
+    "input_size": [
+      3,
+      224,
+      224
+    ],
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed logical-batch convention",
+  "rng": {
+    "initialization": "seed",
+    "private_shuffle": "seed",
+    "synthetic_x": "seed+10000+epoch",
+    "synthetic_y": "seed+20000+epoch",
+    "dp_noise": "seed+40000"
+  }
+}

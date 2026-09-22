@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import sys
 import time
@@ -9,9 +10,13 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from exp34 import config as cfg  # Configure caches before third-party imports.
+from exp33d import config as cfg  # Configure caches before third-party imports.
 
-from exp34.model import initialize
+# Exp22.model sets HF/Torch paths at import using config.ROOT. Redirect only
+# that process-local path, leaving every Exp22 algorithm/protocol value intact.
+from exp22 import config as exp22_cfg
+exp22_cfg.ROOT = cfg.ROOT
+from exp22.model import initialize
 
 import pandas as pd
 import torch
@@ -20,7 +25,7 @@ from opacus.accountants.utils import get_noise_multiplier
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from exp22.analyze import accuracy_auc
-from exp34.geometry import build_geometry, GEOMETRY_COLUMNS
+from exp33d.wiener import build_wiener, private_step, make_optimizer, empty_wiener_diagnostics
 from exp22.methods import Clipper
 
 
@@ -32,14 +37,14 @@ def data_transform():
     ])
 
 
-def load_data(download: bool = False):
-    if download:
-        raise ValueError("Exp34 reads the prepared CIFAR-10 dataset from exp30/data")
+def load_data():
     transform = data_transform()
+    # Reuse the CIFAR-10 archive prepared by Exp30.  It is read-only input;
+    # all Exp33d-generated files remain under exp33d/.
     root = cfg.DATA_ROOT
     return (
-        datasets.CIFAR10(root=root, train=True, download=download, transform=transform),
-        datasets.CIFAR10(root=root, train=False, download=download, transform=transform),
+        datasets.CIFAR10(root=root, train=True, download=False, transform=transform),
+        datasets.CIFAR10(root=root, train=False, download=False, transform=transform),
     )
 
 
@@ -67,48 +72,45 @@ def evaluate(model, loader, device):
     return total_loss / count, correct / count
 
 
-def run(method: str, damping: float):
-    if (method, damping) not in [(m, d) for _, m, d in cfg.grid()]:
-        raise ValueError("run is outside the formal seven-run grid")
-    run_dir = cfg.RESULTS / "runs" / cfg.run_name(method, damping)
+def run(method: str):
+    assert os.environ.get("CUDA_VISIBLE_DEVICES") == "3", "Formal runs require physical GPU 3"
+    spec = cfg.RUNS[method]
+    beta = spec["beta"]
+    run_dir = cfg.RESULTS / "runs" / method
     run_dir.mkdir(parents=True, exist_ok=False)
     seed, epochs = cfg.SEED, cfg.EPOCHS
     device = torch.device("cuda:0")
     model = initialize(seed, device)
-    train, test = load_data(download=False)
+    assert sum(isinstance(m, torch.nn.Linear) for m in model.modules()) == 74
+    assert all(p.requires_grad for p in model.parameters())
+    train, test = load_data()
     sample_count = len(train)
     assert sample_count == cfg.TRAIN_SAMPLES
     logical_steps = sample_count // cfg.LOGICAL_BATCH_SIZE
     total_steps = epochs * logical_steps
+    assert logical_steps == 195 and total_steps == 975
     sigma = get_noise_multiplier(
         target_epsilon=cfg.EPSILON, target_delta=cfg.DELTA,
         sample_rate=cfg.LOGICAL_BATCH_SIZE / sample_count,
         steps=total_steps, accountant="rdp",
     )
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=cfg.LEARNING_RATE, betas=cfg.BETAS,
-        eps=cfg.ADAM_EPS, weight_decay=cfg.WEIGHT_DECAY,
-    )
+    optimizer = make_optimizer(model)
     loader = private_loader(train, seed)
     test_loader = DataLoader(test, batch_size=cfg.PHYSICAL_BATCH_SIZE, shuffle=False, num_workers=0)
     noise_generator = torch.Generator(device=device).manual_seed(seed + 40000)
     accountant = RDPAccountant()
     rows = []
-    geometry_rows = []
-    pd.DataFrame(columns=GEOMETRY_COLUMNS).to_csv(run_dir / "geometry_metrics.csv", index=False)
     accuracies = []
     initial_parameters = {name: parameter.detach().clone() for name, parameter in model.named_parameters()}
 
     configuration = {name: getattr(cfg, name) for name in dir(cfg) if name.isupper() and name != "ROOT"}
     configuration.update({
-        "method": method, "exp22_method": cfg.EXP22_METHOD[method],
-        "damping": damping, "seed": seed, "epochs": epochs,
-        "a_scale_matching": False, "pretrained": False,
+        "method": method, "synthetic_physical_batch_size": 128,
+        "beta": beta, "lr": cfg.LEARNING_RATE, "seed": seed, "epochs": epochs,
         "total_steps": total_steps, "noise_multiplier": sigma,
         "trainable_parameters": sum(p.numel() for p in model.parameters() if p.requires_grad),
         "data_config": {"input_size": [3, cfg.IMG_SIZE, cfg.IMG_SIZE],
-                        "dataset_root": str(cfg.DATA_ROOT),
                         "resize": [cfg.IMG_SIZE, cfg.IMG_SIZE], "interpolation": "bicubic",
                         "mean": [0.5] * 3, "std": [0.5] * 3, "augmentation": None},
         "accounting": "RDP fixed logical-batch convention",
@@ -118,21 +120,21 @@ def run(method: str, damping: float):
     })
     (run_dir / "config.json").write_text(json.dumps(configuration, indent=2, default=str) + "\n")
 
-
     for epoch in range(1, epochs + 1):
         model.train()
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
         build_start = time.perf_counter()
-        operator, builder, spectra = build_geometry(model, method, damping, seed, epoch, device)
-        geometry_rows.extend(spectra)
-        pd.DataFrame(geometry_rows, columns=GEOMETRY_COLUMNS).to_csv(run_dir / "geometry_metrics.csv", index=False)
+        wiener, builder = None, empty_wiener_diagnostics()
+        if beta is not None:
+            wiener, builder = build_wiener(model, seed, epoch, sigma, beta)
         torch.cuda.synchronize(device)
         builder_seconds = time.perf_counter() - build_start
 
-        clipper = Clipper(model, operator, method="bk", max_grad_norm=cfg.MAX_GRAD_NORM)
+        clipper = Clipper(model, None, method="bk", max_grad_norm=cfg.MAX_GRAD_NORM)
         private_start = time.perf_counter()
         loss_total = 0.0
+        step_diagnostics = []
         all_norms, all_factors = [], []
         layer_values, group_values = {}, {}
         batches, max_cache, max_temp, max_fallback_temp, backward_calls = 0, 0, 0, 0, 0
@@ -143,7 +145,7 @@ def run(method: str, damping: float):
             loss, norms, factors, layer_sq, stats = clipper.aggregate_logical(
                 x, y, cfg.PHYSICAL_BATCH_SIZE
             )
-            clipper.step(optimizer, sigma, len(x), noise_generator)
+            step_diagnostics.append(private_step(clipper, optimizer, sigma, len(x), noise_generator, wiener))
             accountant.step(
                 noise_multiplier=sigma,
                 sample_rate=cfg.LOGICAL_BATCH_SIZE / cfg.TRAIN_SAMPLES,
@@ -178,7 +180,7 @@ def run(method: str, damping: float):
             name: torch.cat(values).mean().sqrt().item() for name, values in group_values.items()
         }
         row = {
-            "method": method, "damping": damping, "seed": seed, "epoch": epoch,
+            "method": method, "beta": beta, "lr": cfg.LEARNING_RATE, "seed": seed, "epoch": epoch,
             "train_loss": loss_total / (batches * cfg.LOGICAL_BATCH_SIZE),
             "test_loss": test_loss, "test_accuracy": accuracy,
             "best_accuracy": max(accuracies),
@@ -186,13 +188,13 @@ def run(method: str, damping: float):
             "noise_multiplier": sigma,
             "epsilon": accountant.get_epsilon(delta=cfg.DELTA),
             "accountant_steps": sum(v[2] for v in accountant.history),
-            "logical_steps": epoch * batches, "epoch_logical_steps": batches, "samples": batches * cfg.LOGICAL_BATCH_SIZE,
+            "logical_steps": batches, "samples": batches * cfg.LOGICAL_BATCH_SIZE,
             "clip_fraction": (norms > cfg.MAX_GRAD_NORM).float().mean().item(),
             "mean_clip_factor": factors.mean().item(),
-            "transformed_norm_p50": torch.quantile(norms, 0.50).item(),
-            "transformed_norm_p90": torch.quantile(norms, 0.90).item(),
-            "transformed_norm_p99": torch.quantile(norms, 0.99).item(),
-            "transformed_norm_max": norms.max().item(),
+            "raw_private_norm_p50": torch.quantile(norms, 0.50).item(),
+            "raw_private_norm_p90": torch.quantile(norms, 0.90).item(),
+            "raw_private_norm_p99": torch.quantile(norms, 0.99).item(),
+            "raw_private_norm_max": norms.max().item(),
             "builder_seconds": builder_seconds, "private_train_seconds": private_seconds,
             "algorithm_seconds": builder_seconds + private_seconds,
             "logical_steps_per_second": batches / private_seconds,
@@ -202,8 +204,7 @@ def run(method: str, damping: float):
             "physical_batch_size": cfg.PHYSICAL_BATCH_SIZE,
             "accumulation_steps": cfg.ACCUMULATION_STEPS,
             "backward_calls": backward_calls,
-            "optimizer_steps": epoch * clipper.optimizer_steps, "noise_events": epoch * clipper.noise_events,
-            "trainable_parameter_count": sum(p.numel() for p in model.parameters() if p.requires_grad),
+            "optimizer_steps": (epoch - 1) * logical_steps + clipper.optimizer_steps, "noise_events": (epoch - 1) * logical_steps + clipper.noise_events,
             "bk_cache_bytes": max_cache, "temporary_per_sample_grad_bytes": max_temp,
             "fallback_temporary_grad_bytes": max_fallback_temp,
             "cache_empty_after_step": cache_empty,
@@ -225,19 +226,28 @@ def run(method: str, damping: float):
             row[f"group_norm_{name}"] = value
         for name, values in layer_values.items():
             row[f"layer_norm_{name.replace('.', '_')}"] = torch.cat(values).mean().sqrt().item()
+        row.update(pd.DataFrame(step_diagnostics).mean().to_dict())
+        if wiener is not None:
+            ratios = torch.tensor([d["wiener_norm_ratio"] for d in step_diagnostics])
+            for q in (10, 50, 90):
+                row[f"wiener_norm_ratio_p{q}"] = ratios.quantile(q / 100).item()
+            row["wiener_norm_ratio_mean"] = ratios.mean().item()
+        assert batches == clipper.optimizer_steps == clipper.noise_events == 195
+        assert row["accountant_steps"] == row["optimizer_steps"] == row["noise_events"] == epoch * 195
+        if wiener is not None:
+            assert 0 <= row["wiener_gain_min"] <= row["wiener_gain_max"] <= 1
         rows.append(row)
         pd.DataFrame(rows).to_csv(run_dir / "metrics.csv", index=False)
-        print(f"{method} damping={damping} seed={seed} epoch={epoch}: accuracy={accuracy:.4f} loss={row['train_loss']:.5f} logical_steps={batches}", flush=True)
+        print(f"{method} beta={beta} seed={seed} epoch={epoch}: accuracy={accuracy:.4f} loss={row['train_loss']:.5f} logical_steps={batches}", flush=True)
 
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--method", choices=cfg.METHODS, required=True)
-    parser.add_argument("--damping", type=float, choices=cfg.DAMPING_VALUES, default=None)
+    parser.add_argument("--method", choices=tuple(cfg.RUNS), required=True)
     args = parser.parse_args()
     torch.set_num_threads(4)
-    run(args.method, args.damping)
+    run(args.method)
 
 
 if __name__ == "__main__":

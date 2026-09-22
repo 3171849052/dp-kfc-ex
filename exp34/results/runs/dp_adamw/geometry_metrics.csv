@@ -1,0 +1,1 @@
+epoch,layer,group,method,damping,A_trace_per_dim,A_eig_p10,A_eig_p50,A_eig_p90,A_eig_p99,A_eig_min,A_eig_max,G_trace_per_dim,G_eig_p10,G_eig_p50,G_eig_p90,G_eig_p99,G_eig_min,G_eig_max,relative_damping_A,relative_damping_G
