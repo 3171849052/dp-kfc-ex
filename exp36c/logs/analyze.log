@@ -1,0 +1,12 @@
+            label                                       source  seed              privacy_status  nominal_dp_epsilon  final_accuracy  best_accuracy  final_test_loss
+         DP-AdamW                 exp36b/results/runs/dp_adamw    42                 standard_dp                   3          0.9276         0.9276         0.296304
+   Pink alpha=.25    exp35b/results/vit/runs/dp_kfc_a_alpha025    42                 standard_dp                   3          0.9278         0.9278         0.292782
+ Oracle alpha=.25 exp36c/results/runs/oracle_dp_kfc_a_alpha025    42 oracle_non_private_geometry                   3          0.9277         0.9277         0.291514
+    Pink alpha=.5        exp35/results/vit/runs/dp_kfc_a_mix05    42                 standard_dp                   3          0.9275         0.9275         0.290158
+  Oracle alpha=.5  exp36c/results/runs/oracle_dp_kfc_a_alpha05    42 oracle_non_private_geometry                   3          0.9279         0.9279         0.286097
+Oracle raw A-only          exp36b/results/runs/oracle_dp_kfc_a    42 oracle_non_private_geometry                   3          0.9149         0.9149         0.330408
+ alpha  epoch  oracle_accuracy  pink_accuracy  accuracy_difference  best_accuracy_difference
+  0.25      5           0.9277         0.9278              -0.0001                   -0.0001
+  0.50      5           0.9279         0.9275               0.0004                    0.0004
+Accuracy differences are fractions (multiply by 100 for percentage points).
+Oracle geometry is non-private: nominal epsilon is not end-to-end DP.

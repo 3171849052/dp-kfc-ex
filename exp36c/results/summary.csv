@@ -1,0 +1,7 @@
+label,source,seed,privacy_status,nominal_dp_epsilon,final_accuracy,best_accuracy,final_test_loss
+DP-AdamW,exp36b/results/runs/dp_adamw,42,standard_dp,3,0.9276,0.9276,0.2963035239458084
+Pink alpha=.25,exp35b/results/vit/runs/dp_kfc_a_alpha025,42,standard_dp,3,0.9278,0.9278,0.2927816888332367
+Oracle alpha=.25,exp36c/results/runs/oracle_dp_kfc_a_alpha025,42,oracle_non_private_geometry,3,0.9277,0.9277,0.2915142727136612
+Pink alpha=.5,exp35/results/vit/runs/dp_kfc_a_mix05,42,standard_dp,3,0.9275,0.9275,0.2901583597421646
+Oracle alpha=.5,exp36c/results/runs/oracle_dp_kfc_a_alpha05,42,oracle_non_private_geometry,3,0.9279,0.9279,0.2860974126577377
+Oracle raw A-only,exp36b/results/runs/oracle_dp_kfc_a,42,oracle_non_private_geometry,3,0.9149,0.9149,0.3304077179431915

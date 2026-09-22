@@ -1,0 +1,74 @@
+{
+  "dataset": "vit",
+  "method": "oracle_dp_kfc_a_alpha05",
+  "epochs": 5,
+  "seed": 42,
+  "model": "vit_tiny_patch16_224.augreg_in21k_ft_in1k",
+  "pretrained": true,
+  "full_model_fine_tuning": true,
+  "optimizer": "AdamW",
+  "learning_rate": 0.0001,
+  "weight_decay": 0.01,
+  "betas": [
+    0.9,
+    0.999
+  ],
+  "optimizer_eps": 1e-08,
+  "epsilon": 3,
+  "delta": 1e-05,
+  "max_grad_norm": 1,
+  "logical_batch_size": 256,
+  "physical_batch_size": 128,
+  "damping": 0.001,
+  "a_power": 0.4,
+  "a_scale_matching": false,
+  "source": "private_cifar10",
+  "engine": "bk",
+  "geometry_rebuild_every_epochs": 1,
+  "synthetic_batches": 10,
+  "synthetic_batch_size": 256,
+  "dataset_root": "/media/data/data/lt/DP-KFC/data",
+  "download": false,
+  "data_transform": {
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "augmentation": null
+  },
+  "accounting": "RDP fixed shuffled logical batch, drop_last=True",
+  "rng": {
+    "initialization": 42,
+    "private_shuffle": 42,
+    "calibration_permutation": 42,
+    "dp_noise": 40042
+  },
+  "total_steps": 975,
+  "noise_multiplier": 0.72021484375,
+  "privacy_status": "oracle_non_private_geometry",
+  "nominal_dp_epsilon": 3,
+  "alpha": 0.5,
+  "operator": "(1-alpha) I + alpha (A+0.001 I)^(-0.4) / spectral_norm",
+  "gain_range": [
+    0.5,
+    1
+  ],
+  "a_scale": 1,
+  "calibration_samples": 2560,
+  "calibration_batches": 10,
+  "calibration_batch_size": 256,
+  "calibration_indices": "exp36b/results/oracle_indices.csv",
+  "calibration_true_labels": false,
+  "gpu": 0
+}
