@@ -83,19 +83,6 @@ def public_dataset(task: str) -> Dataset:
     )
 
 
-def private_loader(dataset: Dataset, task: str, seed: int) -> DataLoader:
-    protocol = cfg.task_config(task)
-    assert seed in cfg.SEEDS
-    return DataLoader(
-        dataset,
-        batch_size=protocol.logical_batch_size,
-        shuffle=False,
-        drop_last=False,
-        num_workers=0,
-        generator=torch.Generator().manual_seed(seed),
-    )
-
-
 def test_loader(dataset: Dataset, task: str) -> DataLoader:
     protocol = cfg.task_config(task)
     return DataLoader(

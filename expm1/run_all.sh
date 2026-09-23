@@ -31,7 +31,7 @@ from expm1 import data
 from expm1 import vit
 
 runs = tuple(cfg.formal_runs())
-assert len(runs) in (13, 12)
+assert len(runs) == 38
 assert {gpu: len(cfg.GPU_RUNS[gpu]) for gpu in cfg.PHYSICAL_GPUS} == {1: 13, 2: 13, 3: 12}
 assert {run.gpu for run in runs} == {1, 2, 3}
 targets = []
@@ -105,7 +105,7 @@ from expm1 import config as cfg
 gpu = int(sys.argv[1])
 assert gpu in (1, 2, 3)
 runs = cfg.GPU_RUNS[gpu]
-assert len(runs) in (13, 12)
+assert len(runs) == {1: 13, 2: 13, 3: 12}[gpu]
 for run in runs:
     beta = "none" if run.beta is None else f"{run.beta:g}"
     print(run.task, run.method, run.source, beta, run.seed, run.name, sep="\t")

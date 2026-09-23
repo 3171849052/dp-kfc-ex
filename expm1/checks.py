@@ -28,6 +28,7 @@ from expm1 import CACHE_ROOT, ROOT
 from expm1 import config as cfg
 from expm1 import data
 from expm1.bk import BKClipper, ghost_squared
+from expm1.mechanism import add_noise_and_step
 from expm1.geometry import (
     DAMPING,
     FactorBatch,
@@ -513,6 +514,58 @@ def check_geometry_provenance() -> None:
     _passed("training geometry accepts only public/pink provenance, never the current private batch")
 
 
+
+def check_poisson_and_empty_step() -> None:
+    population, expected, steps, seed = 17, 5, 4, 991
+    sampler = data.FixedStepPoissonSampler(population, expected, steps, seed)
+    assert sampler.sample_rate == expected / population and len(sampler) == steps
+    reference = torch.Generator().manual_seed(seed)
+    expected_first = (torch.rand(population, generator=reference) < expected / population).nonzero().flatten().tolist()
+    assert next(iter(sampler)) == expected_first
+    assert list(data.FixedStepPoissonSampler(population, expected, steps, seed)) == list(data.FixedStepPoissonSampler(population, expected, steps, seed))
+    assert list(data.FixedStepPoissonSampler(population, expected, steps, seed)) != list(data.FixedStepPoissonSampler(population, expected, steps, seed + 1))
+    model = nn.Linear(2, 1, bias=False, dtype=DTYPE)
+    shape = Shape(model, "dp_sgd", None, None)
+    clipper = BKClipper(model, shape, bound=1.0)
+    empty = clipper.aggregate_logical(torch.empty(0, 2, dtype=DTYPE), torch.empty(0, dtype=torch.long), 2)
+    assert empty.stats["backward_calls"] == 0 and empty.stats["physical_chunks"] == 0
+    assert all(torch.equal(value, torch.zeros_like(value)) for value in empty.raw_sum.values())
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    before = {p: p.detach().clone() for p in model.parameters()}
+    stats, _ = add_noise_and_step(shape, optimizer, empty.raw_sum, empty.clipped_sum, sigma=0.5, bound=1.0, expected_batch_size=256, generator=torch.Generator().manual_seed(3))
+    assert stats["total_noise_rms"] > 0
+    assert any(not torch.equal(before[p], p) for p in model.parameters())
+    clipper.remove()
+    _passed("Poisson sampler determinism and empty-batch noisy optimizer step")
+
+
+def check_one_backward_and_layernorm() -> None:
+    class Model(nn.Module):
+        def __init__(self):
+            super().__init__(); self.norm = nn.LayerNorm(3, dtype=DTYPE); self.out = nn.Linear(3, 2, dtype=DTYPE)
+        def forward(self, x): return self.out(self.norm(x))
+    torch.manual_seed(701); model = Model(); x = torch.randn(4, 3, dtype=DTYPE); y = torch.tensor([0, 1, 0, 1])
+    shape = Shape(model, "dp_sgd", None, None); clipper = BKClipper(model, shape, bound=0.37)
+    result = clipper.aggregate_logical(x, y, 2)
+    assert result.stats["backward_calls"] == result.stats["physical_chunks"] == 2
+    rows = _per_example_gradients(model, x, y)
+    weights = result.clip_factors
+    for parameter in model.parameters():
+        explicit = sum((weights[i] * rows[i][parameter] for i in range(len(rows))), torch.zeros_like(parameter))
+        torch.testing.assert_close(result.clipped_sum[parameter], explicit, rtol=2e-6, atol=2e-7)
+    clipper.remove()
+    _passed("one-backward-per-chunk and LayerNorm clipped aggregate")
+
+
+def check_launcher_grid_assertion() -> None:
+    source = (HERE / "run_all.sh").read_text()
+    preflight = source[source.index("runs = tuple(cfg.formal_runs())"):source.index("PY\n\nmkdir", source.index("runs = tuple(cfg.formal_runs())"))]
+    assert "assert len(runs) == 38" in preflight
+    assert "== {1: 13, 2: 13, 3: 12}" in preflight
+    worker_listing = source[source.index("gpu = int(sys.argv[1])"):]
+    assert "assert len(runs) == {1: 13, 2: 13, 3: 12}[gpu]" in worker_listing
+    _passed("launcher distinguishes full 38-run grid from per-GPU 13/13/12 subsets")
+
 def check_formal_protocol() -> None:
     assert cfg.TASKS == ("mnist", "vit")
     assert cfg.METHODS == ("dp_sgd", "dp_kfc", "dp_kfm", "dp_kfm_a")
@@ -722,7 +775,10 @@ def main() -> None:
     check_shaped_noise_covariance()
     check_kfm_a_never_reads_g()
     check_geometry_provenance()
+    check_poisson_and_empty_step()
+    check_one_backward_and_layernorm()
     check_formal_protocol()
+    check_launcher_grid_assertion()
     check_launcher()
     check_source_boundaries()
     check_incomplete_analysis_fails_atomically()

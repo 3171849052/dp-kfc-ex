@@ -81,6 +81,7 @@ METRIC_COLUMNS = (
     "accountant_steps",
     "logical_steps",
     "samples",
+    "realized_batch_size_sum",
     "optimizer_steps",
     "noise_events",
     "logical_batch_size",
@@ -168,6 +169,8 @@ FINAL_METRICS = (
     "raw_norm_p99",
     "clip_cos",
     "clip_rel_error",
+    "signal_cos",
+    "signal_rel_error",
     "update_cos",
     "update_rel_error",
     "total_noise_rms",
@@ -359,14 +362,21 @@ def _validate_metrics(frame: pd.DataFrame, spec: dict, task_cfg, path: Path) -> 
     assert frame["optimizer_steps"].astype(int).tolist() == [expected_steps * epoch for epoch in range(1, epochs + 1)]
     assert frame["noise_events"].astype(int).tolist() == [expected_steps * epoch for epoch in range(1, epochs + 1)]
     assert frame["logical_steps"].astype(int).eq(expected_steps).all()
-    assert frame["samples"].astype(int).eq(expected_steps * logical_batch).all()
     assert frame["logical_batch_size"].astype(int).eq(logical_batch).all()
+    assert frame["expected_batch_size"].astype(int).eq(256).all()
+    np.testing.assert_allclose(frame["sample_rate"], logical_batch / train_samples, rtol=0, atol=1e-15)
+    assert frame["realized_batch_size_sum"].astype(int).eq(frame["samples"].astype(int)).all()
+    np.testing.assert_allclose(frame["realized_batch_size_mean"], frame["samples"] / frame["logical_steps"], rtol=0, atol=1e-12)
+    assert (frame["realized_batch_size_min"] >= 0).all()
+    assert (frame["realized_batch_size_max"] <= train_samples).all()
+    assert (frame["realized_batch_size_min"] <= frame["realized_batch_size_mean"]).all()
+    assert (frame["realized_batch_size_mean"] <= frame["realized_batch_size_max"]).all()
     physical = 256 if _task_kind(str(spec["task"])) == "mnist" else 128
     assert frame["physical_batch_size"].astype(int).eq(physical).all()
 
     for column in ("test_accuracy", "best_accuracy", "clip_fraction", "mean_clip_factor"):
         assert frame[column].between(0, 1).all(), f"{column} outside [0,1] in {path}"
-    for column in ("clip_cos", "update_cos"):
+    for column in ("clip_cos", "signal_cos", "update_cos"):
         assert frame[column].between(-1, 1).all(), f"{column} outside [-1,1] in {path}"
     nonnegative = (
         "train_loss", "test_loss", "accuracy_auc", "epsilon", "noise_multiplier",
@@ -437,20 +447,22 @@ def _validate_geometry(frame: pd.DataFrame, spec: dict, task_cfg, path: Path) ->
         frame["run_name"] = spec["name"]
         return frame
 
-    required_factor_columns = (
-        "condition_S", "log_eigenvalue_spread_S", "effective_rank_S",
-        "A_condition_raw", "A_eigenvalue_min", "A_eigenvalue_max", "cosA", "relative_error_A",
-    )
-    _assert_columns(frame, required_factor_columns, path)
+    raw_a = ("A_condition_raw", "A_eigenvalue_min", "A_eigenvalue_max", "cosA", "relative_error_A")
     affine = frame[frame["layer"].ne("identity")]
-    _assert_finite(affine, required_factor_columns, path)
-    assert affine["condition_S"].ge(1).all()
-    assert affine["log_eigenvalue_spread_S"].ge(0).all()
-    assert affine["effective_rank_S"].gt(0).all()
+    _assert_columns(frame, raw_a, path)
+    _assert_finite(affine, raw_a, path)
+    assert affine["A_condition_raw"].ge(1).all()
     assert affine["A_eigenvalue_min"].ge(0).all()
     assert (affine["A_eigenvalue_max"] >= affine["A_eigenvalue_min"]).all()
     assert affine["cosA"].between(-1, 1).all()
     assert affine["relative_error_A"].ge(0).all()
+    if method in ("dp_kfm", "dp_kfm_a"):
+        shape_columns = ("condition_S", "log_eigenvalue_spread_S", "effective_rank_S")
+        _assert_columns(frame, shape_columns, path)
+        _assert_finite(affine, shape_columns, path)
+        assert affine["condition_S"].ge(1).all()
+        assert affine["log_eigenvalue_spread_S"].ge(0).all()
+        assert affine["effective_rank_S"].gt(0).all()
 
     g_columns = ("G_condition_raw", "G_eigenvalue_min", "G_eigenvalue_max", "cosG", "relative_error_G")
     if method == "dp_kfm_a":
@@ -613,9 +625,8 @@ def _accuracy_beta_plot(final: pd.DataFrame, task: str, stage: Path, filename: s
     data = final[(final["task"] == task) & final["method"].isin(("dp_kfm", "dp_kfm_a"))]
     fig, ax = plt.subplots(figsize=(8, 5))
     for (method, source), part in data.groupby(["method", "source"]):
-        curve = part.groupby("beta")["test_accuracy"].agg(["mean", "std"]).sort_index()
-        ax.errorbar(curve.index, curve["mean"], yerr=curve["std"], marker="o", capsize=3,
-                    label=_condition_label(method, source, None))
+        curve = part.groupby("beta")["test_accuracy"].first().sort_index()
+        ax.plot(curve.index, curve.values, marker="o", label=_condition_label(method, source, None))
     ax.set(xlabel="beta", ylabel="final test accuracy", title=f"{task}: accuracy vs beta")
     ax.set_xticks(BETAS)
     ax.legend(fontsize=8)
@@ -644,9 +655,8 @@ def _beta_diagnostic(metrics: pd.DataFrame, stage: Path, filename: str, columns,
         for col, metric in enumerate(columns):
             ax = axes[row, col]
             for (method, source), part in data.groupby(["method", "source"]):
-                curve = part.groupby("beta")[metric].agg(["mean", "std"]).sort_index()
-                ax.errorbar(curve.index, curve["mean"], yerr=curve["std"], marker="o", capsize=2,
-                            label=_condition_label(method, source, None))
+                curve = part.groupby("beta")[metric].first().sort_index()
+                ax.plot(curve.index, curve.values, marker="o", label=_condition_label(method, source, None))
             ax.set(xlabel="beta", ylabel=metric, title=f"{task}: {metric}")
             ax.set_xticks(BETAS)
             if row == 0 and col == 0:
@@ -753,6 +763,7 @@ def _write_outputs(metrics: pd.DataFrame, geometry: pd.DataFrame, layer_groups: 
         "A_eigenvalue_min", "A_eigenvalue_max", "G_eigenvalue_min", "G_eigenvalue_max",
         "cosA", "relative_error_A", "cosG", "relative_error_G",
     )
+    geometry_values = tuple(column for column in geometry_values if column in geometry.columns)
     geometry_summary = _aggregate(
         geometry, ("task", "method", "source", "beta", "epoch", "layer", "group"), geometry_values
     )
