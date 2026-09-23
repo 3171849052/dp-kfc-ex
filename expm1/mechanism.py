@@ -11,13 +11,63 @@ from expm1.geometry import (
     DAMPING,
     affine_modules,
     augmented_width,
-    matrix_power,
     output_width,
-    spectrum,
+    _sym_eig,
 )
 
 
 METHODS = frozenset({"dp_sgd", "dp_kfc", "dp_kfm", "dp_kfm_a"})
+
+
+def _spectral_stats(values: torch.Tensor) -> dict[str, float]:
+    probabilities = values / values.sum()
+    return {
+        "condition": float(values.max() / values.min()),
+        "log_std": float(values.log().std(unbiased=False)),
+        "effective_rank": float((-(probabilities * probabilities.log()).sum()).exp()),
+        "minimum": float(values.min()),
+        "maximum": float(values.max()),
+    }
+
+
+def _effective_rank(values: torch.Tensor) -> float:
+    probabilities = values / values.sum()
+    return float((-(probabilities * probabilities.log()).sum()).exp())
+
+
+def _shape_diagnostics(
+    eigenvalues_a: torch.Tensor,
+    eigenvalues_g: torch.Tensor | None,
+    a: dict[str, float],
+    g: dict[str, float] | None,
+    beta: float,
+    out: int,
+):
+    rank_a = _effective_rank(eigenvalues_a.pow(beta))
+    if g is None:
+        condition = a["condition"] ** beta
+        spread = beta * a["log_std"]
+        rank = rank_a * out
+        g_raw = {}
+    else:
+        condition = (a["condition"] * g["condition"]) ** beta
+        spread = beta * math.sqrt(a["log_std"] ** 2 + g["log_std"] ** 2)
+        assert eigenvalues_g is not None
+        rank = rank_a * _effective_rank(eigenvalues_g.pow(beta))
+        g_raw = {
+            "G_condition_raw": g["condition"],
+            "G_eigenvalue_min": g["minimum"],
+            "G_eigenvalue_max": g["maximum"],
+        }
+    return {
+        "condition_S": condition,
+        "log_eigenvalue_spread_S": spread,
+        "effective_rank_S": rank,
+        "A_condition_raw": a["condition"],
+        "A_eigenvalue_min": a["minimum"],
+        "A_eigenvalue_max": a["maximum"],
+        **g_raw,
+    }
 
 
 def layer_group(name: str) -> str:
@@ -36,17 +86,19 @@ def layer_group(name: str) -> str:
 
 @dataclass
 class AffineShape:
-    metric_a: torch.Tensor
-    metric_g: torch.Tensor
-    noise_a: torch.Tensor
-    noise_g: torch.Tensor
+    metric_a: torch.Tensor | None
+    metric_g: torch.Tensor | None
+    noise_a: torch.Tensor | None
+    noise_g: torch.Tensor | None
     raw_trace: float
+    diagnostics: dict[str, float]
 
     @property
     def state_bytes(self) -> int:
         return sum(
             tensor.numel() * tensor.element_size()
             for tensor in (self.metric_a, self.metric_g, self.noise_a, self.noise_g)
+            if tensor is not None
         )
 
 
@@ -102,56 +154,51 @@ class Shape:
         for name, module in self.modules.items():
             width, out = augmented_width(module), output_width(module)
             if method == "dp_sgd":
-                reference = module.weight
-                eye_a, eye_g = _identity(width, reference), _identity(out, reference)
-                shape = AffineShape(eye_a, eye_g, eye_a, eye_g, float(width * out))
+                shape = AffineShape(None, None, None, None, float(width * out), {})
             else:
                 factor = factors[name]
                 a = factor["A"]
                 assert tuple(a.shape) == (width, width)
+                values_a, vectors_a = _sym_eig(a)
+                damped_a = values_a + damping
+                def power_a(power: float) -> torch.Tensor:
+                    return ((vectors_a * damped_a.pow(power)) @ vectors_a.T).to(a.dtype)
+                a_stats = _spectral_stats(damped_a)
                 if method == "dp_kfc":
                     g = factor["G"]
                     assert tuple(g.shape) == (out, out)
-                    eye_a, eye_g = _identity(width, a), _identity(out, g)
-                    shape = AffineShape(
-                        matrix_power(a, -0.5, damping),
-                        matrix_power(g, -0.5, damping),
-                        eye_a,
-                        eye_g,
-                        float(width * out),
-                    )
-                elif beta == 0:
-                    # This exact branch (not an eigendecomposition of I) makes the
-                    # beta-zero correctness check bit-for-bit equivalent to SGD.
-                    eye_a = _identity(width, a)
-                    eye_g = _identity(out, a)
-                    shape = AffineShape(eye_a, eye_g, eye_a, eye_g, float(width * out))
+                    values_g, vectors_g = _sym_eig(g)
+                    damped_g = values_g + damping
+                    def power_g(power: float) -> torch.Tensor:
+                        return ((vectors_g * damped_g.pow(power)) @ vectors_g.T).to(g.dtype)
+                    shape = AffineShape(power_a(-0.5), power_g(-0.5), None, None,
+                                        float(width * out), {
+                                            "A_condition_raw": a_stats["condition"],
+                                            "A_eigenvalue_min": a_stats["minimum"],
+                                            "A_eigenvalue_max": a_stats["maximum"],
+                                            "G_condition_raw": _spectral_stats(damped_g)["condition"],
+                                            "G_eigenvalue_min": float(values_g.min()),
+                                            "G_eigenvalue_max": float(values_g.max()),
+                                        })
                 elif method == "dp_kfm_a":
-                    # Do not even look up G: A-only has no G dependency.
                     assert beta is not None
-                    metric_a = matrix_power(a, -beta / 2, damping)
-                    noise_a = matrix_power(a, beta / 2, damping)
-                    eye_g = _identity(out, a)
-                    trace_a = float(torch.linalg.eigvalsh(((a + a.T) * 0.5).double())
-                                    .clamp_min(0).add(damping).pow(beta).sum())
-                    shape = AffineShape(
-                        metric_a, eye_g, noise_a, eye_g, out * trace_a
-                    )
+                    raw_trace_block = out * float(damped_a.pow(beta).sum())
+                    diagnostics = _shape_diagnostics(damped_a, None, a_stats, None, beta, out)
+                    shape = AffineShape(power_a(-beta / 2), None, power_a(beta / 2), None,
+                                        raw_trace_block, diagnostics)
                 else:
                     assert method == "dp_kfm" and beta is not None
                     g = factor["G"]
-                    assert tuple(g.shape) == (out, out)
-                    metric_a = matrix_power(a, -beta / 2, damping)
-                    metric_g = matrix_power(g, -beta / 2, damping)
-                    noise_a = matrix_power(a, beta / 2, damping)
-                    noise_g = matrix_power(g, beta / 2, damping)
-                    trace_a = float(torch.linalg.eigvalsh(((a + a.T) * 0.5).double())
-                                    .clamp_min(0).add(damping).pow(beta).sum())
-                    trace_g = float(torch.linalg.eigvalsh(((g + g.T) * 0.5).double())
-                                    .clamp_min(0).add(damping).pow(beta).sum())
-                    shape = AffineShape(
-                        metric_a, metric_g, noise_a, noise_g, trace_a * trace_g
-                    )
+                    values_g, vectors_g = _sym_eig(g)
+                    damped_g = values_g + damping
+                    def power_g(power: float) -> torch.Tensor:
+                        return ((vectors_g * damped_g.pow(power)) @ vectors_g.T).to(g.dtype)
+                    g_stats = _spectral_stats(damped_g)
+                    raw_trace_block = float(damped_a.pow(beta).sum() * damped_g.pow(beta).sum())
+                    diagnostics = _shape_diagnostics(damped_a, damped_g, a_stats, g_stats, beta, out)
+                    shape = AffineShape(power_a(-beta / 2), power_g(-beta / 2),
+                                        power_a(beta / 2), power_g(beta / 2),
+                                        raw_trace_block, diagnostics)
             self.data[name] = shape
             raw_trace += shape.raw_trace
 
@@ -163,6 +210,8 @@ class Shape:
             assert self.tau == 1.0
         if method == "dp_sgd":
             self.operator_state_bytes = 0
+            self.factor_state_bytes = 0
+            self.geometry_build_seconds = 0.0
         else:
             storages: dict[tuple[torch.device, int], int] = {}
             for value in self.data.values():
@@ -172,9 +221,18 @@ class Shape:
                     value.noise_a,
                     value.noise_g,
                 ):
+                    if tensor is None:
+                        continue
                     storage = tensor.untyped_storage()
                     storages[(tensor.device, storage.data_ptr())] = storage.nbytes()
             self.operator_state_bytes = sum(storages.values()) + 8
+            self.factor_state_bytes = sum(
+                tensor.numel() * tensor.element_size()
+                for factor in factors.values()
+                for tensor in factor.values()
+                if isinstance(tensor, torch.Tensor)
+            )
+            self.geometry_build_seconds = 0.0
 
     @property
     def metric_scale(self) -> float:
@@ -183,13 +241,19 @@ class Shape:
     def metric_factors(
         self, name: str, raw_a: torch.Tensor, raw_b: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.method == "dp_sgd":
+            return raw_a, raw_b
         shape = self.data[name]
+        assert shape.metric_a is not None
         metric_a = raw_a @ shape.metric_a.T
-        metric_b = raw_b @ shape.metric_g.T
+        metric_b = raw_b if shape.metric_g is None else raw_b @ shape.metric_g.T
+        if self.method == "dp_kfm_a":
+            return metric_a, raw_b
         return metric_a, metric_b
 
     def _transform_matrix(self, name: str, matrix: torch.Tensor) -> torch.Tensor:
         shape = self.data[name]
+        assert shape.metric_a is not None and shape.metric_g is not None
         return shape.metric_g @ matrix @ shape.metric_a
 
     def transform_aggregate(self, aggregate: dict[nn.Parameter, torch.Tensor]) -> dict[nn.Parameter, torch.Tensor]:
@@ -251,25 +315,7 @@ class Shape:
             name = row["layer"]
             if name == "identity":
                 continue
-            a_stats = spectrum(factors[name]["A"], self.damping)
-            row.update({f"A_{key}": value for key, value in a_stats.items()})
-            if self.method in ("dp_kfc", "dp_kfm"):
-                g_stats = spectrum(factors[name]["G"], self.damping)
-                row.update({f"G_{key}": value for key, value in g_stats.items()})
-                row["condition_number"] = (
-                    a_stats["damped_condition"] * g_stats["damped_condition"]
-                )
-                row["log_eigenvalue_spread"] = math.sqrt(
-                    a_stats["log_eigenvalue_spread"] ** 2
-                    + g_stats["log_eigenvalue_spread"] ** 2
-                )
-                row["effective_rank"] = (
-                    a_stats["effective_rank"] * g_stats["effective_rank"]
-                )
-            else:
-                row["condition_number"] = a_stats["damped_condition"]
-                row["log_eigenvalue_spread"] = a_stats["log_eigenvalue_spread"]
-                row["effective_rank"] = a_stats["effective_rank"]
+            row.update(self.data[name].diagnostics)
         return rows
 
     def _base_noise(self, generator: torch.Generator) -> dict[nn.Parameter, torch.Tensor]:
@@ -306,7 +352,8 @@ class Shape:
             )
             if self.method in ("dp_kfm", "dp_kfm_a"):
                 matrix = math.sqrt(self.tau) * (
-                    shape.noise_g @ raw_matrix @ shape.noise_a
+                    (raw_matrix @ shape.noise_a) if shape.noise_g is None
+                    else shape.noise_g @ raw_matrix @ shape.noise_a
                 )
                 trace = self.tau * shape.raw_trace
             else:
@@ -347,8 +394,13 @@ def distortion(
 ) -> tuple[float, float]:
     reference_norm = _norm(reference)
     candidate_norm = _norm(candidate)
-    assert reference_norm > 0 and candidate_norm > 0
-    cosine = (_dot(reference, candidate) / (reference_norm * candidate_norm)).clamp(-1, 1)
+    if reference_norm == 0:
+        return 0.0, 0.0
+    cosine = (
+        (_dot(reference, candidate) / (reference_norm * candidate_norm)).clamp(-1, 1)
+        if candidate_norm > 0
+        else reference_norm.new_zeros(())
+    )
     difference = {parameter: candidate[parameter] - value for parameter, value in reference.items()}
     relative = _norm(difference) / reference_norm
     return float(cosine), float(relative)
@@ -362,22 +414,22 @@ def add_noise_and_step(
     *,
     sigma: float,
     bound: float,
-    logical_batch_size: int,
+    expected_batch_size: int,
     generator: torch.Generator,
 ) -> tuple[dict[str, float | bool], list[dict[str, object]]]:
     """Apply one mechanism event and return research-only distortion/noise rows."""
-    assert logical_batch_size > 0
-    actual_raw = shape.transform_aggregate(raw_sum)
-    actual_clipped = shape.transform_aggregate(clipped_sum)
-    clip_cos, clip_rel = distortion(actual_raw, actual_clipped)
+    assert expected_batch_size == 256
+    clip_cos, clip_rel = distortion(raw_sum, clipped_sum)
+    signal = shape.transform_aggregate(clipped_sum)
+    signal_cos, signal_rel = distortion(raw_sum, signal)
     noise, expected = shape.sample_noise(sigma, bound, generator)
     private_sum = {
-        parameter: actual_clipped[parameter] + noise[parameter]
+        parameter: signal[parameter] + noise[parameter]
         for parameter in shape.parameters
     }
-    update_cos, update_rel = distortion(actual_raw, private_sum)
+    update_cos, update_rel = distortion(raw_sum, private_sum)
     for parameter in shape.parameters:
-        parameter.grad = private_sum[parameter].div(logical_batch_size)
+        parameter.grad = private_sum[parameter].div(expected_batch_size)
     optimizer.step()
 
     total_noise_sq = sum(value.double().square().sum() for value in noise.values())
@@ -397,7 +449,7 @@ def add_noise_and_step(
         parameters = [p for p, layer in parameter_layer.items() if layer == name]
         actual_energy = sum(float(noise[p].double().square().sum()) for p in parameters)
         signal_norm = math.sqrt(
-            sum(float(actual_clipped[p].double().square().sum()) for p in parameters)
+            sum(float(signal[p].double().square().sum()) for p in parameters)
         )
         expected_energy = expected[name]
         rows.append(
@@ -421,7 +473,7 @@ def add_noise_and_step(
         dimension = sum(p.numel() for p in parameters)
         actual_energy = sum(float(noise[p].double().square().sum()) for p in parameters)
         expected_energy = sum(float(row["expected_noise_energy"]) for row in selected)
-        signal_sq = sum(float(actual_clipped[p].double().square().sum()) for p in parameters)
+        signal_sq = sum(float(signal[p].double().square().sum()) for p in parameters)
         rows.append(
             {
                 "level": "group",
@@ -438,6 +490,8 @@ def add_noise_and_step(
     return {
         "clip_cos": clip_cos,
         "clip_rel_error": clip_rel,
+        "signal_cos": signal_cos,
+        "signal_rel_error": signal_rel,
         "update_cos": update_cos,
         "update_rel_error": update_rel,
         "total_noise_rms": total_noise_rms,

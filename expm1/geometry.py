@@ -264,8 +264,6 @@ def geometry_rows(
         for key in ("A", "G"):
             if key not in factor:
                 continue
-            stats = spectrum(factor[key])
-            row.update({f"{key}_{label}": value for label, value in stats.items()})
             if oracle is not None:
                 assert key in oracle[name]
                 cosine, relative = factor_alignment(oracle[name][key], factor[key])

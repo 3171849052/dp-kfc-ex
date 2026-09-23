@@ -37,7 +37,7 @@ from expm1 import config as cfg
 
 RESULTS = Path(cfg.RESULTS_ROOT)
 RUNS = RESULTS / "runs"
-SEEDS = (42, 7, 123)
+SEEDS = (42,)
 BETAS = (0.25, 0.5, 0.75, 1.0)
 SOURCES = ("pink", "public")
 METHODS = ("dp_sgd", "dp_kfc", "dp_kfm", "dp_kfm_a")
@@ -56,6 +56,7 @@ PLOT_OUTPUTS = (
     "final_accuracy_curves.png",
     "clipping_vs_beta.png",
     "clip_distortion_vs_beta.png",
+    "signal_distortion_vs_beta.png",
     "update_distortion_vs_beta.png",
     "layer_group_snr.png",
     "oracle_error_utility_gap.png",
@@ -95,8 +96,15 @@ METRIC_COLUMNS = (
     "raw_norm_p99",
     "clip_cos",
     "clip_rel_error",
+    "signal_cos",
+    "signal_rel_error",
     "update_cos",
     "update_rel_error",
+    "realized_batch_size_mean",
+    "realized_batch_size_min",
+    "realized_batch_size_max",
+    "sample_rate",
+    "expected_batch_size",
     "total_noise_rms",
     "geometry_build_seconds",
     "private_train_seconds",
@@ -236,22 +244,22 @@ def _expected_conditions() -> set[tuple[str, str, float | None]]:
 
 
 def _validate_grid(specs: list[dict]) -> None:
-    assert len(specs) == 114, f"formal grid must contain 114 runs, found {len(specs)}"
-    assert len({spec["name"] for spec in specs}) == 114, "run names must be unique"
+    assert len(specs) == 38, f"formal grid must contain 38 runs, found {len(specs)}"
+    assert len({spec["name"] for spec in specs}) == 38, "run names must be unique"
     keys = [(spec["task"], *_condition(spec), int(spec["seed"])) for spec in specs]
-    assert len(set(keys)) == 114, "formal grid contains duplicate conditions"
+    assert len(set(keys)) == 38, "formal grid contains duplicate conditions"
     tasks = sorted({str(spec["task"]) for spec in specs})
     assert len(tasks) == 2 and {_task_kind(task) for task in tasks} == {"mnist", "vit"}
     expected = _expected_conditions()
     for task in tasks:
         task_specs = [spec for spec in specs if spec["task"] == task]
-        assert len(task_specs) == 57, f"{task} must contain 57 runs"
+        assert len(task_specs) == 19, f"{task} must contain 19 runs"
         assert {int(spec["seed"]) for spec in task_specs} == set(SEEDS)
         for seed in SEEDS:
             actual = {_condition(spec) for spec in task_specs if int(spec["seed"]) == seed}
             assert actual == expected, f"bad condition grid for {task}, seed={seed}: {actual ^ expected}"
     gpu_counts = {gpu: sum(int(spec["gpu"]) == gpu for spec in specs) for gpu in (1, 2, 3)}
-    assert gpu_counts == {1: 38, 2: 38, 3: 38}, f"grid is not statically balanced: {gpu_counts}"
+    assert gpu_counts == {1: 13, 2: 13, 3: 12}, f"grid is not statically balanced: {gpu_counts}"
     assert all(int(spec["gpu"]) in (1, 2, 3) for spec in specs)
 
 
@@ -419,9 +427,9 @@ def _validate_geometry(frame: pd.DataFrame, spec: dict, task_cfg, path: Path) ->
     np.testing.assert_allclose(totals["trace_S"], totals["d_total"], rtol=2e-10, atol=2e-10 * totals["d_total"].max())
     if method == "dp_sgd":
         factor_columns = {
-            "condition_number", "log_eigenvalue_spread", "effective_rank",
-            "A_eigenvalue_min", "A_eigenvalue_max", "cosA", "relative_error_A",
-            "G_eigenvalue_min", "G_eigenvalue_max", "cosG", "relative_error_G",
+            "condition_S", "log_eigenvalue_spread_S", "effective_rank_S",
+            "A_condition_raw", "A_eigenvalue_min", "A_eigenvalue_max", "cosA", "relative_error_A",
+            "G_condition_raw", "G_eigenvalue_min", "G_eigenvalue_max", "cosG", "relative_error_G",
         }
         assert not (factor_columns & set(frame.columns)), f"DP-SGD contains factor diagnostics in {path}"
         assert frame["tau"].eq(1).all()
@@ -430,21 +438,21 @@ def _validate_geometry(frame: pd.DataFrame, spec: dict, task_cfg, path: Path) ->
         return frame
 
     required_factor_columns = (
-        "condition_number", "log_eigenvalue_spread", "effective_rank",
-        "A_eigenvalue_min", "A_eigenvalue_max", "cosA", "relative_error_A",
+        "condition_S", "log_eigenvalue_spread_S", "effective_rank_S",
+        "A_condition_raw", "A_eigenvalue_min", "A_eigenvalue_max", "cosA", "relative_error_A",
     )
     _assert_columns(frame, required_factor_columns, path)
     affine = frame[frame["layer"].ne("identity")]
     _assert_finite(affine, required_factor_columns, path)
-    assert affine["condition_number"].ge(1).all()
-    assert affine["log_eigenvalue_spread"].ge(0).all()
-    assert affine["effective_rank"].gt(0).all()
+    assert affine["condition_S"].ge(1).all()
+    assert affine["log_eigenvalue_spread_S"].ge(0).all()
+    assert affine["effective_rank_S"].gt(0).all()
     assert affine["A_eigenvalue_min"].ge(0).all()
     assert (affine["A_eigenvalue_max"] >= affine["A_eigenvalue_min"]).all()
     assert affine["cosA"].between(-1, 1).all()
     assert affine["relative_error_A"].ge(0).all()
 
-    g_columns = ("G_eigenvalue_min", "G_eigenvalue_max", "cosG", "relative_error_G")
+    g_columns = ("G_condition_raw", "G_eigenvalue_min", "G_eigenvalue_max", "cosG", "relative_error_G")
     if method == "dp_kfm_a":
         present = list(set(g_columns) & set(frame.columns))
         assert not present or frame[present].isna().all().all(), f"DP-KFM-A used G in {path}"
@@ -529,15 +537,14 @@ def _load_and_validate():
     metric_frame = pd.concat(metrics, ignore_index=True)
     geometry_frame = pd.concat(geometries, ignore_index=True)
     layer_group_frame = pd.concat(layer_groups, ignore_index=True)
-    assert len(metric_frame) == 114 * 5
+    assert len(metric_frame) == 38 * 5
     return specs, metric_frame, geometry_frame, layer_group_frame
 
 
 def _aggregate(frame: pd.DataFrame, groups, values) -> pd.DataFrame:
-    grouped = frame.groupby(list(groups), dropna=False, sort=True)[list(values)].agg(["mean", "std"])
-    grouped.columns = [f"{metric}_{'sample_std' if stat == 'std' else stat}" for metric, stat in grouped.columns]
+    grouped = frame.groupby(list(groups), dropna=False, sort=True)[list(values)].first()
     result = grouped.reset_index()
-    result["n"] = frame.groupby(list(groups), dropna=False).size().reindex(grouped.index).to_numpy()
+    result["n"] = frame.groupby(list(groups), dropna=False).size().to_numpy()
     return result
 
 
@@ -584,10 +591,7 @@ def _paired(final: pd.DataFrame) -> pd.DataFrame:
                         add(task, seed, metric, "public - pink", public, pink, method, "public-pink", beta)
     paired = pd.DataFrame(rows)
     group_columns = ["task", "metric", "comparison", "method", "source", "beta"]
-    summary = paired.groupby(group_columns, dropna=False)["delta"].agg(["mean", "std", "count"]).reset_index()
-    summary = summary.rename(columns={"std": "sample_std", "count": "n"})
-    assert summary["n"].eq(3).all()
-    return paired.merge(summary, on=group_columns, validate="many_to_one")
+    return paired
 
 
 def _condition_label(method, source, beta) -> str:
@@ -694,7 +698,7 @@ def _geometry_anisotropy(geometry: pd.DataFrame, stage: Path) -> None:
     data = geometry[geometry["method"].isin(("dp_kfm", "dp_kfm_a"))]
     data = data[data["epoch"] == data.groupby("run_name")["epoch"].transform("max")]
     tasks = sorted(data["task"].unique(), key=_task_kind)
-    metrics = ("condition_number", "log_eigenvalue_spread", "effective_rank")
+    metrics = ("condition_S", "log_eigenvalue_spread_S", "effective_rank_S")
     fig, axes = plt.subplots(len(tasks), len(metrics), figsize=(17, 8), squeeze=False)
     for row, task in enumerate(tasks):
         part = data[data["task"] == task]
@@ -735,16 +739,17 @@ def _write_outputs(metrics: pd.DataFrame, geometry: pd.DataFrame, layer_groups: 
     metrics.sort_values(sort, na_position="first").to_csv(stage / "all_metrics.csv", index=False)
     final = metrics.sort_values("epoch").groupby("run_name", as_index=False).tail(1).copy()
     final_summary = _aggregate(final, ("task", "method", "source", "beta"), FINAL_METRICS)
-    assert final_summary["n"].eq(3).all()
+    assert final_summary["n"].eq(1).all()
     final_summary.to_csv(stage / "final_summary.csv", index=False)
     beta = final[final["method"].isin(("dp_kfm", "dp_kfm_a"))]
     beta_summary = _aggregate(beta, ("task", "method", "source", "beta"), FINAL_METRICS)
-    assert beta_summary["n"].eq(3).all()
+    assert beta_summary["n"].eq(1).all()
     beta_summary.to_csv(stage / "beta_summary.csv", index=False)
     _paired(final).to_csv(stage / "paired_summary.csv", index=False)
 
     geometry_values = (
-        "trace_S", "d_total", "tau", "condition_number", "log_eigenvalue_spread", "effective_rank",
+        "trace_S", "d_total", "tau", "condition_S", "log_eigenvalue_spread_S", "effective_rank_S",
+        "A_condition_raw", "G_condition_raw",
         "A_eigenvalue_min", "A_eigenvalue_max", "G_eigenvalue_min", "G_eigenvalue_max",
         "cosA", "relative_error_A", "cosG", "relative_error_G",
     )
@@ -764,6 +769,7 @@ def _write_outputs(metrics: pd.DataFrame, geometry: pd.DataFrame, layer_groups: 
     _final_accuracy_curves(metrics, stage)
     _beta_diagnostic(metrics, stage, "clipping_vs_beta.png", ("clip_fraction", "mean_clip_factor"), "Clipping")
     _beta_diagnostic(metrics, stage, "clip_distortion_vs_beta.png", ("clip_cos", "clip_rel_error"), "Clipping distortion")
+    _beta_diagnostic(metrics, stage, "signal_distortion_vs_beta.png", ("signal_cos", "signal_rel_error"), "Mechanism signal distortion")
     _beta_diagnostic(metrics, stage, "update_distortion_vs_beta.png", ("update_cos", "update_rel_error"), "DP update distortion")
     _layer_group_snr(layer_groups, stage)
     _oracle_gap(final, geometry, stage)
@@ -785,7 +791,7 @@ def analyze() -> None:
             target = RESULTS / name
             assert not target.exists(), f"refusing to overwrite {target}"
             (stage / name).rename(target)
-    print(f"Validated 114 complete formal runs and wrote analysis to {RESULTS}")
+    print(f"Validated 38 complete formal runs and wrote analysis to {RESULTS}")
 
 
 if __name__ == "__main__":

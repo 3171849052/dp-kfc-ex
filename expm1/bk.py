@@ -10,6 +10,7 @@ from torch.nn import functional as F
 
 from expm1.geometry import affine_factors, affine_modules
 from expm1.mechanism import Shape, layer_group
+from exp22.handlers import layernorm_per_example_gradient
 
 
 NUMERICAL_EPS = 1e-6
@@ -172,14 +173,19 @@ class BKClipper:
                 self.activations[name], self.backprops[name], module
             )
             assert raw_b is not None
-            raw_sq, raw_temp = ghost_squared(raw_a, raw_b)
-            metric_a, metric_b = self.shape.metric_factors(name, raw_a, raw_b)
-            metric_sq, metric_temp = ghost_squared(metric_a, metric_b)
+            if self.shape.method == "dp_sgd":
+                metric_sq, metric_temp = ghost_squared(raw_a, raw_b)
+                raw_sq, raw_temp = metric_sq, metric_temp
+                cache_bytes = max(cache_bytes, retained_bytes(tensors))
+            else:
+                raw_sq, raw_temp = ghost_squared(raw_a, raw_b)
+                metric_a, metric_b = self.shape.metric_factors(name, raw_a, raw_b)
+                metric_sq, metric_temp = ghost_squared(metric_a, metric_b)
+                cache_bytes = max(cache_bytes, retained_bytes(tensors + [metric_a, metric_b]))
             raw_total.add_(raw_sq)
             metric_total.add_(metric_sq)
             layer_metric[name] = metric_sq
             group_metric[layer_group(name)].add_(metric_sq)
-            cache_bytes = max(cache_bytes, retained_bytes(tensors + [metric_a, metric_b]))
             temporary = max(temporary, raw_temp, metric_temp)
 
         for name, module in self.norms.items():
@@ -211,7 +217,8 @@ class BKClipper:
             layer_metric["cls_token"] = squared
             group_metric["identity"].add_(squared)
             temporary = max(temporary, tensor_bytes(cls_gradient))
-        metric_total.mul_(self.shape.metric_scale)
+        if self.shape.method != "dp_sgd":
+            metric_total.mul_(self.shape.metric_scale)
         return raw_total, metric_total, layer_metric, dict(group_metric), cache_bytes, temporary
 
     @staticmethod
@@ -232,7 +239,6 @@ class BKClipper:
         self.activations.clear()
         self.backprops.clear()
         self.token_backprops.clear()
-        before = self._rng_state(x.device)
         self.model.zero_grad(set_to_none=True)
         self.enabled = True
         logits = self.model(x)
@@ -240,7 +246,6 @@ class BKClipper:
         assert losses.shape == (len(x),)
         losses.sum().backward()
         self.enabled = False
-        after = self._rng_state(x.device)
         assert set(self.activations) == set(self.affines) | set(self.norms)
         assert set(self.backprops) == set(self.activations)
         raw_sum = {parameter: parameter.grad.detach().clone() for parameter in self.parameters}
@@ -249,14 +254,33 @@ class BKClipper:
         matched_norms = metric_sq.clamp_min(0).sqrt()
         factors = (self.bound / (matched_norms + NUMERICAL_EPS)).clamp(max=1).detach()
 
-        self.model.zero_grad(set_to_none=True)
-        self._set_rng_state(x.device, before)
-        weighted_losses = F.cross_entropy(self.model(x), y, reduction="none") * factors
-        weighted_losses.sum().backward()
-        self._set_rng_state(x.device, after)
-        clipped_sum = {
-            parameter: parameter.grad.detach().clone() for parameter in self.parameters
-        }
+        clipped_sum = self._empty()
+        for name, module in self.affines.items():
+            activation, backprop = affine_factors(
+                self.activations[name], self.backprops[name], module
+            )
+            weighted_backprop = backprop * factors[:, None, None]
+            matrix = torch.einsum("bto,bti->oi", weighted_backprop, activation)
+            clipped_sum[module.weight].copy_(matrix[:, : module.weight.flatten(1).shape[1]].reshape_as(module.weight))
+            if module.bias is not None:
+                clipped_sum[module.bias].copy_(matrix[:, -1])
+
+        for name, module in self.norms.items():
+            per_example = layernorm_per_example_gradient(
+                self.activations[name], self.backprops[name], module
+            )
+            for parameter, value in per_example.items():
+                weighted = value * factors.reshape(len(factors), *([1] * (value.ndim - 1)))
+                clipped_sum[parameter].add_(weighted.sum(0))
+
+        if self.pos_embed is not None and self.pos_embed.requires_grad:
+            clipped_sum[self.pos_embed].copy_(torch.einsum(
+                "b,b...->...", factors, self.token_backprops[0]
+            ).unsqueeze(0))
+        if self.cls_token is not None and self.cls_token.requires_grad:
+            clipped_sum[self.cls_token].copy_(torch.einsum(
+                "b,b...->...", factors, self.token_backprops[0][:, :1]
+            ).unsqueeze(0))
         self.model.zero_grad(set_to_none=True)
         self.activations.clear()
         self.backprops.clear()
@@ -272,6 +296,7 @@ class BKClipper:
             "group_sq": {name: value.detach() for name, value in group_sq.items()},
             "bk_cache_bytes": cache_bytes,
             "temporary_per_sample_bytes": temporary,
+            "backward_calls": 1,
         }
 
     def aggregate_logical(
@@ -280,7 +305,7 @@ class BKClipper:
         y: torch.Tensor,
         physical_batch_size: int,
     ) -> AggregateResult:
-        assert len(x) % physical_batch_size == 0
+        assert physical_batch_size > 0
         matched = x.new_empty(len(x))
         raw = x.new_empty(len(x))
         clips = x.new_empty(len(x))
@@ -290,8 +315,18 @@ class BKClipper:
         layer_values: dict[str, list[torch.Tensor]] = defaultdict(list)
         group_values: dict[str, list[torch.Tensor]] = defaultdict(list)
         chunks = 0
+        backward_calls = 0
+        if len(x) == 0:
+            zero = self._empty()
+            return AggregateResult(
+                x.new_zeros(()), x.new_empty(0), x.new_empty(0), x.new_empty(0),
+                zero, {parameter: value.clone() for parameter, value in zero.items()},
+                {"bk_cache_bytes": 0, "temporary_per_sample_bytes": 0,
+                 "backward_calls": 0, "physical_chunks": 0,
+                 "layer_norm_contribution": {}, "group_norm_contribution": {}},
+            )
         for start in range(0, len(x), physical_batch_size):
-            stop = start + physical_batch_size
+            stop = min(start + physical_batch_size, len(x))
             part = self._one(x[start:stop], y[start:stop])
             matched[start:stop].copy_(part["matched_norms"])
             raw[start:stop].copy_(part["raw_norms"])
@@ -306,10 +341,11 @@ class BKClipper:
             max_cache = max(max_cache, int(part["bk_cache_bytes"]))
             max_temporary = max(max_temporary, int(part["temporary_per_sample_bytes"]))
             chunks += 1
+            backward_calls += int(part["backward_calls"])
         stats: dict[str, object] = {
             "bk_cache_bytes": max_cache,
             "temporary_per_sample_bytes": max_temporary,
-            "backward_calls": 2 * chunks,
+            "backward_calls": backward_calls,
             "physical_chunks": chunks,
             "layer_norm_contribution": {
                 name: float(torch.cat(values).mean().sqrt())
@@ -330,4 +366,3 @@ class BKClipper:
         for handle in self.handles:
             handle.remove()
         self.handles.clear()
-

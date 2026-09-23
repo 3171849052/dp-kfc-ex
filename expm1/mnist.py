@@ -32,8 +32,8 @@ def load_data():
     return data.mnist_datasets()
 
 
-def public_calibration(seed: int, epoch: int, device: torch.device | str):
-    return data.public_calibration("mnist", seed, epoch, device)
+def public_calibration(seed: int, epoch: int, device: torch.device | str, *, need_g: bool):
+    return data.public_calibration("mnist", seed, epoch, device, need_g=need_g)
 
 
 def pink_calibration(seed: int, epoch: int, device: torch.device | str):
@@ -45,4 +45,3 @@ def oracle_calibration(device: torch.device | str):
 
 
 initialize_model = initialize
-

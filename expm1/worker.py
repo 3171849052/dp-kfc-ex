@@ -132,7 +132,6 @@ def run(spec: cfg.RunSpec) -> None:
     )
     model = module.initialize(spec.seed, device)
     optimizer = module.build_optimizer(model)
-    train_loader = data.private_loader(train_data, spec.task, spec.seed)
     evaluation_loader = data.test_loader(test_data, spec.task)
     total_steps = protocol.accountant_steps
     sigma = get_noise_multiplier(
@@ -158,6 +157,8 @@ def run(spec: cfg.RunSpec) -> None:
         "process_device": "cuda:0",
         "epochs": protocol.epochs,
         "logical_batch_size": protocol.logical_batch_size,
+        "expected_batch_size": protocol.logical_batch_size,
+        "sample_rate": protocol.sample_rate,
         "physical_batch_size": protocol.physical_batch_size,
         "train_samples": protocol.train_samples,
         "steps_per_epoch": protocol.steps_per_epoch,
@@ -182,7 +183,7 @@ def run(spec: cfg.RunSpec) -> None:
         "research_only": cfg.RESEARCH_ONLY,
         "rng": {
             "initialization": spec.seed,
-            "private_shuffle": spec.seed,
+            "private_poisson": f"seed+{cfg.SAMPLING_SEED_OFFSET}+epoch",
             "public_or_pink": f"seed+10000+epoch",
             "pink_labels": f"seed+20000+epoch",
             "dp_noise": spec.seed + cfg.NOISE_SEED_OFFSET,
@@ -214,7 +215,7 @@ def run(spec: cfg.RunSpec) -> None:
         }
         if spec.method != "dp_sgd":
             source_batches = (
-                module.public_calibration(spec.seed, epoch, device)
+                module.public_calibration(spec.seed, epoch, device, need_g=need_g)
                 if spec.source == "public"
                 else module.pink_calibration(spec.seed, epoch, device)
             )
@@ -261,8 +262,20 @@ def run(spec: cfg.RunSpec) -> None:
             lambda: defaultdict(float)
         )
         max_cache = max_temporary = 0
-        for x, y in train_loader:
-            assert len(x) == protocol.logical_batch_size
+        sampler = data.FixedStepPoissonSampler(
+            population=protocol.train_samples,
+            expected_batch_size=protocol.logical_batch_size,
+            steps=protocol.steps_per_epoch,
+            seed=spec.seed + cfg.SAMPLING_SEED_OFFSET + epoch,
+        )
+        realized_sizes: list[int] = []
+        for indices in sampler:
+            if indices:
+                x, y = torch.utils.data.default_collate([train_data[index] for index in indices])
+            else:
+                input_shape = (1, 28, 28) if spec.task == "mnist" else (3, cfg.IMAGE_SIZE, cfg.IMAGE_SIZE)
+                x = torch.empty((0, *input_shape), dtype=torch.float32)
+                y = torch.empty((0,), dtype=torch.long)
             x, y = x.to(device), y.to(device)
             aggregate = clipper.aggregate_logical(x, y, protocol.physical_batch_size)
             distortion_stats, noise_rows = add_noise_and_step(
@@ -272,7 +285,7 @@ def run(spec: cfg.RunSpec) -> None:
                 aggregate.clipped_sum,
                 sigma=sigma,
                 bound=protocol.max_grad_norm,
-                logical_batch_size=protocol.logical_batch_size,
+                expected_batch_size=protocol.logical_batch_size,
                 generator=noise_generator,
             )
             accountant.step(noise_multiplier=sigma, sample_rate=protocol.sample_rate)
@@ -280,6 +293,7 @@ def run(spec: cfg.RunSpec) -> None:
             noise_events += 1
             logical_steps += 1
             sample_count += len(x)
+            realized_sizes.append(len(x))
             loss_sum += float(aggregate.loss_sum)
             matched_norms.append(aggregate.matched_norms.cpu())
             raw_norms.append(aggregate.raw_norms.cpu())
@@ -287,6 +301,8 @@ def run(spec: cfg.RunSpec) -> None:
             for key in (
                 "clip_cos",
                 "clip_rel_error",
+                "signal_cos",
+                "signal_rel_error",
                 "update_cos",
                 "update_rel_error",
                 "total_noise_rms",
@@ -314,7 +330,7 @@ def run(spec: cfg.RunSpec) -> None:
         private_train_seconds = time.perf_counter() - private_started
         clipper.remove()
         assert logical_steps == protocol.steps_per_epoch
-        assert sample_count == protocol.steps_per_epoch * protocol.logical_batch_size
+        assert len(realized_sizes) == protocol.steps_per_epoch
         matched = torch.cat(matched_norms)
         raw = torch.cat(raw_norms)
         clips = torch.cat(clip_factors)
@@ -344,7 +360,7 @@ def run(spec: cfg.RunSpec) -> None:
             "beta": spec.beta,
             "seed": spec.seed,
             "epoch": epoch,
-            "train_loss": loss_sum / sample_count,
+            "train_loss": loss_sum / sample_count if sample_count else 0.0,
             "test_loss": test_loss,
             "test_accuracy": test_accuracy,
             "best_accuracy": max(accuracies),
@@ -354,6 +370,13 @@ def run(spec: cfg.RunSpec) -> None:
             "accountant_steps": sum(entry[2] for entry in accountant.history),
             "logical_steps": logical_steps,
             "samples": sample_count,
+            "realized_batch_size_cumulative_mean": float(np.mean(realized_sizes)),
+            "realized_batch_size_mean": float(np.mean(realized_sizes)),
+            "realized_batch_size_min": min(realized_sizes),
+            "realized_batch_size_max": max(realized_sizes),
+            "realized_batch_size_cumulative_mean": float(sample_count / logical_steps),
+            "sample_rate": protocol.sample_rate,
+            "expected_batch_size": protocol.logical_batch_size,
             "optimizer_steps": optimizer_steps,
             "noise_events": noise_events,
             "logical_batch_size": protocol.logical_batch_size,
@@ -367,7 +390,7 @@ def run(spec: cfg.RunSpec) -> None:
             "raw_norm_p50": float(raw.quantile(0.50)),
             "raw_norm_p90": float(raw.quantile(0.90)),
             "raw_norm_p99": float(raw.quantile(0.99)),
-            "geometry_build_seconds": float(builder_stats["geometry_build_seconds"]),
+            "geometry_build_seconds": float(shape.geometry_build_seconds if spec.method == "dp_sgd" else builder_stats["geometry_build_seconds"]),
             "oracle_seconds": oracle_seconds,
             "private_train_seconds": private_train_seconds,
             "wall_time_seconds": epoch_wall,
@@ -376,7 +399,7 @@ def run(spec: cfg.RunSpec) -> None:
             "bk_cache_bytes": max_cache,
             "temporary_per_sample_bytes": max_temporary,
             "operator_state_bytes": shape.operator_state_bytes,
-            "factor_state_bytes": int(builder_stats["factor_state_bytes"]),
+            "factor_state_bytes": int(shape.factor_state_bytes),
             "trace_S": shape.trace_s,
             "d_total": shape.d_total,
             "tau": shape.tau,
@@ -427,4 +450,3 @@ def parse_args() -> cfg.RunSpec:
 
 if __name__ == "__main__":
     run(parse_args())
-

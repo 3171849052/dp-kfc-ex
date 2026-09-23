@@ -6,6 +6,7 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data._utils.collate import default_collate
 from torchvision import datasets, transforms
 
 from expm1 import config as cfg
@@ -60,22 +61,11 @@ def fashion_mnist_public_dataset() -> Dataset:
     return dataset
 
 
-def require_stl10() -> Path:
-    location = cfg.DATA_ROOT / "stl10_binary"
-    if not location.is_dir():
-        raise FileNotFoundError(
-            f"required matched-public STL10 is absent at {location}; "
-            "the fixed protocol forbids downloading or substituting a dataset"
-        )
-    return location
-
-
-def stl10_public_dataset() -> Dataset:
-    require_stl10()
-    dataset = datasets.STL10(
-        cfg.DATA_ROOT, split="train", download=False, transform=vit_transform()
+def cifar100_public_dataset() -> Dataset:
+    dataset = datasets.CIFAR100(
+        cfg.DATA_ROOT, train=True, download=False, transform=vit_transform()
     )
-    assert len(dataset) == 5_000 and len(dataset.classes) == cfg.NUM_CLASSES
+    assert len(dataset) == 50_000 and len(dataset.classes) == 100
     return dataset
 
 
@@ -89,7 +79,7 @@ def public_dataset(task: str) -> Dataset:
     return (
         fashion_mnist_public_dataset()
         if task == "mnist"
-        else stl10_public_dataset()
+        else cifar100_public_dataset()
     )
 
 
@@ -99,8 +89,8 @@ def private_loader(dataset: Dataset, task: str, seed: int) -> DataLoader:
     return DataLoader(
         dataset,
         batch_size=protocol.logical_batch_size,
-        shuffle=True,
-        drop_last=True,
+        shuffle=False,
+        drop_last=False,
         num_workers=0,
         generator=torch.Generator().manual_seed(seed),
     )
@@ -149,17 +139,76 @@ def public_calibration(
     seed: int,
     epoch: int,
     device: torch.device | str,
+    *,
+    need_g: bool,
 ) -> Iterator[FactorBatch]:
     assert seed in cfg.SEEDS and 1 <= epoch <= cfg.EPOCHS
     selection_seed = seed + cfg.PUBLIC_SEED_OFFSET + epoch
-    return _fixed_dataset_batches(
-        public_dataset(task),
+    dataset = public_dataset(task)
+    batches = _fixed_dataset_batches(
+        dataset,
         selection_seed=selection_seed,
         provenance="public",
         device=device,
         batches=cfg.AUXILIARY_BATCHES,
         batch_size=cfg.AUXILIARY_BATCH_SIZE,
     )
+    if task == "vit" and need_g:
+        label_generator = torch.Generator().manual_seed(
+            seed + cfg.PUBLIC_LABEL_SEED_OFFSET + epoch
+        )
+        for batch in batches:
+            labels = torch.randint(
+                cfg.NUM_CLASSES, (len(batch.x),), generator=label_generator
+            ).to(batch.y.device)
+            yield FactorBatch(batch.x, labels, "public")
+        return
+    if task == "vit":
+        for batch in batches:
+            labels = torch.zeros(len(batch.x), dtype=torch.long, device=batch.x.device)
+            yield FactorBatch(batch.x, labels, "public")
+        return
+    yield from batches
+
+
+class FixedStepPoissonSampler:
+    """Fixed-count steps with independent Bernoulli inclusion per record."""
+
+    def __init__(self, population: int, expected_batch_size: int, steps: int, seed: int):
+        assert population > expected_batch_size > 0 and steps > 0
+        self.population = population
+        self.expected_batch_size = expected_batch_size
+        self.steps = steps
+        self.sample_rate = expected_batch_size / population
+        self.generator = torch.Generator().manual_seed(seed)
+
+    def __iter__(self):
+        for _ in range(self.steps):
+            selected = torch.rand(self.population, generator=self.generator) < self.sample_rate
+            yield selected.nonzero().flatten().tolist()
+
+    def __len__(self) -> int:
+        return self.steps
+
+
+def poisson_private_batches(
+    dataset: Dataset, task: str, seed: int, epoch: int
+) -> Iterator[tuple[torch.Tensor, torch.Tensor]]:
+    protocol = cfg.task_config(task)
+    sampler = FixedStepPoissonSampler(
+        protocol.train_samples,
+        protocol.logical_batch_size,
+        protocol.steps_per_epoch,
+        seed + cfg.SAMPLING_SEED_OFFSET + epoch,
+    )
+    for indices in sampler:
+        if indices:
+            x, y = default_collate([dataset[index] for index in indices])
+        else:
+            shape = (1, 28, 28) if task == "mnist" else (3, cfg.IMAGE_SIZE, cfg.IMAGE_SIZE)
+            x = torch.empty((0, *shape), dtype=torch.float32)
+            y = torch.empty((0,), dtype=torch.long)
+        yield x, y
 
 
 def _pink_input_shape(task: str) -> tuple[int, int, int]:

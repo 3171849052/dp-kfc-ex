@@ -15,7 +15,7 @@ TASKS = ("mnist", "vit")
 METHODS = ("dp_sgd", "dp_kfc", "dp_kfm", "dp_kfm_a")
 SOURCES = ("pink", "public")
 BETAS = (0.25, 0.5, 0.75, 1.0)
-SEEDS = (42, 7, 123)
+SEEDS = (42,)
 PHYSICAL_GPUS = (1, 2, 3)
 
 EPOCHS = 5
@@ -30,6 +30,8 @@ ORACLE_SEED = 23_000
 PUBLIC_SEED_OFFSET = 10_000
 PINK_SEED_OFFSET = 10_000
 PINK_LABEL_SEED_OFFSET = 20_000
+PUBLIC_LABEL_SEED_OFFSET = 30_000
+SAMPLING_SEED_OFFSET = 50_000
 NOISE_SEED_OFFSET = 40_000
 RESEARCH_ONLY = "research-only: unnoised private diagnostics; not a DP release"
 
@@ -63,8 +65,7 @@ class TaskConfig:
 
     @property
     def accumulation_steps(self) -> int:
-        assert self.logical_batch_size % self.physical_batch_size == 0
-        return self.logical_batch_size // self.physical_batch_size
+        return (self.logical_batch_size + self.physical_batch_size - 1) // self.physical_batch_size
 
     @property
     def logical_batch(self) -> int:
@@ -112,7 +113,7 @@ MNIST = TaskConfig(
 VIT = TaskConfig(
     name="vit",
     private_dataset="CIFAR10",
-    public_dataset="STL10",
+    public_dataset="CIFAR100",
     model=MODEL_NAME,
     train_samples=50_000,
     test_samples=10_000,
@@ -192,13 +193,11 @@ def formal_grid(task: str | None = None) -> tuple[RunSpec, ...]:
 
 formal_runs = formal_grid
 FORMAL_GRID = formal_grid()
-assert len(formal_grid("mnist")) == 57
-assert len(formal_grid("vit")) == 57
-assert len(FORMAL_GRID) == 114
-assert MNIST.accumulation_steps == 1 and VIT.accumulation_steps == 2
+assert len(formal_grid("mnist")) == 19
+assert len(formal_grid("vit")) == 19
+assert len(FORMAL_GRID) == 38
 
-# Round-robin within the task-major grid gives every physical GPU exactly
-# 19 MNIST and 19 ViT runs.  The mapping is static and serialized by run_all.sh.
+# Static round-robin assignment: 13, 13, and 12 runs on physical GPUs 1, 2, 3.
 GPU_BY_RUN = {
     spec.run_name: PHYSICAL_GPUS[index % len(PHYSICAL_GPUS)]
     for index, spec in enumerate(FORMAL_GRID)
@@ -207,8 +206,7 @@ GPU_RUNS = {
     gpu: tuple(spec for spec in FORMAL_GRID if GPU_BY_RUN[spec.run_name] == gpu)
     for gpu in PHYSICAL_GPUS
 }
-assert {gpu: len(runs) for gpu, runs in GPU_RUNS.items()} == {1: 38, 2: 38, 3: 38}
-assert all(sum(run.task == task for run in runs) == 19 for runs in GPU_RUNS.values() for task in TASKS)
+assert {gpu: len(runs) for gpu, runs in GPU_RUNS.items()} == {1: 13, 2: 13, 3: 12}
 
 
 def task_config(task: str) -> TaskConfig:

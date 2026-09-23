@@ -1,0 +1,657 @@
+基于仓库当前最新 `expm1/` 实现进行修正。不要新建新的实验目录，不要修改 exp21/exp22/exp23/exp30/exp35/exp36/exp37 或 src/。只修改 `expm1/`。
+
+目标：修复当前 ExpM1 中已经确认的问题，并保持实验定义：
+
+- MNIST + SimpleCNN
+- CIFAR-10 + pretrained ViT-Tiny
+- 方法：DP-SGD / DP-KFC / DP-KFM / DP-KFM-A
+- source：pink / matched public
+- DP-KFM / DP-KFM-A beta sweep = {0.25, 0.5, 0.75, 1.0}
+- remove-one adjacency
+- BK backend
+- conda env = curve
+- formal GPU = physical 1,2,3
+- 所有输出仍只写 expm1/
+- 数据只读 repository root `data/`
+- 所有 torchvision dataset 必须 `download=False`
+- 不做 fallback / resume / 自动 batch 调整 / 宽泛 try-except / defensive programming
+- 固定协议不满足直接 assert/fail
+- 实现完成后不要启动正式完整实验
+
+==================================================
+1. 正式实验只保留 seed=42
+==================================================
+
+修改：
+
+SEEDS = (42,)
+
+每个 task 共 19 runs：
+
+1 × DP-SGD
+2 × DP-KFC (pink/public)
+8 × DP-KFM (pink/public × beta 4)
+8 × DP-KFM-A (pink/public × beta 4)
+
+两个 task 总计：
+
+38 formal runs
+
+删除所有关于 seeds 7/123、3-seed mean/std、paired sample std 的假设。
+
+正式 GPU 1/2/3 静态均衡分配 38 runs：
+例如 13 / 13 / 12。
+保持三个 GPU worker 并行、同一 GPU 内串行，每个 run 独立 Python process，
+进程内部设备始终 `cuda:0`。
+
+analysis 不再假设 n=3。
+seed=42 下 paired comparison 直接输出 paired delta，不伪造 std/significance。
+
+==================================================
+2. CIFAR-10 的 matched public 改成 CIFAR-100
+==================================================
+
+ViT private：
+CIFAR-10 train/test
+
+ViT matched public：
+repository root `data/` 中已有 CIFAR-100，使用 torchvision.datasets.CIFAR100，
+`download=False`。
+
+删除 STL10 的所有代码、require_stl10、README、checks 和 preflight 依赖。
+
+CIFAR100 transform 与 CIFAR10 完全一致：
+
+Resize 224x224 bicubic
+ToTensor
+Normalize(mean=(.5,.5,.5), std=(.5,.5,.5))
+no augmentation
+
+注意目标 ViT head 是 10-class，而 CIFAR100 label 是 0..99。
+
+因此：
+- CIFAR100 只作为 matched public IMAGE distribution；
+- 不允许改成 100-class head；
+- 不使用 CIFAR100 原始 label 计算 G；
+- 对需要 G 的 DP-KFC / DP-KFM public geometry，为选中的 CIFAR100 images 生成确定性的 10-way pseudo labels：
+  y ~ Uniform{0,...,9}
+- pseudo-label RNG 独立、epoch-local：
+  seed + PUBLIC_LABEL_SEED_OFFSET + epoch
+- DP-KFM-A 只构建 A，不生成/使用 public pseudo labels，不 backward。
+- README 明确写：
+  “public = CIFAR100 images; full KFC/KFM use deterministic independent 10-way pseudo-labels only to form G; CIFAR100 semantic labels are not used.”
+
+MNIST matched public 保持 FashionMNIST。
+FashionMNIST 的真实 10-class labels 可以继续用于 full G。
+
+preflight 必须验证：
+MNIST
+FashionMNIST
+CIFAR10
+CIFAR100
+都在 `data/` 中且 download=False。
+
+checks 最终必须正常 PASS，不能再设计成“预期因为数据缺失而失败”。
+
+==================================================
+3. 把当前 two-backward BK 改成真正 one-backward BK
+==================================================
+
+当前 `expm1/bk.py::_one()` 有两个 backward：
+
+第一次：
+losses.sum().backward()
+
+计算 clip factors 后又：
+weighted_losses.sum().backward()
+
+删除第二次 forward/backward。
+
+每个 physical chunk 必须只执行一次 model forward + backward。
+
+第一次 backward 后保留 raw activation/backprop：
+a_i,l
+δ_i,l
+
+metric branch 只用于 norm。
+
+DP-KFM：
+a_m = a (A+λI)^(-β/2)
+δ_m = δ (G+λI)^(-β/2)
+
+DP-KFM-A：
+a_m = a (A+λI)^(-β/2)
+δ_m = δ
+
+DP-SGD：
+metric norm = raw norm，不重复计算同一个 Ghost norm。
+
+DP-KFC：
+保持当前 KFC metric definition。
+
+利用 Ghost/BK identity 得到每个 sample 的 global norm 和：
+
+c_i = min(1, C / norm_i)
+
+然后直接使用第一次 backward 缓存的 RAW a, RAW δ 解析重建：
+
+raw_sum = Σ_i g_i
+
+clipped_raw_sum = Σ_i c_i g_i
+
+绝对不再进行第二次 forward/backward。
+
+Linear / ViT token Linear：
+对 bias augmented activation 后：
+
+weighted_b = b * c[:,None,None]
+aggregate_matrix = einsum('bto,bti->oi', weighted_b, raw_a)
+
+Conv：
+继续 unfold，完全相同公式，然后 reshape 回 weight；
+bias 使用 augmented activation 最后一维。
+
+LayerNorm：
+复用 exp22 中已有 per-example LayerNorm gradient 公式，
+直接：
+Σ_i c_i g_i
+
+pos_embed：
+einsum sample factor × token gradient
+
+cls_token：
+同样按 sample factor 聚合。
+
+要求：
+- 不 materialize full per-example parameter gradient
+- 不进行第二次 backward
+- raw_sum 可以直接来自第一次 backward 的 parameter.grad
+- clipped_sum 必须由 BK cached activation/backprop + c_i 解析重建
+- 每个 physical chunk `backward_calls == 1`
+
+增加 correctness test：
+toy Linear / Conv / LayerNorm：
+BK clipped aggregate == explicit Σ_i c_i g_i
+
+并 assert 正式 BK 每 physical chunk 只有一次 backward。
+
+==================================================
+4. 修正 clipping / signal / update distortion 定义
+==================================================
+
+当前 DP-KFC 的 diagnostics 错误地先 transform raw reference，
+这会把 KFC 本身的 optimizer-direction distortion 消掉。
+
+统一定义：
+
+g_raw = Σ_i g_i
+g_clip_raw = Σ_i c_i g_i
+
+机制真正使用的 signal：
+
+DP-SGD:
+g_signal = g_clip_raw
+
+DP-KFM:
+g_signal = g_clip_raw
+
+DP-KFM-A:
+g_signal = g_clip_raw
+
+DP-KFC:
+g_signal = KFC_transform(g_clip_raw)
+
+必须记录三组不同指标：
+
+A. clipping distortion，只测裁剪：
+clip_cos =
+cos(g_raw, g_clip_raw)
+
+clip_rel_error =
+||g_clip_raw - g_raw|| / ||g_raw||
+
+B. mechanism signal distortion：
+signal_cos =
+cos(g_raw, g_signal)
+
+signal_rel_error =
+||g_signal - g_raw|| / ||g_raw||
+
+这组指标用于直接检测 KFC preconditioning 改变优化方向，而 KFM 不做 preconditioning。
+
+C. final private update distortion：
+g_private = g_signal + noise
+
+update_cos =
+cos(g_raw, g_private)
+
+update_rel_error =
+||g_private - g_raw|| / ||g_raw||
+
+所有这些均 research_only=true。
+
+修改 mechanism.py / worker.py / analyze.py / CSV schema / plots。
+
+新增或修改主图：
+- clip_cos / clip_rel_error vs beta
+- signal_cos / signal_rel_error vs beta
+- update_cos / update_rel_error vs beta
+
+DP-KFC 必须能显示：
+raw gradient -> clipped raw gradient -> preconditioned signal -> noisy update
+这三个阶段。
+
+==================================================
+5. 修正 geometry anisotropy 指标，使其真正反映 beta
+==================================================
+
+当前 diagnostic_rows() 对原始 A/G 做 spectrum，
+导致 condition_number 等基本没有 beta 的数学作用。
+
+必须改成记录“实际 S_beta”的 spectral geometry。
+
+对 damped eigvals：
+
+a_j = eig(A) + λ
+g_k = eig(G) + λ
+
+DP-KFM：
+shape block eigenvalues ∝ a_j^β g_k^β
+
+因此：
+
+condition_S =
+(cond(A_damped) * cond(G_damped))^β
+
+log_eigenvalue_spread_S =
+β * sqrt(
+    var(log a) + var(log g)
+)
+
+effective_rank_S =
+effective_rank(a^β) * effective_rank(g^β)
+
+DP-KFM-A：
+
+condition_S =
+cond(A_damped)^β
+
+log_eigenvalue_spread_S =
+β * std(log a)
+
+effective_rank_S =
+effective_rank(a^β) * d_out
+
+tau 是全局 scalar，不影响 condition/effective rank，
+但 trace_S 必须仍包含 tau。
+
+同时保留 raw factor diagnostics，例如：
+A_condition_raw
+G_condition_raw
+cosA / relative_error_A
+cosG / relative_error_G
+
+不要把 raw-factor anisotropy 和 actual S_beta anisotropy 混在一个字段。
+
+`geometry_anisotropy_vs_beta.png` 必须使用实际：
+condition_S
+log_eigenvalue_spread_S
+effective_rank_S
+
+这样 beta=0 理论上趋向 identity geometry：
+condition_S=1
+log spread=0
+effective rank=block dimension。
+
+==================================================
+6. 修正 privacy sampling/accounting：改成真正 Poisson sampling
+==================================================
+
+不要继续使用：
+shuffle=True + fixed-size batch
+然后用 Poisson sampled Gaussian RDP accountant。
+
+为了让正式论文中的 epsilon/delta 与 accountant 匹配，
+private training 改成真正 Poisson subsampling。
+
+对每个 task：
+
+q = expected_batch_size / N
+expected_batch_size = 256
+
+每个 optimizer step：
+每条 private record 独立以 probability q 被采样。
+
+每 epoch 保持固定 step 数：
+MNIST: floor(60000/256) = 234
+ViT: floor(50000/256) = 195
+
+总：
+MNIST 1170
+ViT 975
+
+使用与当前 Opacus RDP accountant 一致的 Poisson sampling assumption。
+
+可以复用 Opacus 合适的 Poisson batch sampler，
+或者实现一个简单明确的 fixed-step Poisson batch sampler。
+
+要求：
+- 每一步 sampled batch size 可以变化；
+- 不要求 len(batch)==256；
+- physical chunking：
+  MNIST max chunk=256
+  ViT max chunk=128
+- 最后一个 chunk 可以小于 physical batch；
+- 不再要求 logical batch divisible by physical batch；
+- noisy gradient SUM 最终除以固定 expected_batch_size=256，
+  不除以本步 realized sample count；
+- 每一步都执行 Gaussian mechanism 和 accountant.step；
+- 极小概率 empty sampled batch 也定义为 zero clipped sum + pure Gaussian noise + optimizer step，
+  不跳过该 privacy event；
+- sampling RNG 与 model/noise/geometry RNG 独立且 deterministic per seed；
+- config/metrics 记录：
+  sample_rate=q
+  expected_batch_size=256
+  realized_batch_size mean/min/max per epoch
+
+继续使用 remove-one adjacency。
+
+checks 中验证：
+- private sampler 是 Poisson/Bernoulli independent inclusion
+- worker 不再使用 shuffle fixed-size loader 作为正式 privacy sampler
+- accountant q 与 sampler q 完全一致
+- divide denominator 固定 256
+- steps 正确。
+
+README 中删除任何 fixed-shuffle accountant 表述。
+
+==================================================
+7. 优化 eigendecomposition，避免人为夸大 KFM runtime
+==================================================
+
+当前 Shape 对同一个 factor 重复：
+
+matrix_power(...,-β/2)
+matrix_power(...,+β/2)
+eigvalsh(...) for trace
+diagnostic spectrum(...)
+
+导致一个 A/G 被重复 eigendecompose 多次。
+
+重构成每 epoch 每 factor 只做一次 symmetric eigendecomposition。
+
+例如：
+
+SpectralFactor:
+- eigenvalues_raw
+- eigenvalues_damped
+- eigenvectors
+- metric_root = Q diag(lambda^(-β/2)) Q^T
+- noise_root = Q diag(lambda^(β/2)) Q^T
+- trace_power = Σ lambda^β
+- raw diagnostics
+- shaped diagnostics
+
+full KFM 对 A 和 G 各一次 eigendecomposition；
+KFM-A 只对 A 一次；
+KFC A/G 各一次并得到 inverse sqrt。
+
+不要为了 diagnostic 再重复 eigh。
+
+==================================================
+8. DP-SGD fast path，避免虚假的 runtime/memory 开销
+==================================================
+
+DP-SGD 不应：
+
+- materialize A/G identity matrices
+- 重复计算 raw Ghost norm 和 metric Ghost norm
+- 记录不存在的 operator state
+
+DP-SGD Shape 使用 lightweight identity mode：
+
+matched_norms = raw_norms
+
+不创建 affine identity matrices。
+
+noise 直接 iid Gaussian。
+
+operator_state_bytes = 0
+factor_state_bytes = 0
+geometry_build_seconds = 0
+
+这样 runtime/memory comparison 才公平。
+
+KFM beta=0 correctness test 可以单独构造 identity semantics，
+但 formal grid 不跑 beta=0。
+
+==================================================
+9. DP-KFC baseline 保持算法定义，但用修正后的 BK backend
+==================================================
+
+DP-KFC 必须仍然是标准 KFC：
+
+metric：
+P = G^-1/2 ⊗ A^-1/2
+
+norm：
+||P g_i||
+
+clip factor：
+c_i
+
+raw BK 先重建：
+Σ_i c_i g_i
+
+然后利用线性性得到：
+g_signal =
+P (Σ_i c_i g_i)
+=
+Σ_i c_i P g_i
+
+noise：
+在 KFC transformed/update coordinate 中 isotropic Gaussian
+
+不要把 KFC 改成 KFM。
+
+只是消除第二 backward，并修正 diagnostics reference。
+
+==================================================
+10. SNR 指标定义清楚
+==================================================
+
+layer/group SNR 使用“该方法实际送给 optimizer 的 clipped signal”：
+
+DP-SGD/KFM/KFM-A：
+g_signal,l = raw clipped aggregate
+
+DP-KFC：
+g_signal,l = transformed clipped aggregate
+
+SNR_l =
+||g_signal,l|| /
+sqrt(E ||z_l||²)
+
+另外 clipping distortion 始终用 raw clipping，
+不要把 KFC transformed signal 混进 clip_cos。
+
+==================================================
+11. CIFAR100 public G 的 reproducibility
+==================================================
+
+新增独立：
+
+PUBLIC_LABEL_SEED_OFFSET
+
+CIFAR100 public selection RNG：
+seed + PUBLIC_SEED_OFFSET + epoch
+
+CIFAR100 10-way pseudo-label RNG：
+seed + PUBLIC_LABEL_SEED_OFFSET + epoch
+
+二者不能共享 generator。
+
+pink：
+保留独立 image RNG 和 label RNG。
+
+oracle：
+保持固定 private oracle，仅 research-only，
+绝不能影响训练 geometry / clipping / noise / optimizer。
+
+==================================================
+12. 更新 analysis
+==================================================
+
+因为现在只有 seed=42：
+
+不要输出虚假的 sample std。
+summary 每 condition 一行即可，或者 mean 字段直接等于该唯一 run；
+更推荐直接输出原值。
+
+至少保留：
+
+all_metrics.csv
+final_summary.csv
+beta_summary.csv
+paired_summary.csv
+geometry_summary.csv
+layer_group_summary.csv
+
+paired_summary.csv 对 seed=42 输出：
+- KFM - SGD
+- KFM - KFC
+- KFM-A - KFM
+- public - pink
+
+指标至少：
+test_accuracy
+best_accuracy
+accuracy_auc
+
+不要做统计显著性声明。
+
+plots 至少：
+
+mnist_accuracy_vs_beta.png
+vit_accuracy_vs_beta.png
+final_accuracy_curves.png
+clipping_vs_beta.png
+clip_distortion_vs_beta.png
+signal_distortion_vs_beta.png
+update_distortion_vs_beta.png
+layer_group_snr.png
+oracle_error_utility_gap.png
+geometry_anisotropy_vs_beta.png
+runtime_memory_comparison.png
+
+==================================================
+13. 修正 checks.py
+==================================================
+
+checks 必须全部正常成功，不允许“预期失败”。
+
+至少验证：
+
+1. Python compile
+2. bash -n expm1/run_all.sh
+3. grid == 38 runs
+4. only seed=42
+5. GPUs only 1,2,3，静态分配 13/13/12
+6. MNIST/FashionMNIST/CIFAR10/CIFAR100 都 download=False
+7. no STL10 reference anywhere in expm1
+8. CIFAR100 true label 不进入 target-head G；
+   full public geometry 使用 deterministic 10-way pseudo labels
+9. DP-KFM-A 不创建、不访问 G，不 backward geometry builder
+10. beta=0 KFM/KFM-A toy semantics == DP-SGD
+11. Linear explicit Mahalanobis norm == BK norm
+12. Conv explicit Mahalanobis norm == BK norm
+13. LayerNorm explicit aggregate == BK aggregate
+14. BK clipped aggregate == explicit Σ_i c_i g_i
+15. 每 physical chunk one forward/backward only
+16. metric transform 不进入 KFM raw signal
+17. KFC signal transform 正确
+18. clip_cos 使用 raw vs raw-clipped
+19. signal_cos 对 KFC 使用 raw vs transformed clipped
+20. update_cos 使用 raw vs actual private update
+21. shaped noise empirical covariance matches S
+22. global trace normalization
+23. actual S_beta condition/spread/effective-rank formulas
+24. KFM-A no-G
+25. Poisson sampler 与 q/accountant 一致
+26. fixed expected denominator=256
+27. analysis 不要求 n=3/std
+28. runtime writes only under expm1
+29. incomplete formal results => analyze hard fail before output
+
+CPU toy tests 不启动正式 ViT training。
+
+==================================================
+14. README 更新
+==================================================
+
+README 要准确描述最终实现，不保留旧描述：
+
+- only seed=42
+- 38 total runs
+- CIFAR100 public images
+- CIFAR100 full KFC/KFM 使用 independent deterministic 10-way pseudo labels
+- one-backward BK
+- raw clipping / mechanism signal / private update 三种 distortion
+- Poisson subsampling + matching RDP accountant
+- actual beta-dependent shape diagnostics
+- global trace normalization
+- GPU 1/2/3 mapping
+- formal results 尚未运行时不要声称已有结果
+
+==================================================
+15. 代码风格
+==================================================
+
+不要 defensive programming。
+
+禁止：
+- 自动下载
+- 自动 fallback dataset
+- 自动换 checkpoint
+- 自动 resume
+- 动态 GPU 查询/调度
+- 自动减 batch
+- 宽泛 try/except
+- silently skipping failed run
+- 生成不完整 summary
+- 修改已有实验目录
+
+固定条件失败直接 assert / raise。
+
+只修改 expm1/。
+
+==================================================
+16. 实现完成后执行
+==================================================
+
+使用：
+
+conda run --no-capture-output -n curve python -B expm1/checks.py
+
+以及：
+
+bash -n expm1/run_all.sh
+
+允许做极小 CUDA smoke：
+- seed=42
+- 每种方法最多 1 private optimizer step
+- 不创建 formal run artifacts
+- 不启动 5 epoch formal grid
+
+不要启动完整正式实验。
+
+最后回复我：
+
+1. 修改了哪些文件
+2. 上述问题分别如何修复
+3. checks 输出结果
+4. 若做 smoke，给出 smoke 结果
+5. 确认没有启动正式实验
+6. 最后一行只给完整实验启动命令：
+
+conda run --no-capture-output -n curve bash expm1/run_all.sh

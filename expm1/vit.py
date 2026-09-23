@@ -88,8 +88,8 @@ def load_data():
     return data.cifar10_datasets()
 
 
-def public_calibration(seed: int, epoch: int, device: torch.device | str):
-    return data.public_calibration("vit", seed, epoch, device)
+def public_calibration(seed: int, epoch: int, device: torch.device | str, *, need_g: bool):
+    return data.public_calibration("vit", seed, epoch, device, need_g=need_g)
 
 
 def pink_calibration(seed: int, epoch: int, device: torch.device | str):
