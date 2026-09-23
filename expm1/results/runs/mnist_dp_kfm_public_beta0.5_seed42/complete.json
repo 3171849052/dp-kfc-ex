@@ -1,0 +1,8 @@
+{
+  "run_name": "mnist_dp_kfm_public_beta0.5_seed42",
+  "epochs": 5,
+  "accountant_steps": 1170,
+  "optimizer_steps": 1170,
+  "noise_events": 1170,
+  "all_parameters_updated": true
+}

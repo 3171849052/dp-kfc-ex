@@ -1,0 +1,7 @@
+/home/longt29/miniconda3/envs/curve/lib/python3.11/site-packages/opacus/accountants/analysis/rdp.py:332: UserWarning: Optimal order is the largest alpha. Please consider expanding the range of alphas to get a tighter privacy bound.
+  warnings.warn(
+mnist_dp_kfm_pink_beta0.5_seed42 epoch=1 accuracy=0.8723 epsilon=0.7861
+mnist_dp_kfm_pink_beta0.5_seed42 epoch=2 accuracy=0.8579 epsilon=0.8385
+mnist_dp_kfm_pink_beta0.5_seed42 epoch=3 accuracy=0.8836 epsilon=0.8909
+mnist_dp_kfm_pink_beta0.5_seed42 epoch=4 accuracy=0.9137 epsilon=0.9433
+mnist_dp_kfm_pink_beta0.5_seed42 epoch=5 accuracy=0.9132 epsilon=0.9957
