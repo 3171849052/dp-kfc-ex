@@ -20,3 +20,31 @@ bash -n expm1/run_all.sh
 ```
 
 Formal results have not been run unless the output files are present and complete. The launcher refuses incomplete or existing formal artifacts and never resumes or downloads data.
+
+For the interrupted grid at `b731c71`, audit with `python -B expm1/status.py`.
+A complete run requires its config, exactly five metrics rows (epochs 1–5),
+geometry and layer-group rows covering epochs 1–5, and a completion marker
+with five epochs and the task's full accountant/optimizer/noise counts.
+The initial audit is 18 complete / 20 incomplete; `--assert-initial` checks
+that exact remaining set. The remaining launcher accepts progress within
+that set on later invocations and fails if any originally complete run is
+now incomplete.
+
+After checks pass, explicitly launch remaining jobs with:
+
+```bash
+conda run --no-capture-output -n curve bash expm1/run_remaining.sh
+```
+
+This launcher preserves complete directories and logs, deletes only checked
+incomplete directories/logs, and restarts those runs from epoch 1. It keeps
+`cfg.GPU_RUNS` unchanged, runs each physical GPU's jobs serially, and runs
+GPUs 1/2/3 in parallel. Per-run output goes to `expm1/logs/<run_name>.log`.
+A lock prevents overlapping remaining launchers. A failed worker stops its
+GPU queue and prevents analysis; completed jobs on other GPUs are retained.
+There is no checkpoint resume. `run_all.sh` still requires empty formal outputs.
+
+Only after every worker succeeds and a fresh audit confirms 38/38 complete
+will analysis run. Existing aggregate CSVs, plots, and `analysis.log` do not
+block this launcher. Analysis validates all runs and stages every output
+before atomically replacing each aggregate file; per-run results are untouched.

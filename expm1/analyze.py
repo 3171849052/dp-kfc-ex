@@ -790,9 +790,6 @@ def _write_outputs(metrics: pd.DataFrame, geometry: pd.DataFrame, layer_groups: 
 
 def analyze() -> None:
     _, metrics, geometry, layer_groups = _load_and_validate()
-    outputs = [RESULTS / name for name in (*CSV_OUTPUTS, *PLOT_OUTPUTS)]
-    collisions = [path for path in outputs if path.exists()]
-    assert not collisions, f"analysis outputs already exist; refusing to overwrite: {collisions}"
     with tempfile.TemporaryDirectory(prefix=".analysis-", dir=RESULTS) as temporary:
         stage = Path(temporary)
         _write_outputs(metrics, geometry, layer_groups, stage)
@@ -800,8 +797,7 @@ def analyze() -> None:
         assert not missing, f"analysis failed to produce: {missing}"
         for name in (*CSV_OUTPUTS, *PLOT_OUTPUTS):
             target = RESULTS / name
-            assert not target.exists(), f"refusing to overwrite {target}"
-            (stage / name).rename(target)
+            (stage / name).replace(target)
     print(f"Validated 38 complete formal runs and wrote analysis to {RESULTS}")
 
 

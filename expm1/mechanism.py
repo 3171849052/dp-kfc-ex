@@ -431,6 +431,7 @@ def add_noise_and_step(
     for parameter in shape.parameters:
         parameter.grad = private_sum[parameter].div(expected_batch_size)
     optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
 
     total_noise_sq = sum(value.double().square().sum() for value in noise.values())
     total_noise_rms = float((total_noise_sq / shape.d_total).sqrt())

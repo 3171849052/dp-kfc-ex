@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import ast
 import copy
+import json
+import subprocess
+from unittest import mock
 import math
 import os
 import re
@@ -754,6 +757,278 @@ def check_incomplete_analysis_fails_atomically() -> None:
     _passed("analyze rejects an incomplete grid before writing any output")
 
 
+def check_gradient_lifecycle() -> None:
+    for method in cfg.METHODS:
+        for optimizer_name in ("sgd", "adamw"):
+            torch.manual_seed(904)
+            model = _LinearClassifier()
+            reference = copy.deepcopy(model)
+            factors = None if method == "dp_sgd" else _factors(model)
+            if method == "dp_kfm_a":
+                factors = _a_only_factors(factors)
+            shape = Shape(model, method, factors, 0.5 if method in ("dp_kfm", "dp_kfm_a") else None)
+            def make_optimizer(parameters):
+                if optimizer_name == "sgd":
+                    return torch.optim.SGD(parameters, lr=0.5, momentum=0.7)
+                return torch.optim.AdamW(parameters, lr=1e-4, weight_decay=0.01)
+            optimizer = make_optimizer(model.parameters())
+            reference_optimizer = make_optimizer(reference.parameters())
+            generator = torch.Generator().manual_seed(40042)
+            reference_generator = torch.Generator().manual_seed(40042)
+            for epoch in (1, 2):
+                assert all(p.grad is None for p in model.parameters())
+                clipper = BKClipper(model, shape, bound=1.0)
+                aggregate = clipper.aggregate_logical(torch.randn(4, 3, dtype=DTYPE), torch.tensor([0, 1, 2, 0]), 2)
+                signal = shape.transform_aggregate(aggregate.clipped_sum)
+                noise, _ = shape.sample_noise(0.8, 1.0, reference_generator)
+                for p, reference_p in zip(model.parameters(), reference.parameters()):
+                    reference_p.grad = (signal[p] + noise[p]) / 256
+                reference_optimizer.step()
+                reference_optimizer.zero_grad(set_to_none=True)
+                before = [p.detach().clone() for p in model.parameters()]
+                with mock.patch.object(shape, "sample_noise", wraps=shape.sample_noise) as sample:
+                    stats, rows = add_noise_and_step(
+                        shape, optimizer, aggregate.raw_sum, aggregate.clipped_sum,
+                        sigma=0.8, bound=1.0, expected_batch_size=256, generator=generator,
+                    )
+                    assert sample.call_count == 1
+                clipper.remove()
+                assert all(p.grad is None for p in model.parameters())
+                assert any(not torch.equal(old, p) for old, p in zip(before, model.parameters()))
+                for p, reference_p in zip(model.parameters(), reference.parameters()):
+                    _close(p, reference_p)
+                assert torch.equal(generator.get_state(), reference_generator.get_state())
+                assert stats["total_noise_rms"] > 0 and rows
+            try:
+                add_noise_and_step(shape, optimizer, aggregate.raw_sum, aggregate.clipped_sum,
+                                   sigma=0.8, bound=1.0, expected_batch_size=4, generator=generator)
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("accepted denominator other than 256")
+    assert "assert all(parameter.grad is None for parameter in model.parameters())" in (HERE / "worker.py").read_text()
+    _passed("two-epoch gradient lifecycle for all methods, SGD/AdamW update equivalence, one noise event, denominator 256")
+
+
+def _fixture_run(root: Path, spec: cfg.RunSpec) -> Path:
+    directory = root / spec.name
+    directory.mkdir(parents=True)
+    (directory / "config.json").write_text("{}\n")
+    for name in ("metrics.csv", "geometry.csv", "layer_groups.csv"):
+        (directory / name).write_text("epoch\n1\n2\n3\n4\n5\n")
+    steps = cfg.task_config(spec.task).accountant_steps
+    (directory / "complete.json").write_text(json.dumps(dict(
+        epochs=5, accountant_steps=steps, optimizer_steps=steps, noise_events=steps,
+    )))
+    return directory
+
+
+def check_remaining_status_and_cleanup() -> None:
+    from expm1 import status, remaining
+    statuses = status.scan()
+    assert len(statuses) == 38
+    status.validate_remaining(statuses)
+    completed_since = {row.spec.name for row in statuses if row.complete} & status.INITIAL_INCOMPLETE
+    if not completed_since:
+        status.validate_remaining(statuses, initial=True)
+        assert sum(row.complete for row in statuses) == 18
+        assert sum(not row.complete for row in statuses) == 20
+    print(f"[INFO] current filesystem: {sum(row.complete for row in statuses)} complete / "
+          f"{sum(not row.complete for row in statuses)} incomplete", flush=True)
+    for row in statuses:
+        if row.spec.method == "dp_sgd" and not (cfg.RESULTS_ROOT / "runs" / row.spec.name / "complete.json").exists():
+            assert not row.complete
+    with tempfile.TemporaryDirectory(prefix="checks-status-", dir=cfg.TMP_ROOT) as temporary:
+        root = Path(temporary)
+        runs, logs = root / "runs", root / "logs"
+        logs.mkdir()
+        spec = cfg.FORMAL_GRID[0]
+        assert status.inspect_run(spec, runs).reasons == ("missing directory",)
+        directory = _fixture_run(runs, spec)
+        log = logs / f"{spec.name}.log"
+        log.write_text("original log")
+        before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in directory.iterdir()}
+        before[log] = (log.read_bytes(), log.stat().st_mtime_ns)
+        assert status.inspect_run(spec, runs).complete
+        assert not remaining.cleanup_incomplete(spec, runs, logs)
+        assert all((p.read_bytes(), p.stat().st_mtime_ns) == value for p, value in before.items())
+        for filename in ("config.json", "complete.json", "metrics.csv", "geometry.csv", "layer_groups.csv"):
+            path = directory / filename
+            original = path.read_bytes()
+            path.unlink()
+            assert not status.inspect_run(spec, runs).complete, filename
+            path.write_bytes(original)
+        for filename in ("metrics.csv", "geometry.csv", "layer_groups.csv"):
+            path = directory / filename
+            original = path.read_bytes()
+            for text in ("epoch\n1\n2\n3\n4\n", "epoch\n1\n2\n3\n4\n4\n", "epoch\ninvalid\n"):
+                path.write_text(text)
+                assert not status.inspect_run(spec, runs).complete
+            path.write_bytes(original)
+        path = directory / "metrics.csv"
+        original = path.read_bytes()
+        path.write_bytes(original + b"5\n")
+        assert not status.inspect_run(spec, runs).complete
+        path.write_bytes(original)
+        marker = directory / "complete.json"
+        original = marker.read_bytes()
+        for key in ("epochs", "accountant_steps", "optimizer_steps", "noise_events"):
+            payload = json.loads(original)
+            payload[key] -= 1
+            marker.write_text(json.dumps(payload))
+            assert not status.inspect_run(spec, runs).complete, key
+        marker.write_bytes(original)
+        (directory / "metrics.csv").write_text("epoch\n1\n")
+        assert remaining.cleanup_incomplete(spec, runs, logs)
+        assert not directory.exists() and not log.exists()
+        assert remaining.cleanup_incomplete(spec, runs, logs)
+        all_complete = tuple(status.RunStatus(s, ()) for s in cfg.FORMAL_GRID)
+        status.require_complete(all_complete)
+        for invalid in (all_complete[:-1], (status.RunStatus(spec, ("partial",)),) + all_complete[1:]):
+            try:
+                status.require_complete(invalid)
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("analysis accepted incomplete grid")
+        baseline = tuple(status.RunStatus(s, ("missing",) if s.name in status.INITIAL_INCOMPLETE else ())
+                         for s in cfg.FORMAL_GRID)
+        status.validate_remaining(baseline, initial=True)
+        status.validate_remaining(all_complete)
+        changed = list(baseline)
+        index = next(i for i, row in enumerate(changed) if row.complete)
+        changed[index] = status.RunStatus(changed[index].spec, ("missing",))
+        try:
+            status.validate_remaining(tuple(changed))
+        except RuntimeError as error:
+            assert "unexpected incomplete" in str(error)
+        else:
+            raise AssertionError("baseline regression silently accepted")
+    _passed("completion fixtures, initial remaining set, safe cleanup, retry progress, and 38/38 analysis gate")
+
+
+def check_remaining_worker() -> None:
+    from expm1 import remaining
+    with tempfile.TemporaryDirectory(prefix="checks-worker-", dir=cfg.TMP_ROOT) as temporary:
+        root = Path(temporary)
+        results, logs = root / "results", root / "logs"
+        logs.mkdir()
+        gpu = 1
+        specs = cfg.GPU_RUNS[gpu]
+        for spec in specs[1:]:
+            _fixture_run(results / "runs", spec)
+            (logs / f"{spec.name}.log").write_text("keep")
+        protected = {p: (p.read_bytes(), p.stat().st_mtime_ns)
+                     for p in root.rglob("*") if p.is_file()}
+        calls = []
+        def succeed(command, **kwargs):
+            calls.append(command)
+            assert kwargs["check"] is True
+            assert os.environ["CUDA_VISIBLE_DEVICES"] == str(gpu)
+            _fixture_run(results / "runs", specs[0])
+        with mock.patch.object(cfg, "RESULTS_ROOT", results), mock.patch.object(cfg, "LOGS_ROOT", logs), \
+                mock.patch.dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu)), \
+                mock.patch.object(remaining.subprocess, "run", side_effect=succeed):
+            remaining.run_gpu(gpu)
+            remaining.run_gpu(gpu)
+        assert len(calls) == 1
+        assert calls[0][calls[0].index("--task") + 1] == specs[0].task
+        assert calls[0][calls[0].index("--seed") + 1] == "42"
+        assert all((p.read_bytes(), p.stat().st_mtime_ns) == value for p, value in protected.items())
+        with mock.patch.object(remaining, "cleanup_incomplete", return_value=True), \
+                mock.patch.object(cfg, "LOGS_ROOT", root / "failed-logs"), \
+                mock.patch.dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu)), \
+                mock.patch.object(remaining.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "toy")) as run:
+            try:
+                remaining.run_gpu(gpu)
+            except subprocess.CalledProcessError:
+                pass
+            else:
+                raise AssertionError("worker failure swallowed")
+            assert run.call_count == 1
+    _passed("GPU worker skips complete runs on retries and stops on subprocess failure")
+
+
+def check_remaining_launcher() -> None:
+    launcher = HERE / "run_remaining.sh"
+    source = launcher.read_text()
+    assert "set -euo pipefail" in source and "run_all.sh" not in source
+    assert "--validate-remaining" in source and "flock -n" in source
+    assert source.index('wait "$pid"') < source.index("--require-complete") < source.index("python -B expm1/analyze.py")
+    assert source.index('exit 1', source.index('if (( worker_status')) < source.index("--require-complete")
+    assert {int(gpu) for gpu in re.findall(r"^run_gpu ([123]) &", source, re.M)} == {1, 2, 3}
+    subprocess.run(["bash", "-n", str(launcher)], check=True)
+    # Exercise a COPY with a fake Python executable, never the real formal workers.
+    with tempfile.TemporaryDirectory(prefix="checks-launcher-", dir=cfg.TMP_ROOT) as temporary:
+        root = Path(temporary)
+        experiment = root / "expm1"
+        experiment.mkdir()
+        copied = experiment / "run_remaining.sh"
+        copied.write_text(source)
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        shim = bin_dir / "python"
+        shim.write_text(f"#!{sys.executable}\n" + '''
+import os, pathlib, sys
+root = pathlib.Path.cwd()
+args = sys.argv[1:]
+mode = os.environ["TOY_MODE"]
+if "--gpu" in args:
+    gpu = args[-1]
+    if mode == "worker-fail" and gpu == "2":
+        sys.exit(7)
+    (root / ("done-" + gpu)).touch()
+elif "--require-complete" in args:
+    assert all((root / ("done-" + str(g))).exists() for g in (1, 2, 3))
+    (root / "gate").touch()
+    if mode == "incomplete":
+        sys.exit(8)
+elif any(arg.endswith("analyze.py") for arg in args):
+    assert (root / "gate").exists()
+    (root / "analyzed").touch()
+''')
+        shim.chmod(0o755)
+        for mode in ("worker-fail", "incomplete", "success"):
+            for name in ("done-1", "done-2", "done-3", "gate", "analyzed"):
+                (root / name).unlink(missing_ok=True)
+            env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], TOY_MODE=mode)
+            result = subprocess.run(["bash", str(copied)], env=env, capture_output=True, text=True)
+            assert (result.returncode == 0) == (mode == "success"), result.stderr
+            assert (root / "analyzed").exists() == (mode == "success")
+            if mode == "worker-fail":
+                assert not (root / "gate").exists()
+    _passed("remaining launcher bash syntax and isolated failure/success analysis ordering")
+
+
+def check_analysis_replaces_aggregates() -> None:
+    from expm1 import analyze
+    with tempfile.TemporaryDirectory(prefix="checks-aggregate-", dir=cfg.TMP_ROOT) as temporary:
+        root = Path(temporary)
+        outputs = (*analyze.CSV_OUTPUTS, *analyze.PLOT_OUTPUTS)
+        for name in outputs:
+            (root / name).write_bytes(b"old")
+        def generate(*args):
+            stage = args[-1]
+            for name in outputs:
+                (stage / name).write_bytes(b"new")
+        with mock.patch.object(analyze, "RESULTS", root), \
+                mock.patch.object(analyze, "_load_and_validate", return_value=(None, None, None, None)), \
+                mock.patch.object(analyze, "_write_outputs", side_effect=RuntimeError("toy generation failure")):
+            try:
+                analyze.analyze()
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError("generation failure swallowed")
+        assert all((root / name).read_bytes() == b"old" for name in outputs)
+        with mock.patch.object(analyze, "RESULTS", root), \
+                mock.patch.object(analyze, "_load_and_validate", return_value=(None, None, None, None)), \
+                mock.patch.object(analyze, "_write_outputs", side_effect=generate):
+            analyze.analyze()
+        assert all((root / name).read_bytes() == b"new" for name in outputs)
+    _passed("aggregate regeneration stages all outputs before replacing existing CSVs/plots")
+
+
 def check_data_preflight_last() -> None:
 
     required = {
@@ -776,10 +1051,15 @@ def main() -> None:
     check_kfm_a_never_reads_g()
     check_geometry_provenance()
     check_poisson_and_empty_step()
+    check_gradient_lifecycle()
     check_one_backward_and_layernorm()
     check_formal_protocol()
     check_launcher_grid_assertion()
     check_launcher()
+    check_remaining_status_and_cleanup()
+    check_remaining_worker()
+    check_remaining_launcher()
+    check_analysis_replaces_aggregates()
     check_source_boundaries()
     check_incomplete_analysis_fails_atomically()
     print("[PASS] all numerical/protocol/source checks completed; starting final data preflight", flush=True)
