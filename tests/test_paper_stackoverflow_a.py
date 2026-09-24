@@ -114,3 +114,74 @@ def test_complete_sweep_csv(monkeypatch, tmp_path):
         reader = csv.DictReader(file)
         assert reader.fieldnames == ["Method", "Epsilon", "Seed", "Accuracy", "Loss"]
         assert len(list(reader)) == 140
+
+
+def test_seeded_model_same_seed_reproducible():
+    base_model = Model()
+    model_a = experiment.make_seeded_model(base_model, 42, torch.device("cpu"))
+    torch.rand(17)  # The helper must reset RNG regardless of intervening draws.
+    model_b = experiment.make_seeded_model(base_model, 42, torch.device("cpu"))
+    assert isinstance(model_a.classifier, nn.Linear)
+    assert model_a.classifier is not model_b.classifier
+    assert model_a.classifier is not base_model.classifier
+    assert torch.equal(model_a.classifier.weight, model_b.classifier.weight)
+    assert torch.equal(model_a.classifier.bias, model_b.classifier.bias)
+
+
+def test_seeded_model_different_seeds_change_head():
+    base_model = Model()
+    model_a = experiment.make_seeded_model(base_model, 42, torch.device("cpu"))
+    model_b = experiment.make_seeded_model(base_model, 7, torch.device("cpu"))
+    assert not torch.equal(model_a.classifier.weight, model_b.classifier.weight)
+    assert not torch.equal(model_a.classifier.bias, model_b.classifier.bias)
+
+
+def test_seeded_model_preserves_base_and_frozen_backbone():
+    base_model = Model()
+    before = {key: value.clone() for key, value in base_model.state_dict().items()}
+    original_classifier = base_model.classifier
+    for seed in (42, 7):
+        fresh = experiment.make_seeded_model(base_model, seed, torch.device("cpu"))
+        assert base_model.classifier is original_classifier
+        for key, value in base_model.state_dict().items():
+            assert torch.equal(value, before[key])
+        for key, value in fresh.backbone.state_dict().items():
+            assert torch.equal(value, before[f"backbone.{key}"])
+        assert not any(p.requires_grad for p in fresh.backbone.parameters())
+        assert all(p.requires_grad for p in fresh.classifier.parameters())
+
+
+@pytest.mark.parametrize("seed", [42, 7])
+def test_seeded_model_matches_trainer_initialization(seed):
+    from dp_kfac.trainer import Trainer
+
+    base_model = Model()
+    trainer = Trainer(base_model, None, None, None, torch.device("cpu"))
+    experiment.set_seed(seed)
+    expected = trainer._fresh_model()
+    expected_rng = torch.get_rng_state().clone()
+    actual = experiment.make_seeded_model(base_model, seed, torch.device("cpu"))
+    assert torch.equal(actual.classifier.weight, expected.classifier.weight)
+    assert torch.equal(actual.classifier.bias, expected.classifier.bias)
+    assert torch.equal(torch.get_rng_state(), expected_rng)
+
+
+def test_seeded_model_initializes_head_on_cpu_before_transfer(monkeypatch):
+    base_model = Model()
+    original_linear = nn.Linear
+    original_to = Model.to
+    events = []
+
+    def linear(*args, **kwargs):
+        head = original_linear(*args, **kwargs)
+        events.append(("init", head.weight.device.type))
+        return head
+
+    def transfer(model, device):
+        events.append(("transfer", model.classifier.weight.device.type))
+        return original_to(model, device)
+
+    monkeypatch.setattr(experiment.nn, "Linear", linear)
+    monkeypatch.setattr(Model, "to", transfer)
+    experiment.make_seeded_model(base_model, 42, torch.device("cpu"))
+    assert events == [("init", "cpu"), ("transfer", "cpu")]

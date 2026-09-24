@@ -74,10 +74,20 @@ def bk_aggregate(model, input_ids, attention_mask, target, operator):
     return reconstruct(transformed, backprop.detach(), clip=MAX_GRAD_NORM)
 
 
+def make_seeded_model(base_model, seed, device):
+    """Preserve the frozen backbone and seed a fresh CPU head before transfer."""
+    set_seed(seed)
+    model = copy.deepcopy(base_model)
+    old_classifier = model.classifier
+    model.classifier = nn.Linear(
+        old_classifier.in_features, old_classifier.out_features, device="cpu"
+    )
+    return model.to(device)
+
+
 def train_dp_kfc_a(base_model, train_loader, test_loader, public_loader,
                    *, epsilon, seed, epochs, use_public_data, device=DEVICE):
-    set_seed(seed)
-    model = copy.deepcopy(base_model).to(device)
+    model = make_seeded_model(base_model, seed, device)
     trainable = {name for name, p in model.named_parameters() if p.requires_grad}
     if trainable != {"classifier.weight", "classifier.bias"}:
         raise ValueError("BK requires a frozen backbone and a single trainable Linear head")
