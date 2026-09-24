@@ -1,0 +1,8 @@
+{
+  "run_name": "vit_dp_kfm_pink_beta0.75_seed42",
+  "epochs": 5,
+  "accountant_steps": 975,
+  "optimizer_steps": 975,
+  "noise_events": 975,
+  "all_parameters_updated": true
+}
