@@ -36,6 +36,7 @@ REQUIRED_COLUMNS = {
     "test_loss",
     "accuracy",
     "private_train_seconds",
+    "logical_steps",
     "private_peak_allocated_bytes",
     "clip_fraction",
     "mean_clip_factor",
@@ -314,6 +315,139 @@ def plot_speedup(efficiency_summary, output_dir):
     _save_figure(fig, output_dir, "bk_speedup_eps3")
 
 
+def summarize_runtime_speed(results):
+    """Compare six configurations using a common set of profiled seeds."""
+    profiled = results[
+        (results["epsilon_target"] == EPSILON) & (results["profiled"] == True)
+    ]
+    conditions = []
+    for geometry, source, label in PINK_CONDITION_ORDER:
+        for engine in ("explicit", "bk"):
+            runs = profiled[
+                (profiled["geometry"] == geometry)
+                & (profiled["source"] == source)
+                & (profiled["engine"] == engine)
+            ].copy()
+            if runs["seed"].duplicated().any():
+                raise ValueError(f"Duplicate profiling seeds for {label}/{engine}")
+            values = runs[["private_train_seconds", "logical_steps"]]
+            if not np.isfinite(values.to_numpy()).all() or (values <= 0).any().any():
+                raise ValueError(f"Invalid timing or step count for {label}/{engine}")
+            conditions.append((geometry, source, engine, label, runs))
+    common_seeds = set.intersection(*(set(runs["seed"]) for *_, runs in conditions))
+    if not common_seeds:
+        raise ValueError("The six configurations have no common profiled seeds at epsilon=3")
+    rows = []
+    for geometry, source, engine, label, runs in conditions:
+        runs = runs[runs["seed"].isin(common_seeds)]
+        seconds = runs["private_train_seconds"]
+        speed = runs["logical_steps"] / seconds
+        rows.append({
+            "method": label + ("+BK" if engine == "bk" else ""),
+            "geometry": geometry, "source": source, "engine": engine,
+            "private_train_seconds_mean": seconds.mean(),
+            "private_train_seconds_std": seconds.std(),
+            "steps_per_second_mean": speed.mean(),
+            "steps_per_second_std": speed.std(),
+            "seed_count": len(runs),
+        })
+    return pd.DataFrame(rows)
+
+
+def plot_runtime_speed(summary, output_dir):
+    """Plot private training time and throughput; error bars are seed std."""
+    fig, axes = plt.subplots(1, 2, figsize=(9.0, 4.1))
+    colors = ["#4C78A8", "#4C78A8", "#F58518", "#F58518", "#54A24B", "#54A24B"]
+    positions = np.arange(len(summary))
+    labels = summary["method"].str.replace("+BK", "\n+BK", regex=False)
+    for ax, metric, ylabel, title in zip(
+        axes,
+        ("private_train_seconds", "steps_per_second"),
+        ("Private training time (s)", "Training speed (step/s)"),
+        ("Training time (lower is better)", "Training speed (higher is better)"),
+    ):
+        bars = ax.bar(
+            positions, summary[f"{metric}_mean"],
+            yerr=summary[f"{metric}_std"].fillna(0),
+            color=colors, edgecolor="white", capsize=3,
+            error_kw={"elinewidth": 0.8, "capthick": 0.8},
+        )
+        for bar, engine in zip(bars, summary["engine"]):
+            if engine == "bk":
+                bar.set_hatch("///")
+        for x, mean, std in zip(positions, summary[f"{metric}_mean"], summary[f"{metric}_std"].fillna(0)):
+            ax.annotate(f"{mean:.1f}", (x, mean + std), xytext=(0, 4),
+                        textcoords="offset points", ha="center", fontsize=7.5)
+        ax.set_xticks(positions, labels, rotation=35, ha="right")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title, fontsize=10)
+        ax.set_ylim(0, (summary[f"{metric}_mean"] + summary[f"{metric}_std"].fillna(0)).max() * 1.18)
+        _style_axes(ax)
+    fig.suptitle(
+        rf"CNN-MNIST, $\epsilon=3$; mean ± std over {summary['seed_count'].iloc[0]} seeds",
+        fontsize=11,
+    )
+    fig.tight_layout()
+    _save_figure(fig, output_dir, "runtime_speed_comparison_eps3")
+
+
+def summarize_peak_memory(paired):
+    """Summarize private-training CUDA allocation peaks over common seeds."""
+    conditions = [
+        paired[(paired["geometry"] == geometry) & (paired["source"] == source)]
+        for geometry, source, _ in PINK_CONDITION_ORDER
+    ]
+    common_seeds = set.intersection(*(set(runs["seed"]) for runs in conditions))
+    if not common_seeds:
+        raise ValueError("The six configurations have no common profiled seeds at epsilon=3")
+    rows = []
+    for (geometry, source, label), runs in zip(PINK_CONDITION_ORDER, conditions):
+        runs = runs[runs["seed"].isin(common_seeds)]
+        for engine in ("explicit", "bk"):
+            memory = runs[f"{engine}_private_peak_allocated_bytes"] / 2**20
+            if not np.isfinite(memory).all() or (memory < 0).any():
+                raise ValueError(f"Invalid peak memory for {label}/{engine}")
+            rows.append({
+                "method": label + ("+BK" if engine == "bk" else ""),
+                "geometry": geometry, "source": source, "engine": engine,
+                "peak_allocated_mib_mean": memory.mean(),
+                "peak_allocated_mib_std": memory.std(),
+                "seed_count": len(runs),
+            })
+    return pd.DataFrame(rows)
+
+
+def plot_peak_memory(summary, output_dir):
+    """Plot six configurations' peak allocated memory, with seed std bars."""
+    fig, ax = plt.subplots(figsize=(5.4, 3.8))
+    positions = np.arange(len(summary))
+    means = summary["peak_allocated_mib_mean"]
+    stds = summary["peak_allocated_mib_std"].fillna(0)
+    bars = ax.bar(
+        positions, means, yerr=stds,
+        color=["#4C78A8", "#4C78A8", "#F58518", "#F58518", "#54A24B", "#54A24B"],
+        edgecolor="white", capsize=3,
+        error_kw={"elinewidth": 0.8, "capthick": 0.8},
+    )
+    for bar, engine in zip(bars, summary["engine"]):
+        if engine == "bk":
+            bar.set_hatch("///")
+    for x, mean, std in zip(positions, means, stds):
+        ax.annotate(f"{mean:.1f}", (x, mean + std), xytext=(0, 4),
+                    textcoords="offset points", ha="center", fontsize=8)
+    labels = summary["method"].str.replace("+BK", "\n+BK", regex=False)
+    ax.set_xticks(positions, labels, rotation=35, ha="right")
+    ax.set_ylabel("Peak allocated GPU memory (MiB)")
+    ax.set_title(
+        rf"CNN-MNIST, $\epsilon=3$; mean ± std over {summary['seed_count'].iloc[0]} seeds"
+        "\nPrivate training (lower is better)", fontsize=10,
+    )
+    ax.set_ylim(0, max((means + stds).max() * 1.18, 1))
+    _style_axes(ax)
+    fig.tight_layout()
+    _save_figure(fig, output_dir, "peak_memory_comparison_eps3")
+
+
 def plot_memory_saving(memory_summary, output_dir):
     """Plot source-independent BK peak allocated memory savings at epsilon=3."""
     order = ["base", "full", "a_only"]
@@ -391,6 +525,8 @@ def main():
     utility_summary = summarize_utility(results)
     proxy_gap_summary = build_proxy_gap_table(utility_summary)
     efficiency_paired, efficiency_summary = paired_efficiency(results)
+    runtime_speed_summary = summarize_runtime_speed(results)
+    peak_memory_summary = summarize_peak_memory(efficiency_paired)
     memory_summary = summarize_memory_saving(efficiency_paired)
     clipping_summary = summarize_clipping(results)
 
@@ -399,6 +535,11 @@ def main():
     efficiency_paired.to_csv(args.output_dir / "efficiency_paired_eps3.csv", index=False)
     efficiency_summary.to_csv(args.output_dir / "efficiency_summary_eps3.csv", index=False)
     clipping_summary.to_csv(args.output_dir / "clipping_summary_eps3.csv", index=False)
+
+    runtime_speed_summary.to_csv(args.output_dir / "runtime_speed_summary_eps3.csv", index=False)
+    plot_runtime_speed(runtime_speed_summary, args.output_dir)
+    peak_memory_summary.to_csv(args.output_dir / "peak_memory_summary_eps3.csv", index=False)
+    plot_peak_memory(peak_memory_summary, args.output_dir)
 
     plot_utility(utility_summary, "full", args.output_dir)
     plot_utility(utility_summary, "a_only", args.output_dir)

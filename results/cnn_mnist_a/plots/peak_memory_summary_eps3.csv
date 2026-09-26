@@ -1,0 +1,7 @@
+method,geometry,source,engine,peak_allocated_mib_mean,peak_allocated_mib_std,seed_count
+DP-Adam,base,none,explicit,447.76904296875,0.0,5
+DP-Adam+BK,base,none,bk,175.4384765625,0.0,5
+DP-KFC-Pink,full,pink,explicit,1016.36083984375,0.0,5
+DP-KFC-Pink+BK,full,pink,bk,205.04052734375,0.0,5
+DP-KFC-A-Pink,a_only,pink,explicit,624.04296875,0.0,5
+DP-KFC-A-Pink+BK,a_only,pink,bk,192.72265625,0.0,5
