@@ -1,0 +1,14 @@
+{
+  "oracle_build_count": 5,
+  "geometry_build_count": 3,
+  "total_geometry_build_seconds": 5.547638842836022,
+  "total_training_seconds": 1433.1574751324952,
+  "total_runtime_seconds": 1523.7761094057932,
+  "geometry_runtime_fraction": 0.0036407178250086633,
+  "run_name": "vit_dp_kfm_a_pink_freqevery_2_epochs_beta0.1_lambda0.0001_seed42",
+  "epochs": 5,
+  "accountant_steps": 975,
+  "optimizer_steps": 975,
+  "noise_events": 975,
+  "all_parameters_updated": true
+}

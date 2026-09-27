@@ -1,0 +1,14 @@
+{
+  "oracle_build_count": 5,
+  "geometry_build_count": 10,
+  "total_geometry_build_seconds": 36.529768084175885,
+  "total_training_seconds": 1462.81683739461,
+  "total_runtime_seconds": 1589.3687718613073,
+  "geometry_runtime_fraction": 0.02298382145850011,
+  "run_name": "vit_dp_kfm_a_public_freqtwice_per_epoch_beta0.1_lambda0.0001_seed42",
+  "epochs": 5,
+  "accountant_steps": 975,
+  "optimizer_steps": 975,
+  "noise_events": 975,
+  "all_parameters_updated": true
+}

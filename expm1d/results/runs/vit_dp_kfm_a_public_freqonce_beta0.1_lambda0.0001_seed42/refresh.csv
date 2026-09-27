@@ -1,0 +1,2 @@
+source,frequency,refresh_index,global_step,epoch,local_step,geometry_build_seconds,builder_logical_batches,builder_forward_calls,builder_backward_calls,builder_samples,factor_state_bytes,median_A_cos_prev,median_A_rel_change_prev,median_Q_cos_prev,median_Q_rel_change_prev
+public,once,0,0,1,0,3.9922190299257636,10,20,0,2560,39839528,,,,

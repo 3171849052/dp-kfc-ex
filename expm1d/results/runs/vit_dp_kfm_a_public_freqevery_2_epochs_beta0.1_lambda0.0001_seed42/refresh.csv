@@ -1,0 +1,4 @@
+source,frequency,refresh_index,global_step,epoch,local_step,geometry_build_seconds,builder_logical_batches,builder_forward_calls,builder_backward_calls,builder_samples,factor_state_bytes,median_A_cos_prev,median_A_rel_change_prev,median_Q_cos_prev,median_Q_rel_change_prev
+public,every_2_epochs,0,0,1,0,3.71062149759382,10,20,0,2560,39839528,,,,
+public,every_2_epochs,1,390,3,0,3.6939677614718676,10,20,0,2560,39839528,0.9127203524561518,0.43380362813355056,0.9991822398429179,0.0404388701456181
+public,every_2_epochs,2,780,5,0,3.840067468583584,10,20,0,2560,39839528,0.9855965941060021,0.17196027159647903,0.9998304692833635,0.01841142789199543
