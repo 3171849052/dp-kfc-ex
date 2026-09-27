@@ -1,0 +1,410 @@
+"""Per-layer normalized KFM geometry and matched Gaussian noise."""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+import torch
+from torch import nn
+
+from expm2.geometry import (
+    DAMPING,
+    affine_modules,
+    augmented_width,
+    output_width,
+    _sym_eig,
+)
+
+
+METHODS = frozenset({"inverse_dp_kfm_a"})
+
+
+def _spectral_stats(values: torch.Tensor) -> dict[str, float]:
+    probabilities = values / values.sum()
+    return {
+        "condition": float(values.max() / values.min()),
+        "log_std": float(values.log().std(unbiased=False)),
+        "effective_rank": float((-(probabilities * probabilities.log()).sum()).exp()),
+        "minimum": float(values.min()),
+        "maximum": float(values.max()),
+    }
+
+
+def _effective_rank(values: torch.Tensor) -> float:
+    probabilities = values / values.sum()
+    return float((-(probabilities * probabilities.log()).sum()).exp())
+
+
+def _shape_diagnostics(values, beta, out):
+    stats = _spectral_stats(values)
+    return {
+        "condition_S": stats["condition"] ** beta,
+        "log_eigenvalue_spread_S": beta * stats["log_std"],
+        "effective_rank_S": _effective_rank(values.pow(-beta)) * out,
+        "A_condition_raw": stats["condition"],
+    }
+
+
+def layer_group(name: str) -> str:
+    if name.endswith(("q_proj", "k_proj", "v_proj")):
+        return "attention_qkv"
+    if name.endswith("attn.out_proj"):
+        return "attention_out"
+    if name.endswith("mlp.fc1"):
+        return "mlp_fc1"
+    if name.endswith("mlp.fc2"):
+        return "mlp_fc2"
+    if name in ("patch_embed", "head"):
+        return "patch_head"
+    return name if name in ("conv1", "conv2", "fc1", "fc2") else "identity"
+
+
+@dataclass
+class AffineShape:
+    metric_a: torch.Tensor | None
+    metric_g: torch.Tensor | None
+    noise_a: torch.Tensor | None
+    noise_g: torch.Tensor | None
+    raw_trace: float
+    diagnostics: dict[str, float]
+    tau_layer: float = 1.0
+
+    @property
+    def state_bytes(self) -> int:
+        return sum(
+            tensor.numel() * tensor.element_size()
+            for tensor in (self.metric_a, self.metric_g, self.noise_a, self.noise_g)
+            if tensor is not None
+        )
+
+
+def _identity(size: int, reference: torch.Tensor) -> torch.Tensor:
+    return torch.eye(size, device=reference.device, dtype=reference.dtype)
+
+
+class Shape:
+    """One fixed epoch geometry, with independent affine-layer trace normalization."""
+
+    def __init__(
+        self,
+        model: nn.Module,
+        method: str,
+        factors: dict[str, dict] | None,
+        beta: float | None,
+        damping: float = DAMPING,
+    ) -> None:
+        assert method in METHODS
+        assert damping > 0
+        assert beta is not None and 0 < beta <= 1
+        self.model = model
+        self.method = method
+        self.beta = beta
+        self.damping = damping
+        self.modules = affine_modules(model)
+        self.parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+        self.parameter_names = {
+            parameter: name for name, parameter in model.named_parameters() if parameter.requires_grad
+        }
+        self.affine_parameter_ids = {
+            id(parameter)
+            for module in self.modules.values()
+            for parameter in module.parameters(recurse=False)
+            if parameter.requires_grad
+        }
+        self.identity_parameters = [
+            parameter for parameter in self.parameters if id(parameter) not in self.affine_parameter_ids
+        ]
+        self.d_total = sum(parameter.numel() for parameter in self.parameters)
+        assert self.d_total > 0
+        self.data: dict[str, AffineShape] = {}
+
+        assert factors is not None and set(factors) == set(self.modules)
+
+        for name, module in self.modules.items():
+            width, out = augmented_width(module), output_width(module)
+            factor = factors[name]
+            assert "G" not in factor
+            a = factor["A"]
+            assert tuple(a.shape) == (width, width)
+            values_a, vectors_a = _sym_eig(a)
+            damped_a = values_a + damping
+            def power_a(power: float) -> torch.Tensor:
+                if power == 0:
+                    return _identity(width, a)
+                return ((vectors_a * damped_a.pow(power)) @ vectors_a.T).to(a.dtype)
+            raw_trace_block = out * float(damped_a.pow(-beta).sum())
+            diagnostics = _shape_diagnostics(damped_a, beta, out)
+            diagnostics.update(A_eigenvalue_min=float(values_a.min()),
+                               A_eigenvalue_max=float(values_a.max()))
+            shape = AffineShape(power_a(beta / 2), None, power_a(-beta / 2), None,
+                                raw_trace_block, diagnostics)
+            shape.tau_layer = width * out / shape.raw_trace
+            assert math.isclose(shape.tau_layer * shape.raw_trace, width * out, rel_tol=2e-10)
+            shape.diagnostics.update(
+                q_min=shape.tau_layer * float(damped_a.max().pow(-beta)),
+                q_max=shape.tau_layer * float(damped_a.min().pow(-beta)))
+            assert 0 < shape.diagnostics["q_min"] <= shape.diagnostics["q_max"]
+            self.data[name] = shape
+
+        self.trace_s = sum(value.tau_layer * value.raw_trace for value in self.data.values()) + sum(p.numel() for p in self.identity_parameters)
+        assert math.isclose(self.trace_s, self.d_total, rel_tol=2e-10)
+        storages: dict[tuple[torch.device, int], int] = {}
+        for value in self.data.values():
+            for tensor in (
+                value.metric_a,
+                value.metric_g,
+                value.noise_a,
+                value.noise_g,
+            ):
+                if tensor is None:
+                    continue
+                storage = tensor.untyped_storage()
+                storages[(tensor.device, storage.data_ptr())] = storage.nbytes()
+        self.operator_state_bytes = sum(storages.values()) + 8 * len(self.data)
+        self.factor_state_bytes = sum(
+            tensor.numel() * tensor.element_size()
+            for factor in factors.values()
+            for tensor in factor.values()
+            if isinstance(tensor, torch.Tensor)
+        )
+        self.geometry_build_seconds = 0.0
+
+    def metric_factors(
+        self, name: str, raw_a: torch.Tensor, raw_b: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        shape = self.data[name]
+        assert shape.metric_a is not None
+        metric_a = (raw_a @ shape.metric_a.T) / math.sqrt(shape.tau_layer)
+        return metric_a, raw_b
+
+    def transform_aggregate(self, aggregate: dict[nn.Parameter, torch.Tensor]) -> dict[nn.Parameter, torch.Tensor]:
+        """The optimizer always receives raw clipped gradients."""
+        return {parameter: value.clone() for parameter, value in aggregate.items()}
+
+    def trace_rows(self) -> list[dict[str, object]]:
+        rows = []
+        for name, shape in self.data.items():
+            rows.append(
+                {
+                    "layer": name,
+                    "group": layer_group(name),
+                    "trace_S": shape.tau_layer * shape.raw_trace,
+                    "trace_R": shape.raw_trace / output_width(self.modules[name]),
+                    "trace_R_block": shape.raw_trace,
+                    "layer_dimension": augmented_width(self.modules[name]) * output_width(self.modules[name]),
+                    "trace_S_per_dim": shape.tau_layer * shape.raw_trace / (augmented_width(self.modules[name]) * output_width(self.modules[name])),
+                    "d_total": self.d_total,
+                    "tau_layer": shape.tau_layer,
+                    "operator_state_bytes": self.operator_state_bytes,
+                }
+            )
+        identity_dimension = sum(parameter.numel() for parameter in self.identity_parameters)
+        if identity_dimension:
+            rows.append(
+                {
+                    "layer": "identity",
+                    "group": "identity",
+                    "trace_S": identity_dimension,
+                    "trace_R": identity_dimension,
+                    "layer_dimension": identity_dimension,
+                    "trace_S_per_dim": 1.0,
+                    "d_total": self.d_total,
+                    "tau_layer": 1.0,
+                    "operator_state_bytes": self.operator_state_bytes,
+                }
+            )
+        assert math.isclose(
+            sum(float(row["trace_S"]) for row in rows),
+            float(self.d_total),
+            rel_tol=2e-10,
+            abs_tol=2e-10 * max(1, self.d_total),
+        )
+        for row in rows:
+            row.update(geometry_power="inverse", beta=self.beta, **{"lambda": self.damping})
+            if row["layer"] == "identity":
+                row.update(condition_S=1., effective_rank_S=identity_dimension,
+                           log_eigenvalue_spread_S=0., q_min=1., q_max=1.)
+        return rows
+
+    def diagnostic_rows(self, factors: dict[str, dict] | None) -> list[dict[str, object]]:
+        rows = self.trace_rows()
+        if factors is None:
+            return rows
+        for row in rows:
+            name = row["layer"]
+            if name == "identity":
+                continue
+            row.update(self.data[name].diagnostics)
+        return rows
+
+    def _base_noise(self, generator: torch.Generator) -> dict[nn.Parameter, torch.Tensor]:
+        # Draw in named-parameter order for exact beta=0/SGD RNG equivalence.
+        return {
+            parameter: torch.randn(
+                parameter.shape,
+                device=parameter.device,
+                dtype=parameter.dtype,
+                generator=generator,
+            )
+            for parameter in self.parameters
+        }
+
+    def sample_noise(
+        self,
+        sigma: float,
+        bound: float,
+        generator: torch.Generator,
+    ) -> tuple[dict[nn.Parameter, torch.Tensor], dict[str, float]]:
+        assert sigma > 0 and bound > 0
+        base = self._base_noise(generator)
+        scale = sigma * bound
+        noise: dict[nn.Parameter, torch.Tensor] = {}
+        expected: dict[str, float] = {}
+        affine_ids: set[int] = set()
+        for name, module in self.modules.items():
+            shape = self.data[name]
+            raw_weight = base[module.weight].flatten(1)
+            raw_matrix = (
+                torch.cat((raw_weight, base[module.bias][:, None]), dim=1)
+                if module.bias is not None
+                else raw_weight
+            )
+            matrix = math.sqrt(shape.tau_layer) * (
+                (raw_matrix @ shape.noise_a) if shape.noise_g is None
+                else shape.noise_g @ raw_matrix @ shape.noise_a
+            )
+            trace = shape.tau_layer * shape.raw_trace
+            matrix = matrix * scale
+            noise[module.weight] = matrix[:, : raw_weight.shape[1]].reshape_as(module.weight)
+            affine_ids.add(id(module.weight))
+            if module.bias is not None:
+                noise[module.bias] = matrix[:, -1]
+                affine_ids.add(id(module.bias))
+            expected[name] = scale * scale * trace
+        for parameter in self.identity_parameters:
+            noise[parameter] = base[parameter] * scale
+            expected[self.parameter_names[parameter]] = scale * scale * parameter.numel()
+        assert set(noise) == set(self.parameters)
+        target = scale * scale * self.d_total
+        assert math.isclose(sum(expected.values()), target, rel_tol=2e-9, abs_tol=2e-9 * target)
+        return noise, expected
+
+
+def _dot(left: dict[nn.Parameter, torch.Tensor], right: dict[nn.Parameter, torch.Tensor]) -> torch.Tensor:
+    return sum((left[p].double() * right[p].double()).sum() for p in left)
+
+
+def _norm(values: dict[nn.Parameter, torch.Tensor]) -> torch.Tensor:
+    return _dot(values, values).clamp_min(0).sqrt()
+
+
+def distortion(
+    reference: dict[nn.Parameter, torch.Tensor],
+    candidate: dict[nn.Parameter, torch.Tensor],
+) -> tuple[float, float]:
+    reference_norm = _norm(reference)
+    candidate_norm = _norm(candidate)
+    if reference_norm == 0:
+        return 0.0, 0.0
+    cosine = (
+        (_dot(reference, candidate) / (reference_norm * candidate_norm)).clamp(-1, 1)
+        if candidate_norm > 0
+        else reference_norm.new_zeros(())
+    )
+    difference = {parameter: candidate[parameter] - value for parameter, value in reference.items()}
+    relative = _norm(difference) / reference_norm
+    return float(cosine), float(relative)
+
+
+def add_noise_and_step(
+    shape: Shape,
+    optimizer: torch.optim.Optimizer,
+    raw_sum: dict[nn.Parameter, torch.Tensor],
+    clipped_sum: dict[nn.Parameter, torch.Tensor],
+    *,
+    sigma: float,
+    bound: float,
+    expected_batch_size: int,
+    generator: torch.Generator,
+) -> tuple[dict[str, float | bool], list[dict[str, object]]]:
+    """Apply one mechanism event and return research-only distortion/noise rows."""
+    assert expected_batch_size == 256
+    clip_cos, clip_rel = distortion(raw_sum, clipped_sum)
+    signal = shape.transform_aggregate(clipped_sum)
+    signal_cos, signal_rel = distortion(raw_sum, signal)
+    noise, expected = shape.sample_noise(sigma, bound, generator)
+    private_sum = {
+        parameter: signal[parameter] + noise[parameter]
+        for parameter in shape.parameters
+    }
+    update_cos, update_rel = distortion(raw_sum, private_sum)
+    for parameter in shape.parameters:
+        parameter.grad = private_sum[parameter].div(expected_batch_size)
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
+
+    total_noise_sq = sum(value.double().square().sum() for value in noise.values())
+    total_noise_rms = float((total_noise_sq / shape.d_total).sqrt())
+    rows: list[dict[str, object]] = []
+    parameter_layer: dict[nn.Parameter, str] = {}
+    for name, module in shape.modules.items():
+        parameter_layer[module.weight] = name
+        if module.bias is not None:
+            parameter_layer[module.bias] = name
+    for parameter in shape.identity_parameters:
+        parameter_layer[parameter] = shape.parameter_names[parameter]
+
+    layer_names = list(shape.modules) + [shape.parameter_names[p] for p in shape.identity_parameters]
+    total_expected = sum(expected.values())
+    for name in layer_names:
+        parameters = [p for p, layer in parameter_layer.items() if layer == name]
+        actual_energy = sum(float(noise[p].double().square().sum()) for p in parameters)
+        signal_norm = math.sqrt(
+            sum(float(signal[p].double().square().sum()) for p in parameters)
+        )
+        expected_energy = expected[name]
+        rows.append(
+            {
+                "level": "layer",
+                "layer": name,
+                "group": layer_group(name) if name in shape.modules else "identity",
+                "noise_rms": math.sqrt(actual_energy / sum(p.numel() for p in parameters)),
+                "noise_energy_share": expected_energy / total_expected,
+                "expected_noise_energy": expected_energy,
+                "signal_norm": signal_norm,
+                "snr": signal_norm / math.sqrt(expected_energy),
+                "research_only": True,
+            }
+        )
+
+    for group in sorted({str(row["group"]) for row in rows}):
+        selected = [row for row in rows if row["group"] == group]
+        names = {str(row["layer"]) for row in selected}
+        parameters = [p for p, name in parameter_layer.items() if name in names]
+        dimension = sum(p.numel() for p in parameters)
+        actual_energy = sum(float(noise[p].double().square().sum()) for p in parameters)
+        expected_energy = sum(float(row["expected_noise_energy"]) for row in selected)
+        signal_sq = sum(float(signal[p].double().square().sum()) for p in parameters)
+        rows.append(
+            {
+                "level": "group",
+                "layer": group,
+                "group": group,
+                "noise_rms": math.sqrt(actual_energy / dimension),
+                "noise_energy_share": expected_energy / total_expected,
+                "expected_noise_energy": expected_energy,
+                "signal_norm": math.sqrt(signal_sq),
+                "snr": math.sqrt(signal_sq / expected_energy),
+                "research_only": True,
+            }
+        )
+    return {
+        "clip_cos": clip_cos,
+        "clip_rel_error": clip_rel,
+        "signal_cos": signal_cos,
+        "signal_rel_error": signal_rel,
+        "update_cos": update_cos,
+        "update_rel_error": update_rel,
+        "total_noise_rms": total_noise_rms,
+        "research_only": True,
+    }, rows
